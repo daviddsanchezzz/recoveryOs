@@ -109,6 +109,7 @@ type RecoveryState = {
   addActivity: (input: Omit<ActivityEntry, 'id'>) => void;
   logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
   setProfile: (input: Partial<ProfileState>) => void;
+  seedWeightFromServer: (entries: WeightEntry[]) => void;
 };
 
 function createId(prefix: string) {
@@ -240,6 +241,7 @@ export const useRecoveryStore = create<RecoveryState>()(
             },
           },
         })),
+      seedWeightFromServer: (entries) => set({ weightEntries: entries }),
     }),
     { name: 'recoveryos-v1-store' },
   ),

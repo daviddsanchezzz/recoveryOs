@@ -10,6 +10,7 @@ import { InsightsScreen } from './insights-screen';
 import { ProfileScreen } from './profile-screen';
 import { useSessionStore } from '../stores/session-store';
 import { getJson } from '../lib/api';
+import { RecoveryService } from '../lib/services';
 
 type TabId = 'home' | 'chat' | 'progress' | 'insights' | 'profile';
 
@@ -42,6 +43,7 @@ export function AppShell() {
 
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email, name: session.user.name });
+          void RecoveryService.loadUserData(session.user.id);
         } else {
           clearUser();
         }
