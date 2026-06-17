@@ -138,13 +138,13 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 z-40 animate-fade-in"
+        className="fixed inset-0 bg-black/40 z-[60] animate-fade-in"
         onClick={onClose}
       />
 
       {/* Sheet */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-4xl overflow-hidden animate-slide-up"
+        className="fixed bottom-0 left-0 right-0 z-[61] bg-white rounded-t-4xl overflow-hidden animate-slide-up"
         style={{ maxHeight: '88vh' }}
       >
         {/* Drag handle */}

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Home, MessageCircle, TrendingUp, Sparkles, User } from 'lucide-react';
 import { ChatPanel } from './chat-panel';
 import { HomeScreen } from './home-screen';
@@ -25,6 +25,12 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
 export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const mainRef = useRef<HTMLElement>(null);
+
+  function switchTab(id: TabId) {
+    setActiveTab(id);
+    mainRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }
   const user = useSessionStore((state) => state.user);
   const setUser = useSessionStore((state) => state.setUser);
   const clearUser = useSessionStore((state) => state.clearUser);
@@ -103,7 +109,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <main className="flex-1 overflow-y-auto pb-24 scroll-smooth-ios">
+      <main ref={mainRef} className="flex-1 overflow-y-auto pb-24 scroll-smooth-ios">
         <div className="mx-auto max-w-md">
           {activeTab === 'home' && <HomeScreen />}
           {activeTab === 'chat' && <ChatPanel />}
@@ -124,16 +130,16 @@ export function AppShell() {
               <button
                 key={id}
                 type="button"
-                onClick={() => setActiveTab(id)}
-                className="flex flex-col items-center gap-1 py-2.5 px-1"
+                onClick={() => switchTab(id)}
+                className="flex flex-col items-center gap-1 py-3 px-2 min-w-[44px]"
               >
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${
                     isActive ? 'bg-ink' : 'bg-transparent'
                   }`}
                 >
                   <Icon
-                    size={18}
+                    size={20}
                     strokeWidth={isActive ? 2 : 1.5}
                     className={isActive ? 'text-white' : 'text-ink/40'}
                   />

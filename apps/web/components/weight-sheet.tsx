@@ -37,11 +37,11 @@ export function WeightSheet({ isOpen, onClose, defaultDate }: WeightSheetProps) 
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-4xl"
+        className="fixed bottom-0 left-0 right-0 z-[61] bg-white rounded-t-4xl"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
       >
         {/* Header */}

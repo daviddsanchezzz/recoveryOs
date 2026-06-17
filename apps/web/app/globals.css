@@ -47,3 +47,10 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Prevent iOS Safari from zooming in on input focus (requires font-size >= 16px) */
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
+  font-size: 16px;
+}
