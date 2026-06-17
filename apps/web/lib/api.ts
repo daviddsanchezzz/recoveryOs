@@ -1,11 +1,11 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+// All API calls go through Next.js rewrites (next.config.mjs → /api/* → backend).
+// This makes every request same-origin, which fixes cross-origin cookie issues.
+// To point to a different backend: set NEXT_PUBLIC_API_URL in .env.local
 
 export async function getJson<TResponse>(path: string): Promise<TResponse> {
-  const response = await fetch(`${API_URL}/api${path}`, {
+  const response = await fetch(`/api${path}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     cache: 'no-store',
   });
@@ -17,15 +17,10 @@ export async function getJson<TResponse>(path: string): Promise<TResponse> {
   return response.json() as Promise<TResponse>;
 }
 
-export async function postJson<TResponse>(
-  path: string,
-  body: unknown,
-): Promise<TResponse> {
-  const response = await fetch(`${API_URL}/api${path}`, {
+export async function postJson<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  const response = await fetch(`/api${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(body),
   });
