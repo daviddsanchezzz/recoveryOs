@@ -1,31 +1,36 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { Send, Scale, Zap, CheckCircle, Bike } from 'lucide-react';
 import { todayIso } from '../lib/date';
 import { useChatStore } from '../stores/chat-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
-import { Panel } from './ui/card';
 
 const quickActions = [
-  'peso 70.2',
-  'dolor 2',
-  'rehab hecha',
-  '30 min bici',
+  { label: 'Peso', example: 'peso 70.2', icon: Scale },
+  { label: 'Dolor', example: 'dolor 2', icon: Zap },
+  { label: 'Rehab', example: 'rehab hecha', icon: CheckCircle },
+  { label: 'Bici', example: '30 min bici', icon: Bike },
 ] as const;
 
-export function ChatPanel({ compact = true }: { compact?: boolean }) {
+export function ChatPanel() {
   const [input, setInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { messages, addMessage } = useChatStore();
   const user = useSessionStore((state) => state.user);
-  const injuries = useRecoveryStore((state) => state.injuries.filter((injury) => injury.status !== 'resolved'));
+  const injuries = useRecoveryStore((state) => state.injuries.filter((i) => i.status !== 'resolved'));
   const saveWeight = useRecoveryStore((state) => state.saveWeight);
   const addActivity = useRecoveryStore((state) => state.addActivity);
   const logInjuryPain = useRecoveryStore((state) => state.logInjuryPain);
   const saveDailyCheckIn = useRecoveryStore((state) => state.saveDailyCheckIn);
 
-  function buildReply(message: string) {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  function buildReply(message: string): string {
     const normalized = message.toLowerCase().trim();
     const today = todayIso();
     const firstInjury = injuries[0];
@@ -34,153 +39,149 @@ export function ChatPanel({ compact = true }: { compact?: boolean }) {
     if (weightMatch) {
       const weight = Number(weightMatch[1].replace(',', '.'));
       saveWeight(weight, today);
-      return `Peso guardado: ${weight.toFixed(1)} kg.`;
+      return `Peso guardado: ${weight.toFixed(1)} kg ✓`;
     }
 
     const painMatch = normalized.match(/dolor\s+(\d{1,2})/);
     if (painMatch && firstInjury) {
       const painLevel = Math.min(10, Number(painMatch[1]));
-      logInjuryPain({
-        injuryId: firstInjury.id,
-        date: today,
-        painLevel,
-        didRehab: false,
-      });
-      return `Dolor ${painLevel}/10 registrado para ${firstInjury.name}.`;
+      logInjuryPain({ injuryId: firstInjury.id, date: today, painLevel, didRehab: false });
+      return `Dolor ${painLevel}/10 registrado para ${firstInjury.name} ✓`;
     }
 
     if (normalized.includes('rehab hecha') && firstInjury) {
-      logInjuryPain({
-        injuryId: firstInjury.id,
-        date: today,
-        painLevel: 0,
-        didRehab: true,
-      });
+      logInjuryPain({ injuryId: firstInjury.id, date: today, painLevel: 0, didRehab: true });
       saveDailyCheckIn({
         date: today,
         activities: [],
-        injuryLogs: [
-          {
-            injuryId: firstInjury.id,
-            painLevel: 0,
-            didRehab: true,
-          },
-        ],
-        habits: {
-          rehab: true,
-          mobility: false,
-          stretching: false,
-          goodNutrition: false,
-          enoughProtein: false,
-        },
+        injuryLogs: [{ injuryId: firstInjury.id, painLevel: 0, didRehab: true }],
+        habits: { rehab: true, mobility: false, stretching: false, goodNutrition: false, enoughProtein: false },
       });
-      return 'He marcado la rehab como completada para hoy.';
+      return 'Rehab marcada como completada para hoy ✓';
     }
 
     const activityMatch = normalized.match(/(\d+)\s*min\s*(gym|bici|bike|walk|caminado|swim|run|mobility|rehab)/);
     if (activityMatch) {
       const durationMinutes = Number(activityMatch[1]);
       const rawType = activityMatch[2];
-      const type =
-        rawType === 'bici' || rawType === 'bike'
-          ? 'bike'
-          : rawType === 'caminado'
-            ? 'walk'
-            : rawType;
+      const type = rawType === 'bici' || rawType === 'bike' ? 'bike' : rawType === 'caminado' ? 'walk' : rawType;
       addActivity({
         date: today,
         type: type as 'gym' | 'bike' | 'walk' | 'swim' | 'run' | 'mobility' | 'rehab' | 'other',
         durationMinutes,
         notes: undefined,
       });
-      return `Actividad guardada: ${durationMinutes} min de ${type}.`;
+      return `Actividad guardada: ${durationMinutes} min de ${type} ✓`;
     }
 
     if (normalized.startsWith('gym ')) {
-      addActivity({
-        date: today,
-        type: 'gym',
-        durationMinutes: 45,
-        notes: message.slice(4),
-      });
-      return 'Sesion de gym registrada con nota.';
+      addActivity({ date: today, type: 'gym', durationMinutes: 45, notes: message.slice(4) });
+      return 'Sesión de gym registrada ✓';
     }
 
-    return 'Puedo registrar peso, dolor, rehab y actividades rapidas desde este chat.';
+    return 'Puedo registrar peso, dolor, rehab y actividades. Prueba: "peso 70.2", "dolor 3", "30 min bici".';
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const message = input.trim();
-    if (!message || isSubmitting || !user) {
-      return;
-    }
+    if (!message || isSubmitting || !user) return;
 
     addMessage({ role: 'user', content: message });
     setInput('');
     setIsSubmitting(true);
 
+    await new Promise((r) => setTimeout(r, 300));
     const reply = buildReply(message);
     addMessage({ role: 'assistant', content: reply });
     setIsSubmitting(false);
   }
 
-  function applyQuickAction(action: string) {
-    setInput(action);
-  }
-
   return (
-    <Panel className={`flex h-full flex-col ${compact ? '' : 'min-h-[65vh] rounded-[32px]'}`}>
-      <div className="mb-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-moss">Chat V1</p>
-        <h2 className="mt-2 text-2xl font-semibold">Entrada rapida sin friccion</h2>
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh]">
+      {/* Header */}
+      <div className="px-5 pt-12 pb-4 bg-canvas">
+        <h1 className="text-2xl font-bold text-ink">Chat</h1>
+        <p className="text-sm text-ink/40 mt-0.5">Registra en lenguaje natural</p>
       </div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {quickActions.map((action) => (
-          <button
-            key={action}
-            type="button"
-            onClick={() => applyQuickAction(action)}
-            className="rounded-full bg-canvas px-3 py-2 text-xs text-ink"
-          >
-            {action}
-          </button>
-        ))}
+
+      {/* Quick Actions */}
+      <div className="px-4 pb-3 bg-canvas">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {quickActions.map(({ label, example, icon: Icon }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setInput(example)}
+              className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-white border border-ink/8 px-3.5 py-2 shadow-card"
+            >
+              <Icon size={13} className="text-moss" />
+              <span className="text-xs font-medium text-ink">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex-1 space-y-3 overflow-auto">
-        {messages.map((message, index) => (
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 space-y-3 scroll-smooth-ios no-scrollbar pb-4">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-48 space-y-2 text-center">
+            <p className="text-sm text-ink/30">Escribe algo para empezar</p>
+            <p className="text-xs text-ink/20">Ej: "peso 70.2" o "30 min bici"</p>
+          </div>
+        )}
+        {messages.map((msg, i) => (
           <div
-            key={`${message.role}-${index}`}
-            className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm ${
-              message.role === 'user'
-                ? 'ml-auto bg-ink text-white'
-                : 'bg-canvas text-ink'
-            }`}
+            key={i}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {message.content}
+            <div
+              className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
+                msg.role === 'user'
+                  ? 'bg-ink text-white rounded-br-lg'
+                  : 'bg-white text-ink shadow-card rounded-bl-lg'
+              }`}
+            >
+              {msg.content}
+            </div>
           </div>
         ))}
+        {isSubmitting && (
+          <div className="flex justify-start">
+            <div className="bg-white shadow-card rounded-3xl rounded-bl-lg px-4 py-3">
+              <div className="flex gap-1 items-center h-4">
+                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:0ms]" />
+                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:150ms]" />
+                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:300ms]" />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={onSubmit} className="mt-6 flex gap-3">
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          disabled={!user}
-          placeholder='Ej: "peso 70.2" o "30 min bici"'
-          className="flex-1 rounded-full border border-black/10 bg-white px-4 py-3 text-sm outline-none"
-        />
-        <button
-          type="submit"
-          disabled={isSubmitting || !user}
-          className="rounded-full bg-ember px-5 py-3 text-sm font-medium text-white"
-        >
-          {isSubmitting ? 'Guardando...' : 'Enviar'}
-        </button>
-      </form>
-      {!user ? <p className="mt-3 text-sm text-ink/60">Necesitas iniciar sesion para usar el chat.</p> : null}
-      <p className="mt-3 text-sm text-ink/60">
-        Sin IA todavia: usa reglas simples y chips rapidos para registrar datos.
-      </p>
-    </Panel>
+
+      {/* Input */}
+      <div
+        className="px-4 py-3 bg-canvas border-t border-ink/6"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+      >
+        <form onSubmit={onSubmit} className="flex gap-2 items-center">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={!user}
+            placeholder='Escribe algo...'
+            className="flex-1 rounded-2xl bg-white border border-ink/8 px-4 py-3 text-sm text-ink placeholder:text-ink/30 outline-none shadow-card"
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting || !input.trim() || !user}
+            className="h-11 w-11 flex-shrink-0 rounded-2xl bg-ink flex items-center justify-center disabled:opacity-30 transition-opacity"
+          >
+            <Send size={16} className="text-white" />
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
