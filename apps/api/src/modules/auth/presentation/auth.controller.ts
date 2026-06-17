@@ -5,7 +5,6 @@ import { GetSessionUseCase } from '../application/use-cases/get-session.use-case
 import { LoginUserUseCase } from '../application/use-cases/login-user.use-case';
 import { LogoutUserUseCase } from '../application/use-cases/logout-user.use-case';
 import { RegisterUserUseCase } from '../application/use-cases/register-user.use-case';
-import { fromNodeHeaders } from 'better-auth/node';
 
 @Controller('auth')
 export class AuthController {
@@ -19,7 +18,7 @@ export class AuthController {
   @Post('register')
   async register(@Body() body: RegisterDto, @Req() req: any, @Res() res: any) {
     const response = await this.registerUserUseCase.execute(body, {
-      headers: fromNodeHeaders(req.headers),
+      headers: this.toHeaders(req.headers),
     });
     await this.writeResponse(res, response);
   }
@@ -27,7 +26,7 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: LoginDto, @Req() req: any, @Res() res: any) {
     const response = await this.loginUserUseCase.execute(body, {
-      headers: fromNodeHeaders(req.headers),
+      headers: this.toHeaders(req.headers),
     });
     await this.writeResponse(res, response);
   }
@@ -35,7 +34,7 @@ export class AuthController {
   @Post('logout')
   async logout(@Req() req: any, @Res() res: any) {
     const response = await this.logoutUserUseCase.execute({
-      headers: fromNodeHeaders(req.headers),
+      headers: this.toHeaders(req.headers),
     });
     await this.writeResponse(res, response);
   }
@@ -43,8 +42,30 @@ export class AuthController {
   @Get('session')
   session(@Req() req: any) {
     return this.getSessionUseCase.execute({
-      headers: fromNodeHeaders(req.headers),
+      headers: this.toHeaders(req.headers),
     });
+  }
+
+  private toHeaders(nodeHeaders: Record<string, string | string[] | undefined>) {
+    const headers = new Headers();
+
+    for (const [key, value] of Object.entries(nodeHeaders)) {
+      if (value === undefined) {
+        continue;
+      }
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          headers.append(key, item);
+        }
+
+        continue;
+      }
+
+      headers.set(key, value);
+    }
+
+    return headers;
   }
 
   private async writeResponse(res: any, response: Response) {
