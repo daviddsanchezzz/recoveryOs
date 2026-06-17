@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { WeeklyCalendar } from './weekly-calendar';
 import { QuickCheckInSheet } from './quick-checkin-sheet';
+import { WeightSheet } from './weight-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
 import {
   buildRuleBasedInsight,
@@ -64,15 +65,22 @@ function MetricCard({
   value,
   sub,
   accent = false,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   sub?: string;
   accent?: boolean;
+  onClick?: () => void;
 }) {
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className={`rounded-3xl p-4 space-y-2 ${accent ? 'bg-ink' : 'bg-white shadow-card'}`}>
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`rounded-3xl p-4 space-y-2 text-left w-full ${accent ? 'bg-ink' : 'bg-white shadow-card'} ${onClick ? 'active:scale-[0.97] transition-transform' : ''}`}
+    >
       <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${accent ? 'bg-white/10' : 'bg-canvas'}`}>
         <Icon size={16} className={accent ? 'text-white' : 'text-moss'} />
       </div>
@@ -81,7 +89,7 @@ function MetricCard({
         <p className={`text-xl font-bold leading-tight mt-0.5 ${accent ? 'text-white' : 'text-ink'}`}>{value}</p>
         {sub && <p className={`text-[11px] mt-0.5 ${accent ? 'text-white/50' : 'text-ink/40'}`}>{sub}</p>}
       </div>
-    </div>
+    </Tag>
   );
 }
 
@@ -171,6 +179,7 @@ function DayDetail({ date }: { date: string }) {
 
 export function HomeScreen() {
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showWeightSheet, setShowWeightSheet] = useState(false);
   const user = useSessionStore((s) => s.user);
   const {
     selectedDate,
@@ -293,6 +302,7 @@ export function HomeScreen() {
             sub={weightTrend.weeklyChange !== null
               ? `${weightTrend.weeklyChange > 0 ? '+' : ''}${weightTrend.weeklyChange} kg sem.`
               : undefined}
+            onClick={() => setShowWeightSheet(true)}
           />
           <MetricCard
             icon={Zap}
@@ -334,6 +344,13 @@ export function HomeScreen() {
         isOpen={showCheckIn}
         onClose={() => setShowCheckIn(false)}
         date={today}
+      />
+
+      {/* Weight Sheet */}
+      <WeightSheet
+        isOpen={showWeightSheet}
+        onClose={() => setShowWeightSheet(false)}
+        defaultDate={selectedDate}
       />
     </>
   );
