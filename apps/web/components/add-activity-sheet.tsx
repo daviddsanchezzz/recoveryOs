@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { RecoveryService } from '../lib/services';
 import { todayIso } from '../lib/date';
 import { Portal } from './portal';
-import type { ActivityType, MuscleGroup } from '../stores/recovery-store';
+import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 
 const ACTIVITY_OPTS: { type: ActivityType; label: string; emoji: string }[] = [
   { type: 'gym',      label: 'Gym',       emoji: '🏋️' },
@@ -34,6 +34,10 @@ function paceToSec(mm: string, ss: string): number | undefined {
   const s = parseInt(ss, 10);
   if (isNaN(m) && isNaN(s)) return undefined;
   return (isNaN(m) ? 0 : m) * 60 + (isNaN(s) ? 0 : s);
+}
+
+function secToPace(sec: number): { mm: string; ss: string } {
+  return { mm: String(Math.floor(sec / 60)), ss: String(sec % 60).padStart(2, '0') };
 }
 
 function Field({
@@ -68,40 +72,63 @@ function Field({
 export function AddActivitySheet({
   isOpen,
   onClose,
+  editActivity,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  editActivity?: ActivityEntry;
 }) {
-  const [type, setType] = useState<ActivityType | null>(null);
+  const isEditing = !!editActivity;
 
-  // Common
+  const [type, setType] = useState<ActivityType | null>(null);
   const [duration,   setDuration]   = useState('');
   const [kcal,       setKcal]       = useState('');
   const [avgHr,      setAvgHr]      = useState('');
   const [notes,      setNotes]      = useState('');
   const [date,       setDate]       = useState(todayIso);
-
-  // Run / Walk
   const [distKm,     setDistKm]     = useState('');
   const [paceMm,     setPaceMm]     = useState('');
   const [paceSs,     setPaceSs]     = useState('');
   const [elevGain,   setElevGain]   = useState('');
   const [cadSpm,     setCadSpm]     = useState('');
-
-  // Bike
   const [speedKmh,   setSpeedKmh]   = useState('');
   const [powerW,     setPowerW]     = useState('');
   const [cadRpm,     setCadRpm]     = useState('');
-
-  // Swim
   const [distM,      setDistM]      = useState('');
   const [pace100,    setPace100]    = useState('');
-
-  // Gym
   const [muscles,    setMuscles]    = useState<MuscleGroup[]>([]);
   const [volumeKg,   setVolumeKg]   = useState('');
+  const [saved,      setSaved]      = useState(false);
 
-  const [saved, setSaved] = useState(false);
+  // Prefill when editing
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editActivity) {
+      setType(editActivity.type);
+      setDuration(editActivity.durationMinutes ? String(editActivity.durationMinutes) : '');
+      setKcal(editActivity.kcal ? String(editActivity.kcal) : '');
+      setAvgHr(editActivity.avgHeartRateBpm ? String(editActivity.avgHeartRateBpm) : '');
+      setNotes(editActivity.notes ?? '');
+      setDate(editActivity.date);
+      setDistKm(editActivity.distanceKm ? String(editActivity.distanceKm) : '');
+      setElevGain(editActivity.elevationGainM ? String(editActivity.elevationGainM) : '');
+      setCadSpm(editActivity.avgCadenceSpm ? String(editActivity.avgCadenceSpm) : '');
+      if (editActivity.avgPaceSecPerKm) {
+        const p = secToPace(editActivity.avgPaceSecPerKm);
+        setPaceMm(p.mm); setPaceSs(p.ss);
+      } else { setPaceMm(''); setPaceSs(''); }
+      setSpeedKmh(editActivity.avgSpeedKmh ? String(editActivity.avgSpeedKmh) : '');
+      setPowerW(editActivity.avgPowerW ? String(editActivity.avgPowerW) : '');
+      setCadRpm(editActivity.avgCadenceRpm ? String(editActivity.avgCadenceRpm) : '');
+      setDistM(editActivity.distanceM ? String(editActivity.distanceM) : '');
+      setPace100(editActivity.avgPacePer100mSec ? String(editActivity.avgPacePer100mSec) : '');
+      setMuscles((editActivity.muscleGroups ?? []) as MuscleGroup[]);
+      setVolumeKg(editActivity.totalVolumeKg ? String(editActivity.totalVolumeKg) : '');
+    } else {
+      reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editActivity?.id]);
 
   function reset() {
     setType(null);
@@ -115,6 +142,9 @@ export function AddActivitySheet({
 
   function handleSave() {
     if (!type) return;
+    // Delete old entry first when editing
+    if (editActivity) RecoveryService.deleteActivity(editActivity.id);
+
     RecoveryService.logActivity({
       type,
       date,
@@ -122,14 +152,12 @@ export function AddActivitySheet({
       kcal:            kcal     ? parseInt(kcal, 10)     : undefined,
       avgHeartRateBpm: avgHr    ? parseInt(avgHr, 10)    : undefined,
       notes:           notes.trim() || undefined,
-      // run / walk
       ...(type === 'run' || type === 'walk' ? {
         distanceKm:      distKm   ? parseFloat(distKm)         : undefined,
         avgPaceSecPerKm: paceToSec(paceMm, paceSs),
         elevationGainM:  elevGain ? parseInt(elevGain, 10)      : undefined,
         avgCadenceSpm:   cadSpm   ? parseInt(cadSpm, 10)        : undefined,
       } : {}),
-      // bike
       ...(type === 'bike' ? {
         distanceKm:     distKm   ? parseFloat(distKm)          : undefined,
         avgSpeedKmh:    speedKmh ? parseFloat(speedKmh)        : undefined,
@@ -137,12 +165,10 @@ export function AddActivitySheet({
         avgPowerW:      powerW   ? parseInt(powerW, 10)        : undefined,
         avgCadenceRpm:  cadRpm   ? parseInt(cadRpm, 10)        : undefined,
       } : {}),
-      // swim
       ...(type === 'swim' ? {
         distanceM:         distM   ? parseInt(distM, 10)       : undefined,
         avgPacePer100mSec: pace100 ? parseInt(pace100, 10)     : undefined,
       } : {}),
-      // gym
       ...(type === 'gym' ? {
         muscleGroups: muscles.length > 0 ? muscles : undefined,
         totalVolumeKg: volumeKg ? parseFloat(volumeKg) : undefined,
@@ -167,15 +193,15 @@ export function AddActivitySheet({
           className="mx-auto max-w-md bg-canvas rounded-t-4xl shadow-card-lg overflow-y-auto"
           style={{ maxHeight: '92vh' }}
         >
-          {/* Handle */}
           <div className="flex justify-center pt-3 pb-1">
             <div className="h-1 w-10 rounded-full bg-ink/20" />
           </div>
 
           <div className="px-5 pb-10 space-y-5">
-            {/* Header */}
             <div className="flex items-center justify-between pt-2">
-              <h2 className="text-xl font-bold text-ink">Nueva actividad</h2>
+              <h2 className="text-xl font-bold text-ink">
+                {isEditing ? 'Editar actividad' : 'Nueva actividad'}
+              </h2>
               <button type="button" onClick={onClose}
                 className="h-9 w-9 rounded-2xl bg-canvas-light flex items-center justify-center">
                 <X size={16} className="text-ink/60" />
@@ -199,7 +225,6 @@ export function AddActivitySheet({
 
             {type && (
               <>
-                {/* ── Gym: muscle groups + volume ─────────── */}
                 {isGym && (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-ink/50">Grupos musculares</p>
@@ -221,7 +246,6 @@ export function AddActivitySheet({
                   </div>
                 )}
 
-                {/* ── Run / Walk specific ──────────────────── */}
                 {isRun && (
                   <div className="space-y-3">
                     <div className="flex gap-2">
@@ -243,7 +267,6 @@ export function AddActivitySheet({
                   </div>
                 )}
 
-                {/* ── Bike specific ────────────────────────── */}
                 {isBike && (
                   <div className="space-y-3">
                     <div className="flex gap-2">
@@ -258,7 +281,6 @@ export function AddActivitySheet({
                   </div>
                 )}
 
-                {/* ── Swim specific ────────────────────────── */}
                 {isSwim && (
                   <div className="flex gap-2">
                     <Field label="Distancia" unit="m" value={distM} onChange={setDistM} placeholder="2 000" />
@@ -266,19 +288,16 @@ export function AddActivitySheet({
                   </div>
                 )}
 
-                {/* ── Common metrics ───────────────────────── */}
                 <div className="flex gap-2">
                   <Field label="Duración" unit="min" value={duration} onChange={setDuration} placeholder="60" />
                   <Field label="Calorías" unit="kcal" value={kcal} onChange={setKcal} placeholder="400" />
                   <Field label="FC media" unit="bpm" value={avgHr} onChange={setAvgHr} placeholder="145" />
                 </div>
 
-                {/* Notes */}
                 <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
                   placeholder="Nota opcional..."
                   className="w-full rounded-2xl bg-canvas-light border border-ink/8 px-4 py-3 text-sm outline-none" />
 
-                {/* Date */}
                 <div className="flex items-center justify-between rounded-2xl bg-canvas-light px-4 py-3">
                   <span className="text-sm font-medium text-ink/50">Fecha</span>
                   <input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)}
@@ -287,7 +306,6 @@ export function AddActivitySheet({
               </>
             )}
 
-            {/* Save */}
             <button type="button" onClick={handleSave} disabled={!type || saved}
               className={`w-full rounded-3xl py-4 text-base font-semibold transition-all ${
                 saved
@@ -295,7 +313,7 @@ export function AddActivitySheet({
                   : 'bg-ink text-white active:scale-[0.98] disabled:opacity-30'
               }`}
             >
-              {saved ? '¡Guardado! ✓' : 'Guardar actividad'}
+              {saved ? '¡Guardado! ✓' : isEditing ? 'Guardar cambios' : 'Guardar actividad'}
             </button>
           </div>
         </div>

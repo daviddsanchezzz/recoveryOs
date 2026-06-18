@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { DeleteActivityUseCase } from './application/use-cases/delete-activity.use-case';
 import { GetActivitiesPaginatedUseCase } from './application/use-cases/get-activities-paginated.use-case';
 import { GetActivitySummaryUseCase } from './application/use-cases/get-activity-summary.use-case';
 import { GetTodayActivitiesUseCase } from './application/use-cases/get-today-activities.use-case';
@@ -16,6 +17,7 @@ import { ActivityController } from './presentation/activity.controller';
     GetActivitySummaryUseCase,
     GetActivitiesPaginatedUseCase,
     GetTodayActivitiesUseCase,
+    DeleteActivityUseCase,
     PrismaActivityRepository,
     {
       provide: ACTIVITY_REPOSITORY,

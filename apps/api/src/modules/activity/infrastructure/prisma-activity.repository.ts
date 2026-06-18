@@ -110,6 +110,10 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
     return { items: rows.slice(0, limit).map(toEntity), hasMore };
   }
 
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.activity.delete({ where: { id } });
+  }
+
   async findByUserToday(userId: string, date: string): Promise<ActivityEntity[]> {
     const start = new Date(date + 'T00:00:00.000Z');
     const end   = new Date(date + 'T23:59:59.999Z');

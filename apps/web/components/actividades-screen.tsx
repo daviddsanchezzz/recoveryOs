@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Activity, Bike, Dumbbell, Footprints, Waves, Zap,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
+  MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
@@ -86,7 +87,27 @@ function Stat({ icon: Icon, value, unit, color = 'text-ink/40' }: {
   );
 }
 
-function ActivityCard({ act }: { act: ActivityEntry }) {
+function ActivityCard({
+  act,
+  onEdit,
+  onDelete,
+}: {
+  act: ActivityEntry;
+  onEdit: (act: ActivityEntry) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [menuOpen]);
+
   const Icon = ACTIVITY_ICONS[act.type] ?? Activity;
   const isRun  = act.type === 'run' || act.type === 'walk';
   const isBike = act.type === 'bike';
@@ -107,7 +128,7 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
       {/* Content */}
       <div className="flex-1 min-w-0 space-y-1.5">
         {/* Title row */}
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-ink leading-snug">{ACTIVITY_LABELS[act.type]}</p>
@@ -120,6 +141,39 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
             <p className="text-[11px] text-ink/35 capitalize leading-tight">
               {relativeDate(act.date)}{act.stravaName ? ` · ${act.stravaName}` : ''}{muscles ? ` · ${muscles}` : ''}
             </p>
+          </div>
+
+          {/* 3-dot menu */}
+          <div ref={menuRef} className="relative flex-shrink-0 -mt-0.5 -mr-1.5">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="h-7 w-7 flex items-center justify-center rounded-xl text-ink/25 hover:text-ink/50 hover:bg-canvas transition-colors"
+            >
+              <MoreHorizontal size={15} />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-8 z-20 bg-white rounded-2xl shadow-card-lg border border-ink/5 overflow-hidden min-w-[130px]">
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onEdit(act); }}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm text-ink hover:bg-canvas transition-colors"
+                >
+                  <Pencil size={13} className="text-ink/40" />
+                  Editar
+                </button>
+                <div className="h-px bg-ink/5 mx-3" />
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onDelete(act.id); }}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={13} />
+                  Eliminar
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -172,9 +226,10 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
 }
 
 export function ActividadesScreen() {
-  const [filter,      setFilter]      = useState<Filter>('all');
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [filter,       setFilter]       = useState<Filter>('all');
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [editActivity, setEditActivity] = useState<ActivityEntry | undefined>(undefined);
+  const [loadingMore,  setLoadingMore]  = useState(false);
 
   const { activities, activitiesMeta } = useRecoveryStore();
   const user = useSessionStore((s) => s.user);
@@ -260,7 +315,14 @@ export function ActividadesScreen() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((act) => <ActivityCard key={act.id} act={act} />)}
+            {filtered.map((act) => (
+              <ActivityCard
+                key={act.id}
+                act={act}
+                onEdit={(a) => { setEditActivity(a); setShowAdd(true); }}
+                onDelete={(id) => RecoveryService.deleteActivity(id)}
+              />
+            ))}
           </div>
         )}
 
@@ -280,7 +342,11 @@ export function ActividadesScreen() {
         )}
       </div>
 
-      <AddActivitySheet isOpen={showAdd} onClose={() => setShowAdd(false)} />
+      <AddActivitySheet
+        isOpen={showAdd}
+        onClose={() => { setShowAdd(false); setEditActivity(undefined); }}
+        editActivity={editActivity}
+      />
     </>
   );
 }

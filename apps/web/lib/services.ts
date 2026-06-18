@@ -196,6 +196,14 @@ export const RecoveryService = {
     }
   },
 
+  deleteActivity(id: string): void {
+    useRecoveryStore.getState().removeActivity(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+    }
+  },
+
   clearData(): void {
     useRecoveryStore.getState().clearAllData();
   },
