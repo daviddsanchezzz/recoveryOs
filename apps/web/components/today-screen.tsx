@@ -56,7 +56,6 @@ function WeightCard({
           <Scale size={18} className="text-moss" />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink/40">Peso</p>
           {latest ? (
             <p className="text-base font-bold text-ink leading-tight">
               {latest.weightKg.toFixed(1)} kg
@@ -178,6 +177,19 @@ export function TodayScreen() {
           <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
         </div>
 
+        {/* ── Tasks checklist ───────────────────────────────── */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Tareas del día
+          </p>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-1">
+            <div className="divide-y divide-ink/5">
+              <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación" /></div>
+              <div className="pt-1"><CheckItem done={hasActivity} label="Actividad"       /></div>
+            </div>
+          </div>
+        </div>
+
         {/* ── Activities ───────────────────────────────────── */}
         {dayActivities.length > 0 && (
           <div className="space-y-2">
@@ -197,31 +209,25 @@ export function TodayScreen() {
           </div>
         )}
 
-        {/* ── Tasks checklist ───────────────────────────────── */}
-        <div className="rounded-4xl bg-white shadow-card p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 mb-3">
-            Tareas del día
-          </p>
-          <div className="divide-y divide-ink/5">
-            <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación" /></div>
-            <div className="pt-1"><CheckItem done={hasActivity} label="Actividad"       /></div>
-          </div>
-        </div>
-
         {/* ── Weight card ──────────────────────────────────── */}
-        <WeightCard
-          onOpen={() => setShowWeightScreen(true)}
-          onAdd={() => setShowWeightSheet(true)}
-          weights={weightEntries}
-        />
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Peso
+          </p>
+          <WeightCard
+            onOpen={() => setShowWeightScreen(true)}
+            onAdd={() => setShowWeightSheet(true)}
+            weights={weightEntries}
+          />
+        </div>
 
         {/* ── Pain logs ────────────────────────────────────── */}
         {dayLogs.length > 0 && (
-          <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
               Dolor registrado
             </p>
-            <div className="space-y-2.5">
+            <div className="rounded-4xl bg-white shadow-card p-5 space-y-2.5">
               {dayLogs.map((log) => (
                 <div key={log.id} className="flex items-center gap-3">
                   <div
