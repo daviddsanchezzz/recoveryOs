@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Scale } from 'lucide-react';
 import { RecoveryService } from '../lib/services';
 import { todayIso } from '../lib/date';
+import { Portal } from './portal';
 
 interface WeightSheetProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export function WeightSheet({ isOpen, onClose, defaultDate }: WeightSheetProps) 
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
         onClick={onClose}
@@ -98,6 +99,6 @@ export function WeightSheet({ isOpen, onClose, defaultDate }: WeightSheetProps) 
           </button>
         </div>
       </div>
-    </>
+    </Portal>
   );
 }

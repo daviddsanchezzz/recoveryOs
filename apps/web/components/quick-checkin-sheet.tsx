@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Scale, Zap, CheckCircle2, Bike, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Zap, CheckCircle2, Bike, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { RecoveryService } from '../lib/services';
 import type { ActivityType, DailyHabits } from '../stores/recovery-store';
 import { formatShortDate, todayIso } from '../lib/date';
+import { Portal } from './portal';
 
 const ACTIVITY_OPTS: { type: ActivityType; label: string; emoji: string }[] = [
   { type: 'gym',      label: 'Gym',     emoji: '🏋️' },
@@ -54,7 +55,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
   const today = date ?? todayIso();
 
   // Form state
-  const [weightInput, setWeightInput] = useState('');
   const [painLevels, setPainLevels] = useState<Record<string, number>>({});
   const [rehabDone, setRehabDone] = useState<Record<string, boolean>>({});
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
@@ -78,7 +78,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
   // Reset form when opening
   useEffect(() => {
     if (isOpen) {
-      setWeightInput('');
       setSelectedActivity(null);
       setActivityDuration('');
       setActivityNotes('');
@@ -119,7 +118,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
 
     RecoveryService.saveCheckIn({
       date: today,
-      weightKg: weightInput ? parseFloat(weightInput.replace(',', '.')) : undefined,
       activities: activityEntries,
       injuryLogs: injuryLogEntries,
       habits: checkInHabits,
@@ -135,7 +133,7 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 z-[60] animate-fade-in"
@@ -167,25 +165,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
               >
                 <X size={16} className="text-ink/60" />
               </button>
-            </div>
-
-            {/* Weight */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Scale size={15} className="text-moss" />
-                <p className="text-sm font-semibold text-ink">Peso</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  placeholder="78.2"
-                  className="flex-1 rounded-2xl bg-canvas border border-ink/8 px-4 py-3.5 text-2xl font-semibold text-ink placeholder:text-ink/20 outline-none text-center"
-                />
-                <span className="text-base font-medium text-ink/40 w-8">kg</span>
-              </div>
             </div>
 
             {/* Injuries */}
@@ -319,6 +298,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
           </div>
         </div>
       </div>
-    </>
+    </Portal>
   );
 }

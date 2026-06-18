@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { DailyCheckIn, WeightEntry, ActivityEntry, InjuryLog } from '../stores/recovery-store';
 import { todayIso } from '../lib/date';
+import { Portal } from './portal';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -77,7 +78,7 @@ export function MonthlyCalendar({
   }
 
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
@@ -179,6 +180,6 @@ export function MonthlyCalendar({
           </div>
         </div>
       </div>
-    </>
+    </Portal>
   );
 }

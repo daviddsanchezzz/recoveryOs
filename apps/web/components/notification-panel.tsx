@@ -1,6 +1,7 @@
 'use client';
 
 import { Bell, Scale, Flame, FileText, CheckCircle2, X } from 'lucide-react';
+import { Portal } from './portal';
 
 type Notification = {
   id: string;
@@ -61,7 +62,7 @@ export function NotificationPanel({
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
@@ -123,6 +124,6 @@ export function NotificationPanel({
           </div>
         </div>
       </div>
-    </>
+    </Portal>
   );
 }

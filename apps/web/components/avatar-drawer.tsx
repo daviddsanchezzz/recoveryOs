@@ -6,6 +6,7 @@ import { X, Settings, Link2, ChevronRight, LogOut, Plus } from 'lucide-react';
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { postJson } from '../lib/api';
+import { Portal } from './portal';
 
 export function AvatarDrawer({
   isOpen,
@@ -64,7 +65,7 @@ export function AvatarDrawer({
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <div
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
@@ -234,6 +235,6 @@ export function AvatarDrawer({
           </div>
         </div>
       </div>
-    </>
+    </Portal>
   );
 }

@@ -5,12 +5,13 @@ import {
   Calendar as CalendarIcon,
   CheckCircle2, Circle,
   Scale, Zap, Bike, Dumbbell, Footprints, Activity, Waves,
-  Sparkles, Plus, Clock, ArrowLeft,
+  Sparkles, Plus, Clock, ChevronRight,
 } from 'lucide-react';
 import { WeeklyCalendar } from './weekly-calendar';
 import { MonthlyCalendar } from './monthly-calendar';
 import { QuickCheckInSheet } from './quick-checkin-sheet';
 import { WeightSheet } from './weight-sheet';
+import { WeightScreen } from './weight-screen';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
@@ -43,6 +44,52 @@ const ACTIVITY_LABELS: Record<ActivityType, string> = {
   other:    'Otro',
 };
 
+function weightAgo(dateStr: string): string {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr + 'T12:00:00'); d.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+  if (diff === 0) return 'Hoy';
+  if (diff === 1) return 'Ayer';
+  return `Hace ${diff} días`;
+}
+
+function WeightCard({
+  onOpen,
+  weights,
+}: {
+  onOpen: () => void;
+  weights: import('../stores/recovery-store').WeightEntry[];
+}) {
+  const sorted  = [...weights].sort((a, b) => b.date.localeCompare(a.date));
+  const latest  = sorted[0];
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-3xl bg-white shadow-card px-5 py-4 flex items-center justify-between active:scale-[0.98] transition-transform"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center">
+          <Scale size={18} className="text-moss" />
+        </div>
+        <div className="text-left">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink/40">Peso</p>
+          {latest ? (
+            <p className="text-base font-bold text-ink leading-tight">
+              {latest.weightKg.toFixed(1)} kg
+              <span className="text-xs font-normal text-ink/40 ml-2">{weightAgo(latest.date)}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-ink/30">Sin registros</p>
+          )}
+        </div>
+      </div>
+      <ChevronRight size={16} className="text-ink/30 flex-shrink-0" />
+    </button>
+  );
+}
+
 function CheckItem({ done, label }: { done: boolean; label: string }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
@@ -55,9 +102,10 @@ function CheckItem({ done, label }: { done: boolean; label: string }) {
 }
 
 export function TodayScreen() {
-  const [showMonthly,    setShowMonthly]    = useState(false);
-  const [showCheckIn,    setShowCheckIn]    = useState(false);
-  const [showWeightSheet, setShowWeightSheet] = useState(false);
+  const [showMonthly,      setShowMonthly]      = useState(false);
+  const [showCheckIn,      setShowCheckIn]      = useState(false);
+  const [showWeightSheet,  setShowWeightSheet]  = useState(false);
+  const [showWeightScreen, setShowWeightScreen] = useState(false);
 
   const {
     selectedDate, setSelectedDate,
@@ -125,20 +173,6 @@ export function TodayScreen() {
           />
         </div>
 
-        {/* ── Volver a Hoy ──────────────────────────────────── */}
-        {!isToday && (
-          <div className="flex justify-center animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setSelectedDate(today)}
-              className="flex items-center gap-2 rounded-2xl bg-ink px-5 py-2.5 text-sm font-semibold text-white active:scale-95 transition-transform"
-            >
-              <ArrowLeft size={14} />
-              Volver a Hoy
-            </button>
-          </div>
-        )}
-
         {/* ── Day header ────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -164,19 +198,14 @@ export function TodayScreen() {
           </p>
           <div className="divide-y divide-ink/5">
             <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación"   /></div>
-            <div className="py-1">
-              <button
-                type="button"
-                className="w-full text-left"
-                onClick={() => !hasWeight && setShowWeightSheet(true)}
-              >
-                <CheckItem done={hasWeight} label="Registrar peso" />
-              </button>
-            </div>
+            <div className="py-1"><CheckItem done={hasWeight} label="Registrar peso" /></div>
             <div className="py-1"><CheckItem done={hasActivity} label="Actividad"         /></div>
             <div className="pt-1"><CheckItem done={hasFood}     label="Nutrición"         /></div>
           </div>
         </div>
+
+        {/* ── Weight card ──────────────────────────────────── */}
+        <WeightCard onOpen={() => setShowWeightScreen(true)} weights={weightEntries} />
 
         {/* ── Activities timeline ───────────────────────────── */}
         {dayActivities.length > 0 && (
@@ -353,11 +382,9 @@ export function TodayScreen() {
         onClose={() => setShowCheckIn(false)}
         date={selectedDate}
       />
-      <WeightSheet
-        isOpen={showWeightSheet}
-        onClose={() => setShowWeightSheet(false)}
-        defaultDate={selectedDate}
-      />
+      {showWeightScreen && (
+        <WeightScreen onClose={() => setShowWeightScreen(false)} />
+      )}
     </>
   );
 }
