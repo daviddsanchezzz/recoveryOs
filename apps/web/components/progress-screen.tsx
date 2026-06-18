@@ -1,7 +1,10 @@
 'use client';
 
-import { TrendingDown, TrendingUp, Minus, Flame, Activity, Heart } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingDown, TrendingUp, Minus, Activity, Heart, ChevronRight } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { WeightLineChart } from './weight-line-chart';
+import { WeightScreen } from './weight-screen';
 import {
   calculateCheckInStreak,
   calculateRehabAdherence,
@@ -43,26 +46,25 @@ function SectionHeader({ label }: { label: string }) {
 }
 
 export function ProgressScreen() {
+  const [showWeightScreen, setShowWeightScreen] = useState(false);
+
   const { weightEntries, activities, injuries, injuryLogs, checkIns } = useRecoveryStore();
-  const weightTrend = calculateWeightTrend(weightEntries);
+  const weightTrend    = calculateWeightTrend(weightEntries);
   const weeklyActivity = weeklyActivityStats(activities);
   const rehabAdherence = calculateRehabAdherence(checkIns);
-  const streak = calculateCheckInStreak(checkIns);
-  const painAverage = weeklyPainAverage(injuries, injuryLogs);
+  const streak         = calculateCheckInStreak(checkIns);
+  const painAverage    = weeklyPainAverage(injuries, injuryLogs);
 
-  const latestWeights = [...weightEntries]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-7);
-
-  const maxWeight = latestWeights.reduce((max, e) => Math.max(max, e.weightKg), 0);
-  const minWeight = latestWeights.reduce((min, e) => Math.min(min, e.weightKg), 999);
-  const weightRange = maxWeight - minWeight || 1;
+  const sortedWeights = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  const chartEntries  = sortedWeights.slice(-14);
+  const latestId      = sortedWeights[sortedWeights.length - 1]?.id;
 
   const trendDir = weightTrend.weeklyChange !== null
     ? weightTrend.weeklyChange < 0 ? 'down' : weightTrend.weeklyChange > 0 ? 'up' : 'neutral'
     : 'neutral';
 
   return (
+    <>
     <div className="px-4 pt-4 pb-4 space-y-5 animate-fade-in">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-ink">Progreso</h1>
@@ -96,41 +98,34 @@ export function ProgressScreen() {
         />
       </div>
 
-      {/* Weight Chart */}
+      {/* Weight Chart — tap to open full weight screen */}
       <div className="space-y-2">
-        <SectionHeader label="Peso — últimos 7 días" />
-        <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-          {latestWeights.length > 1 ? (
-            <>
-              <div className="flex items-end gap-2 h-28">
-                {latestWeights.map((entry) => {
-                  const pct = ((entry.weightKg - minWeight) / weightRange) * 70 + 30;
-                  return (
-                    <div key={entry.id} className="flex flex-1 flex-col items-center gap-1.5">
-                      <span className="text-[10px] text-ink/40 font-medium">{entry.weightKg.toFixed(1)}</span>
-                      <div className="w-full rounded-xl overflow-hidden bg-canvas flex-1 flex items-end">
-                        <div
-                          className="w-full rounded-xl bg-ink transition-all duration-700"
-                          style={{ height: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-ink/30">{entry.date.slice(8, 10)}</span>
-                    </div>
-                  );
-                })}
+        <SectionHeader label="Peso — evolución" />
+        <button
+          type="button"
+          onClick={() => setShowWeightScreen(true)}
+          className="w-full rounded-4xl bg-white shadow-card px-5 pt-5 pb-4 text-left active:scale-[0.99] transition-transform"
+        >
+          {chartEntries.length >= 2 ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-ink/30">
+                  Últimas {chartEntries.length} entradas
+                </p>
+                <ChevronRight size={14} className="text-ink/25" />
               </div>
-              <div className="flex justify-between text-xs text-ink/30">
-                <span>Mín: {minWeight.toFixed(1)} kg</span>
-                <span>Máx: {maxWeight.toFixed(1)} kg</span>
-              </div>
-            </>
+              <WeightLineChart entries={chartEntries} latestId={latestId} height={120} />
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-28 space-y-1">
-              <Activity size={24} className="text-ink/20" />
-              <p className="text-sm text-ink/30">Registra más pesos para ver la evolución</p>
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-2">
+                <Activity size={20} className="text-ink/20" />
+                <p className="text-sm text-ink/30">Registra pesos para ver la evolución</p>
+              </div>
+              <ChevronRight size={14} className="text-ink/25" />
             </div>
           )}
-        </div>
+        </button>
       </div>
 
       {/* Injury Tracking */}
@@ -203,5 +198,10 @@ export function ProgressScreen() {
         </div>
       )}
     </div>
+
+      {showWeightScreen && (
+        <WeightScreen onClose={() => setShowWeightScreen(false)} />
+      )}
+    </>
   );
 }

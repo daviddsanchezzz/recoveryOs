@@ -10,20 +10,21 @@ interface WeightSheetProps {
   isOpen: boolean;
   onClose: () => void;
   defaultDate: string;
+  defaultKg?: number;
 }
 
-export function WeightSheet({ isOpen, onClose, defaultDate }: WeightSheetProps) {
+export function WeightSheet({ isOpen, onClose, defaultDate, defaultKg }: WeightSheetProps) {
   const [kg, setKg] = useState('');
   const [date, setDate] = useState(defaultDate);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setKg('');
+      setKg(defaultKg !== undefined ? String(defaultKg) : '');
       setDate(defaultDate);
       setSaved(false);
     }
-  }, [isOpen, defaultDate]);
+  }, [isOpen, defaultDate, defaultKg]);
 
   function handleSave() {
     const value = parseFloat(kg.replace(',', '.'));
@@ -49,7 +50,7 @@ export function WeightSheet({ isOpen, onClose, defaultDate }: WeightSheetProps) 
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
           <div className="flex items-center gap-2">
             <Scale size={18} className="text-moss" />
-            <h2 className="text-lg font-bold text-ink">Registrar peso</h2>
+            <h2 className="text-lg font-bold text-ink">{defaultKg !== undefined ? 'Editar peso' : 'Registrar peso'}</h2>
           </div>
           <button
             type="button"
