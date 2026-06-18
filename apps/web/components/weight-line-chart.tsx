@@ -4,7 +4,7 @@
 
 const W   = 300;
 const H   = 120;
-const PAD = { top: 16, right: 12, bottom: 28, left: 36 };
+const PAD = { top: 16, right: 12, bottom: 28, left: 28 };
 
 function buildLinePath(entries: { weightKg: number }[], minW: number, range: number): string {
   const n   = entries.length;
@@ -104,7 +104,8 @@ export function WeightLineChart({ entries, latestId, height = 140 }: WeightLineC
         const cx = PAD.left + (i / (n - 1)) * (W - PAD.left - PAD.right);
         const cy = PAD.top  + (1 - (entry.weightKg - minW) / range) * (H - PAD.top - PAD.bottom);
         const isLatest  = entry.id === latestId;
-        const showLabel = n <= 7 || i === 0 || i === n - 1 || i % Math.round(n / 4) === 0;
+        const labelStep = Math.round(n / 4);
+        const showLabel = n <= 7 || i === 0 || i === n - 1 || (i % labelStep === 0 && i < n - 2);
         return (
           <g key={entry.id}>
             {isLatest ? (
