@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { WeeklyCalendar } from './weekly-calendar';
 import { MonthlyCalendar } from './monthly-calendar';
-import { QuickCheckInSheet } from './quick-checkin-sheet';
 import { WeightSheet } from './weight-sheet';
 import { WeightScreen } from './weight-screen';
 import { ActivityCard } from './actividades-screen';
@@ -103,7 +102,6 @@ function CheckItem({ done, label }: { done: boolean; label: string }) {
 
 export function TodayScreen() {
   const [showMonthly,      setShowMonthly]      = useState(false);
-  const [showCheckIn,      setShowCheckIn]      = useState(false);
   const [showWeightSheet,  setShowWeightSheet]  = useState(false);
   const [showWeightScreen, setShowWeightScreen] = useState(false);
   const [showAddActivity,  setShowAddActivity]  = useState(false);
@@ -119,14 +117,11 @@ export function TodayScreen() {
 
   // Data for the selected day
   const dayCheckIn    = checkIns.find((c) => sameDay(c.date, selectedDate));
-  const dayWeight     = weightEntries.find((w) => sameDay(w.date, selectedDate));
   const dayActivities = activities.filter((a) => sameDay(a.date, selectedDate));
   const dayLogs       = injuryLogs.filter((l) => sameDay(l.date, selectedDate));
 
   const hasRehab    = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
   const hasActivity = dayActivities.length > 0;
-  const hasWeight   = !!dayWeight;
-  const hasFood     = !!dayCheckIn?.habits.goodNutrition;
 
   // Insight
   const insight = buildRuleBasedInsight({
@@ -176,22 +171,31 @@ export function TodayScreen() {
         </div>
 
         {/* ── Day header ────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-ink/40 font-medium uppercase tracking-wider">
-              {isToday ? 'Hoy' : formatShortDate(selectedDate)}
-            </p>
-            <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCheckIn(true)}
-            className="flex items-center gap-1.5 rounded-2xl bg-ink px-3.5 py-2 flex-shrink-0"
-          >
-            <Plus size={13} className="text-white" />
-            <span className="text-xs font-semibold text-white">Registrar</span>
-          </button>
+        <div>
+          <p className="text-xs text-ink/40 font-medium uppercase tracking-wider">
+            {isToday ? 'Hoy' : formatShortDate(selectedDate)}
+          </p>
+          <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
         </div>
+
+        {/* ── Activities ───────────────────────────────────── */}
+        {dayActivities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Actividades
+            </p>
+            <div className="space-y-3">
+              {dayActivities.map((act) => (
+                <ActivityCard
+                  key={act.id}
+                  act={act}
+                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
+                  onDelete={(id) => RecoveryService.deleteActivity(id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Tasks checklist ───────────────────────────────── */}
         <div className="rounded-4xl bg-white shadow-card p-5">
@@ -199,10 +203,8 @@ export function TodayScreen() {
             Tareas del día
           </p>
           <div className="divide-y divide-ink/5">
-            <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación"   /></div>
-            <div className="py-1"><CheckItem done={hasWeight} label="Registrar peso" /></div>
-            <div className="py-1"><CheckItem done={hasActivity} label="Actividad"         /></div>
-            <div className="pt-1"><CheckItem done={hasFood}     label="Nutrición"         /></div>
+            <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación" /></div>
+            <div className="pt-1"><CheckItem done={hasActivity} label="Actividad"       /></div>
           </div>
         </div>
 
@@ -213,38 +215,13 @@ export function TodayScreen() {
           weights={weightEntries}
         />
 
-        {/* ── Activities ───────────────────────────────────── */}
-        {dayActivities.length > 0 && (
-          <div className="space-y-3">
-            {dayActivities.map((act) => (
-              <ActivityCard
-                key={act.id}
-                act={act}
-                onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
-                onDelete={(id) => RecoveryService.deleteActivity(id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* ── Day summary (weight + pain logs) ─────────────── */}
-        {(dayWeight || dayLogs.length > 0) && (
+        {/* ── Pain logs ────────────────────────────────────── */}
+        {dayLogs.length > 0 && (
           <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
-              Resumen del día
+              Dolor registrado
             </p>
             <div className="space-y-2.5">
-              {dayWeight && (
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center">
-                    <Scale size={14} className="text-moss" />
-                  </div>
-                  <span className="text-sm text-ink">
-                    <span className="font-semibold">{dayWeight.weightKg.toFixed(1)} kg</span>
-                    <span className="text-ink/40"> · peso registrado</span>
-                  </span>
-                </div>
-              )}
               {dayLogs.map((log) => (
                 <div key={log.id} className="flex items-center gap-3">
                   <div
@@ -361,11 +338,6 @@ export function TodayScreen() {
         weights={weightEntries}
         activities={activities}
         injuryLogs={injuryLogs}
-      />
-      <QuickCheckInSheet
-        isOpen={showCheckIn}
-        onClose={() => setShowCheckIn(false)}
-        date={selectedDate}
       />
       <AddActivitySheet
         isOpen={showAddActivity}
