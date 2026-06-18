@@ -88,7 +88,7 @@ function Stat({ icon: Icon, value, unit, color = 'text-ink/40' }: {
   );
 }
 
-function ActivityCard({
+export function ActivityCard({
   act,
   onEdit,
   onDelete,
@@ -140,7 +140,7 @@ function ActivityCard({
                 {relativeDate(act.date)}{act.stravaName ? ` · ${act.stravaName}` : ''}
               </span>
               {isGym && act.muscleGroups?.map((m) => (
-                <span key={m} className="text-[9px] font-semibold text-moss bg-moss/12 rounded-full px-1.5 py-0.5 leading-none">
+                <span key={m} className="text-[9px] font-bold text-moss bg-moss/20 rounded-full px-2 py-0.5 leading-none tracking-wide">
                   {MUSCLE_LABELS[m] ?? m}
                 </span>
               ))}

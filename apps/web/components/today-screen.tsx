@@ -4,45 +4,26 @@ import { useState } from 'react';
 import {
   Calendar as CalendarIcon,
   CheckCircle2, Circle,
-  Scale, Zap, Bike, Dumbbell, Footprints, Activity, Waves,
-  Sparkles, Plus, Clock, ChevronRight,
+  Scale, Zap,
+  Sparkles, Plus, ChevronRight,
 } from 'lucide-react';
 import { WeeklyCalendar } from './weekly-calendar';
 import { MonthlyCalendar } from './monthly-calendar';
 import { QuickCheckInSheet } from './quick-checkin-sheet';
 import { WeightSheet } from './weight-sheet';
 import { WeightScreen } from './weight-screen';
+import { ActivityCard } from './actividades-screen';
+import { AddActivitySheet } from './add-activity-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { RecoveryService } from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
-import type { ActivityType } from '../stores/recovery-store';
+import type { ActivityEntry } from '../stores/recovery-store';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
-
-const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
-  gym:      Dumbbell,
-  bike:     Bike,
-  walk:     Footprints,
-  swim:     Waves,
-  run:      Activity,
-  mobility: Zap,
-  rehab:    Zap,
-  other:    Activity,
-};
-
-const ACTIVITY_LABELS: Record<ActivityType, string> = {
-  gym:      'Gym',
-  bike:     'Bici',
-  walk:     'Caminar',
-  swim:     'Natación',
-  run:      'Correr',
-  mobility: 'Movilidad',
-  rehab:    'Rehab',
-  other:    'Otro',
-};
 
 function weightAgo(dateStr: string): string {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -125,6 +106,8 @@ export function TodayScreen() {
   const [showCheckIn,      setShowCheckIn]      = useState(false);
   const [showWeightSheet,  setShowWeightSheet]  = useState(false);
   const [showWeightScreen, setShowWeightScreen] = useState(false);
+  const [showAddActivity,  setShowAddActivity]  = useState(false);
+  const [editActivity,     setEditActivity]     = useState<ActivityEntry | undefined>(undefined);
 
   const {
     selectedDate, setSelectedDate,
@@ -230,38 +213,17 @@ export function TodayScreen() {
           weights={weightEntries}
         />
 
-        {/* ── Activities timeline ───────────────────────────── */}
+        {/* ── Activities ───────────────────────────────────── */}
         {dayActivities.length > 0 && (
-          <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
-              Actividades
-            </p>
-            <div className="space-y-3">
-              {dayActivities.map((act) => {
-                const Icon = ACTIVITY_ICONS[act.type] ?? Activity;
-                return (
-                  <div key={act.id} className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-                      <Icon size={16} className="text-moss" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-ink">{ACTIVITY_LABELS[act.type]}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {act.durationMinutes && (
-                          <span className="flex items-center gap-0.5 text-xs text-ink/40">
-                            <Clock size={10} />
-                            {act.durationMinutes}m
-                          </span>
-                        )}
-                        {act.notes && (
-                          <span className="text-xs text-ink/40">{act.notes}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="space-y-3">
+            {dayActivities.map((act) => (
+              <ActivityCard
+                key={act.id}
+                act={act}
+                onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
+                onDelete={(id) => RecoveryService.deleteActivity(id)}
+              />
+            ))}
           </div>
         )}
 
@@ -404,6 +366,11 @@ export function TodayScreen() {
         isOpen={showCheckIn}
         onClose={() => setShowCheckIn(false)}
         date={selectedDate}
+      />
+      <AddActivitySheet
+        isOpen={showAddActivity}
+        onClose={() => { setShowAddActivity(false); setEditActivity(undefined); }}
+        editActivity={editActivity}
       />
       <WeightSheet
         isOpen={showWeightSheet}
