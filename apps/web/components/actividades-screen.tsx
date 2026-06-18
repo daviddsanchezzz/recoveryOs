@@ -66,21 +66,22 @@ function fmtPace(secPerKm: number): string {
   return `${m}:${String(s).padStart(2, '0')}/km`;
 }
 
-function Chip({ label }: { label: string }) {
-  return (
-    <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-semibold text-ink/60">
-      {label}
-    </span>
-  );
+function fmtDuration(min: number): string {
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
-function Stat({ icon: Icon, value, unit, color = 'text-ink/50' }: {
+function Stat({ icon: Icon, value, unit, color = 'text-ink/40' }: {
   icon: React.ElementType; value: string | number; unit?: string; color?: string;
 }) {
   return (
     <div className="flex items-center gap-1">
       <Icon size={11} className={color} />
-      <span className="text-xs text-ink/60 font-medium">{value}{unit ? <span className="text-ink/35"> {unit}</span> : null}</span>
+      <span className="text-xs text-ink/60 font-medium tabular-nums">
+        {value}{unit ? <span className="text-ink/35"> {unit}</span> : null}
+      </span>
     </div>
   );
 }
@@ -92,76 +93,80 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
   const isSwim = act.type === 'swim';
   const isGym  = act.type === 'gym';
 
+  const muscles = isGym && act.muscleGroups?.length
+    ? act.muscleGroups.map((m) => MUSCLE_LABELS[m] ?? m).join(' · ')
+    : null;
+
   return (
-    <div className="rounded-3xl bg-white shadow-card p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-2xl bg-canvas flex items-center justify-center flex-shrink-0">
-          <Icon size={18} className="text-moss" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-ink">{ACTIVITY_LABELS[act.type]}</p>
-            {act.stravaName && (
-              <p className="text-xs text-ink/40 truncate">{act.stravaName}</p>
-            )}
+    <div className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-start gap-3">
+      {/* Icon */}
+      <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Icon size={16} className="text-moss" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-ink leading-snug">{ACTIVITY_LABELS[act.type]}</p>
+              {act.stravaId && (
+                <span className="text-[9px] font-bold text-orange-400 bg-orange-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
+                  STRAVA
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-ink/35 capitalize leading-tight">
+              {relativeDate(act.date)}{act.stravaName ? ` · ${act.stravaName}` : ''}{muscles ? ` · ${muscles}` : ''}
+            </p>
           </div>
-          <p className="text-xs text-ink/40 capitalize mt-0.5">{relativeDate(act.date)}</p>
         </div>
-        {act.stravaId && (
-          <span className="text-[9px] font-bold text-orange-400 bg-orange-50 rounded-full px-2 py-0.5">
-            STRAVA
-          </span>
+
+        {/* Stats */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {act.durationMinutes && (
+            <Stat icon={Clock} value={fmtDuration(act.durationMinutes)} />
+          )}
+          {isRun && act.distanceKm && (
+            <Stat icon={Gauge} value={act.distanceKm.toFixed(2)} unit="km" />
+          )}
+          {isRun && act.avgPaceSecPerKm && (
+            <Stat icon={Activity} value={fmtPace(act.avgPaceSecPerKm)} />
+          )}
+          {isRun && act.elevationGainM && (
+            <Stat icon={Mountain} value={act.elevationGainM} unit="m↑" />
+          )}
+          {isBike && act.distanceKm && (
+            <Stat icon={Gauge} value={act.distanceKm.toFixed(1)} unit="km" />
+          )}
+          {isBike && act.avgSpeedKmh && (
+            <Stat icon={Activity} value={act.avgSpeedKmh.toFixed(1)} unit="km/h" />
+          )}
+          {isBike && act.elevationGainM && (
+            <Stat icon={Mountain} value={act.elevationGainM} unit="m↑" />
+          )}
+          {isBike && act.avgPowerW && (
+            <Stat icon={Bolt} value={act.avgPowerW} unit="W" />
+          )}
+          {isSwim && act.distanceM && (
+            <Stat icon={Gauge} value={act.distanceM} unit="m" />
+          )}
+          {isGym && act.totalVolumeKg && (
+            <Stat icon={Dumbbell} value={act.totalVolumeKg.toLocaleString('es-ES')} unit="kg" />
+          )}
+          {act.kcal && (
+            <Stat icon={Flame} value={act.kcal} unit="kcal" color="text-orange-400" />
+          )}
+          {act.avgHeartRateBpm && (
+            <Stat icon={Heart} value={act.avgHeartRateBpm} unit="bpm" color="text-red-400" />
+          )}
+        </div>
+
+        {act.notes && (
+          <p className="text-[11px] text-ink/35 leading-relaxed">{act.notes}</p>
         )}
       </div>
-
-      {isGym && act.muscleGroups && act.muscleGroups.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {act.muscleGroups.map((m) => <Chip key={m} label={MUSCLE_LABELS[m] ?? m} />)}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        {act.durationMinutes && (
-          <Stat icon={Clock} value={act.durationMinutes} unit="min" />
-        )}
-        {isRun && act.distanceKm && (
-          <Stat icon={Gauge} value={act.distanceKm.toFixed(2)} unit="km" />
-        )}
-        {isRun && act.avgPaceSecPerKm && (
-          <Stat icon={Activity} value={fmtPace(act.avgPaceSecPerKm)} />
-        )}
-        {isRun && act.elevationGainM && (
-          <Stat icon={Mountain} value={act.elevationGainM} unit="m ↑" />
-        )}
-        {isBike && act.distanceKm && (
-          <Stat icon={Gauge} value={act.distanceKm.toFixed(1)} unit="km" />
-        )}
-        {isBike && act.avgSpeedKmh && (
-          <Stat icon={Activity} value={act.avgSpeedKmh.toFixed(1)} unit="km/h" />
-        )}
-        {isBike && act.elevationGainM && (
-          <Stat icon={Mountain} value={act.elevationGainM} unit="m ↑" />
-        )}
-        {isBike && act.avgPowerW && (
-          <Stat icon={Bolt} value={act.avgPowerW} unit="W" />
-        )}
-        {isSwim && act.distanceM && (
-          <Stat icon={Gauge} value={act.distanceM} unit="m" />
-        )}
-        {isGym && act.totalVolumeKg && (
-          <Stat icon={Dumbbell} value={act.totalVolumeKg.toLocaleString('es-ES')} unit="kg vol." />
-        )}
-        {act.kcal && (
-          <Stat icon={Flame} value={act.kcal} unit="kcal" color="text-orange-400" />
-        )}
-        {act.avgHeartRateBpm && (
-          <Stat icon={Heart} value={act.avgHeartRateBpm} unit="bpm" color="text-red-400" />
-        )}
-      </div>
-
-      {act.notes && (
-        <p className="text-xs text-ink/40 leading-relaxed">{act.notes}</p>
-      )}
     </div>
   );
 }
