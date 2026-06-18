@@ -4,7 +4,7 @@
 
 const W   = 300;
 const H   = 120;
-const PAD = { top: 16, right: 12, bottom: 28, left: 28 };
+const PAD = { top: 16, right: 8, bottom: 28, left: 8 };
 
 function buildLinePath(entries: { weightKg: number }[], minW: number, range: number): string {
   const n   = entries.length;
@@ -76,15 +76,15 @@ export function WeightLineChart({ entries, latestId, height = 140 }: WeightLineC
         </clipPath>
       </defs>
 
-      {/* Y grid lines */}
+      {/* Y grid lines + inline labels */}
       {[rawMax, (rawMax + rawMin) / 2, rawMin].map((val) => {
         const y = PAD.top + (1 - (val - minW) / range) * (H - PAD.top - PAD.bottom);
         return (
           <g key={val}>
             <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
               stroke="#1a1a1a" strokeOpacity="0.06" strokeWidth="1" strokeDasharray="3 3" />
-            <text x={PAD.left - 5} y={y + 3.5}
-              fontSize="7.5" fill="#1a1a1a" fillOpacity="0.35" textAnchor="end">
+            <text x={PAD.left + 3} y={y - 3}
+              fontSize="7" fill="#1a1a1a" fillOpacity="0.30" textAnchor="start">
               {val.toFixed(1)}
             </text>
           </g>
