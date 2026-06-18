@@ -67,13 +67,15 @@ export const RecoveryService = {
   },
 
   // ─── Activity ─────────────────────────────────────────────
-  logActivity(data: Omit<Parameters<ReturnType<typeof useRecoveryStore.getState>['addActivity']>[0], 'id'> & { date?: string }) {
+  logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { date?: string }) {
     const resolvedDate = data.date ?? todayIso();
-    useRecoveryStore.getState().addActivity({ ...data, date: resolvedDate });
+    const id = crypto.randomUUID();
+    useRecoveryStore.getState().addActivity({ ...data, id, date: resolvedDate });
 
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       postJson('/activities', {
+        id,
         userId,
         type:           data.type,
         source:         data.stravaId ? 'strava' : 'manual',
@@ -190,7 +192,8 @@ export const RecoveryService = {
 
     try {
       const res = await getJson<{ items: ServerActivity[]; hasMore: boolean; nextCursor: string | null }>(url);
-      store.appendActivities(res.items.map(mapServerActivity), res.hasMore, res.nextCursor);
+      // First page (no cursor) replaces store to avoid stale local-ID duplicates
+      store.appendActivities(res.items.map(mapServerActivity), res.hasMore, res.nextCursor, !beforeId);
     } catch {
       // keep existing data on error
     }

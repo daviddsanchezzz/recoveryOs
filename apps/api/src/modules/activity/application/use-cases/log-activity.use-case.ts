@@ -12,7 +12,7 @@ export class LogActivityUseCase {
 
   execute(input: LogActivityDto) {
     const entry = new ActivityEntity({
-      id:             crypto.randomUUID(),
+      id:             input.id ?? crypto.randomUUID(),
       userId:         input.userId,
       type:           input.type,
       source:         input.source,

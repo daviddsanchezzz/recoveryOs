@@ -144,13 +144,13 @@ type RecoveryState = {
   addInjury: (input: Omit<Injury, 'id'>) => void;
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
   saveWeight: (weightKg: number, date?: string) => void;
-  addActivity: (input: Omit<ActivityEntry, 'id'>) => void;
+  addActivity: (input: ActivityEntry) => void;
   removeActivity: (id: string) => void;
   logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
   setProfile: (input: Partial<ProfileState>) => void;
   seedWeightFromServer: (entries: WeightEntry[]) => void;
   seedTodayActivities: (entries: ActivityEntry[]) => void;
-  appendActivities: (entries: ActivityEntry[], hasMore: boolean, nextCursor: string | null) => void;
+  appendActivities: (entries: ActivityEntry[], hasMore: boolean, nextCursor: string | null, replace?: boolean) => void;
   clearAllData: () => void;
 };
 
@@ -255,15 +255,8 @@ export const useRecoveryStore = create<RecoveryState>()(
       addActivity: (input) =>
         set((state) => ({
           activities: [
-            ...state.activities.filter(
-              (activity) =>
-                !(
-                  sameDay(activity.date, input.date) &&
-                  activity.type === input.type &&
-                  activity.notes === input.notes
-                ),
-            ),
-            { ...input, id: createId('activity') },
+            input,
+            ...state.activities.filter((a) => a.id !== input.id),
           ],
         })),
       logInjuryPain: (input) =>
@@ -293,8 +286,11 @@ export const useRecoveryStore = create<RecoveryState>()(
           const fresh = entries.filter((e) => !existingIds.has(e.id));
           return { activities: [...fresh, ...state.activities] };
         }),
-      appendActivities: (entries, hasMore, nextCursor) =>
+      appendActivities: (entries, hasMore, nextCursor, replace = false) =>
         set((state) => {
+          if (replace) {
+            return { activities: entries, activitiesMeta: { loaded: true, hasMore, nextCursor } };
+          }
           const existingIds = new Set(state.activities.map((a) => a.id));
           const fresh = entries.filter((e) => !existingIds.has(e.id));
           return {

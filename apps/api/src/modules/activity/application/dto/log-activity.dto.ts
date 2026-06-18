@@ -5,6 +5,9 @@ import {
 } from 'class-validator';
 
 export class LogActivityDto {
+  @IsOptional() @IsString()
+  id?: string;
+
   @IsString()
   userId!: string;
 
