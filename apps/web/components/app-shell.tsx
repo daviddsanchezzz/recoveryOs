@@ -2,28 +2,20 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Home, MessageCircle, TrendingUp, Sparkles, User } from 'lucide-react';
-import { ChatPanel } from './chat-panel';
-import { HomeScreen } from './home-screen';
-import { ProgressScreen } from './progress-screen';
-import { InsightsScreen } from './insights-screen';
-import { ProfileScreen } from './profile-screen';
-import { useSessionStore } from '../stores/session-store';
-import { getJson } from '../lib/api';
-import { RecoveryService } from '../lib/services';
-
-type TabId = 'home' | 'chat' | 'progress' | 'insights' | 'profile';
-
-const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'home', label: 'Inicio', icon: Home },
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'progress', label: 'Progreso', icon: TrendingUp },
-  { id: 'insights', label: 'Insights', icon: Sparkles },
-  { id: 'profile', label: 'Perfil', icon: User },
-];
+import { GlobalHeader }       from './global-header';
+import { BottomNav }          from './bottom-nav';
+import { TodayScreen }        from './today-screen';
+import { PlanScreen }         from './plan-screen';
+import { ActividadesScreen }  from './actividades-screen';
+import { ProgressScreen }     from './progress-screen';
+import { ChatPanel }          from './chat-panel';
+import { useSessionStore }    from '../stores/session-store';
+import { getJson }            from '../lib/api';
+import { RecoveryService }    from '../lib/services';
+import type { TabId }         from './bottom-nav';
 
 export function AppShell() {
-  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const [activeTab, setActiveTab]             = useState<TabId>('hoy');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -31,8 +23,9 @@ export function AppShell() {
     setActiveTab(id);
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }
-  const user = useSessionStore((state) => state.user);
-  const setUser = useSessionStore((state) => state.setUser);
+
+  const user      = useSessionStore((state) => state.user);
+  const setUser   = useSessionStore((state) => state.setUser);
   const clearUser = useSessionStore((state) => state.clearUser);
 
   useEffect(() => {
@@ -109,53 +102,23 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <main ref={mainRef} className="flex-1 overflow-y-auto pb-24 scroll-smooth-ios">
-        <div className="mx-auto max-w-md">
-          {activeTab === 'home' && <HomeScreen />}
-          {activeTab === 'chat' && <ChatPanel />}
-          {activeTab === 'progress' && <ProgressScreen />}
-          {activeTab === 'insights' && <InsightsScreen />}
-          {activeTab === 'profile' && <ProfileScreen />}
+      <GlobalHeader />
+
+      <main
+        ref={mainRef}
+        className="flex-1 overflow-y-auto pb-24 pt-14 scroll-smooth-ios"
+      >
+        {/* Chat gets h-full so its internal flex layout fills available space */}
+        <div className={`mx-auto max-w-md ${activeTab === 'chat' ? 'h-full' : ''}`}>
+          {activeTab === 'hoy'         && <TodayScreen />}
+          {activeTab === 'plan'        && <PlanScreen />}
+          {activeTab === 'actividades' && <ActividadesScreen />}
+          {activeTab === 'progreso'    && <ProgressScreen />}
+          {activeTab === 'chat'        && <ChatPanel />}
         </div>
       </main>
 
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-canvas-light/95 backdrop-blur-md shadow-bottom-nav"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
-        <div className="mx-auto grid max-w-md grid-cols-5">
-          {tabs.map(({ id, label, icon: Icon }) => {
-            const isActive = activeTab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => switchTab(id)}
-                className="flex flex-col items-center gap-1 py-3 px-2 min-w-[44px]"
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${
-                    isActive ? 'bg-ink' : 'bg-transparent'
-                  }`}
-                >
-                  <Icon
-                    size={20}
-                    strokeWidth={isActive ? 2 : 1.5}
-                    className={isActive ? 'text-white' : 'text-ink/40'}
-                  />
-                </div>
-                <span
-                  className={`text-[10px] font-medium leading-none transition-colors duration-200 ${
-                    isActive ? 'text-ink' : 'text-ink/40'
-                  }`}
-                >
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <BottomNav activeTab={activeTab} onTabChange={switchTab} />
     </div>
   );
 }

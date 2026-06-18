@@ -188,12 +188,29 @@ export function ChatPanel() {
     setIsSubmitting(false);
   }
 
+  const selectedDate  = useRecoveryStore((s) => s.selectedDate);
+  const today         = todayIso();
+  const isToday       = selectedDate === today;
+  const dateLabel     = isToday
+    ? 'Hoy'
+    : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh]">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4 bg-canvas">
+      <div className="px-5 pt-4 pb-4 bg-canvas">
         <h1 className="text-2xl font-bold text-ink">Chat</h1>
         <p className="text-sm text-ink/40 mt-0.5">Registra en lenguaje natural</p>
+      </div>
+
+      {/* Date context banner */}
+      <div className="px-4 pb-3 bg-canvas">
+        <div className="flex items-center gap-2 rounded-2xl bg-canvas-light border border-sand/40 px-4 py-2.5">
+          <span className="text-xs text-ink/40">Registrando para:</span>
+          <span className={`text-xs font-semibold ${isToday ? 'text-moss' : 'text-ember'}`}>
+            {dateLabel}
+          </span>
+        </div>
       </div>
 
       {/* Quick Action Chips */}

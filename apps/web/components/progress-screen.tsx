@@ -63,7 +63,7 @@ export function ProgressScreen() {
     : 'neutral';
 
   return (
-    <div className="px-4 pt-12 pb-4 space-y-5 animate-fade-in">
+    <div className="px-4 pt-4 pb-4 space-y-5 animate-fade-in">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-ink">Progreso</h1>
         <p className="text-sm text-ink/40">Evolución semanal</p>
