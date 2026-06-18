@@ -55,25 +55,27 @@ function weightAgo(dateStr: string): string {
 
 function WeightCard({
   onOpen,
+  onAdd,
   weights,
 }: {
   onOpen: () => void;
+  onAdd: () => void;
   weights: import('../stores/recovery-store').WeightEntry[];
 }) {
   const sorted  = [...weights].sort((a, b) => b.date.localeCompare(a.date));
   const latest  = sorted[0];
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="w-full rounded-3xl bg-white shadow-card px-5 py-4 flex items-center justify-between active:scale-[0.98] transition-transform"
-    >
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center">
+    <div className="w-full rounded-3xl bg-white shadow-card px-5 py-4 flex items-center justify-between">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
+      >
+        <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
           <Scale size={18} className="text-moss" />
         </div>
-        <div className="text-left">
+        <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink/40">Peso</p>
           {latest ? (
             <p className="text-base font-bold text-ink leading-tight">
@@ -84,9 +86,26 @@ function WeightCard({
             <p className="text-sm text-ink/30">Sin registros</p>
           )}
         </div>
+      </button>
+      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+        <button
+          type="button"
+          onClick={onAdd}
+          className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Añadir peso"
+        >
+          <Plus size={15} className="text-white" />
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Ver historial de peso"
+        >
+          <ChevronRight size={15} className="text-ink/40" />
+        </button>
       </div>
-      <ChevronRight size={16} className="text-ink/30 flex-shrink-0" />
-    </button>
+    </div>
   );
 }
 
@@ -205,7 +224,11 @@ export function TodayScreen() {
         </div>
 
         {/* ── Weight card ──────────────────────────────────── */}
-        <WeightCard onOpen={() => setShowWeightScreen(true)} weights={weightEntries} />
+        <WeightCard
+          onOpen={() => setShowWeightScreen(true)}
+          onAdd={() => setShowWeightSheet(true)}
+          weights={weightEntries}
+        />
 
         {/* ── Activities timeline ───────────────────────────── */}
         {dayActivities.length > 0 && (
@@ -381,6 +404,11 @@ export function TodayScreen() {
         isOpen={showCheckIn}
         onClose={() => setShowCheckIn(false)}
         date={selectedDate}
+      />
+      <WeightSheet
+        isOpen={showWeightSheet}
+        onClose={() => setShowWeightSheet(false)}
+        defaultDate={selectedDate}
       />
       {showWeightScreen && (
         <WeightScreen onClose={() => setShowWeightScreen(false)} />

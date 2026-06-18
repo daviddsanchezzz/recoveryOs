@@ -47,6 +47,7 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
 
   return (
     <Portal>
+      {/* Full-screen overlay */}
       <div
         className="fixed inset-0 z-[70] bg-canvas flex flex-col animate-slide-up"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -160,23 +161,20 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </div>
+      </div>
 
-        {/* FAB */}
-        <div
-          className="fixed right-5 z-[71]"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
+      {/* FAB — sibling to overlay so iOS fixed positioning works correctly */}
+      <div className="fixed bottom-6 right-5 z-[71]">
+        <button
+          type="button"
+          onClick={() => {
+            setAddDate(new Date().toISOString().slice(0, 10));
+            setShowAdd(true);
+          }}
+          className="h-14 w-14 rounded-full bg-ink shadow-card-lg flex items-center justify-center active:scale-95 transition-transform"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setAddDate(new Date().toISOString().slice(0, 10));
-              setShowAdd(true);
-            }}
-            className="h-14 w-14 rounded-full bg-ink shadow-card-lg flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <Plus size={22} className="text-white" />
-          </button>
-        </div>
+          <Plus size={22} className="text-white" />
+        </button>
       </div>
 
       <WeightSheet
