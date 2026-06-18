@@ -56,9 +56,10 @@ function relativeDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00'); d.setHours(0, 0, 0, 0);
   const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
   if (diff === 0) return 'Hoy';
-  if (diff === 1) return 'Ayer';
-  if (diff < 7)  return d.toLocaleDateString('es-ES', { weekday: 'long' });
-  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const weekday = d.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
+  const month   = d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return `${cap(weekday)}, ${d.getDate()} ${cap(month)}`;
 }
 
 function fmtPace(secPerKm: number): string {
@@ -114,10 +115,6 @@ function ActivityCard({
   const isSwim = act.type === 'swim';
   const isGym  = act.type === 'gym';
 
-  const muscles = isGym && act.muscleGroups?.length
-    ? act.muscleGroups.map((m) => MUSCLE_LABELS[m] ?? m).join(' · ')
-    : null;
-
   return (
     <div className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-start gap-3">
       {/* Icon */}
@@ -138,9 +135,16 @@ function ActivityCard({
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-ink/35 capitalize leading-tight">
-              {relativeDate(act.date)}{act.stravaName ? ` · ${act.stravaName}` : ''}{muscles ? ` · ${muscles}` : ''}
-            </p>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              <span className="text-[11px] text-ink/35 leading-tight">
+                {relativeDate(act.date)}{act.stravaName ? ` · ${act.stravaName}` : ''}
+              </span>
+              {isGym && act.muscleGroups?.map((m) => (
+                <span key={m} className="text-[9px] font-semibold text-moss bg-moss/12 rounded-full px-1.5 py-0.5 leading-none">
+                  {MUSCLE_LABELS[m] ?? m}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* 3-dot menu */}
