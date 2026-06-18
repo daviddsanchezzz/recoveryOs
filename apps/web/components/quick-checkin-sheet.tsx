@@ -1,23 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Zap, CheckCircle2, Bike, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Zap, CheckCircle2 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { RecoveryService } from '../lib/services';
-import type { ActivityType, DailyHabits } from '../stores/recovery-store';
+import type { DailyHabits } from '../stores/recovery-store';
 import { formatShortDate, todayIso } from '../lib/date';
 import { Portal } from './portal';
-
-const ACTIVITY_OPTS: { type: ActivityType; label: string; emoji: string }[] = [
-  { type: 'gym',      label: 'Gym',     emoji: '🏋️' },
-  { type: 'bike',     label: 'Bici',    emoji: '🚴' },
-  { type: 'walk',     label: 'Caminar', emoji: '🚶' },
-  { type: 'run',      label: 'Correr',  emoji: '🏃' },
-  { type: 'swim',     label: 'Nadar',   emoji: '🏊' },
-  { type: 'mobility', label: 'Movilidad', emoji: '🧘' },
-  { type: 'rehab',    label: 'Rehab',   emoji: '💪' },
-  { type: 'other',    label: 'Otro',    emoji: '⚡' },
-];
 
 type Props = {
   isOpen: boolean;
@@ -57,10 +46,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
   // Form state
   const [painLevels, setPainLevels] = useState<Record<string, number>>({});
   const [rehabDone, setRehabDone] = useState<Record<string, boolean>>({});
-  const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
-  const [activityDuration, setActivityDuration] = useState('');
-  const [activityNotes, setActivityNotes] = useState('');
-  const [showActivityDuration, setShowActivityDuration] = useState(false);
   const [saved, setSaved] = useState(false);
 
   // Init injury state when injuries change
@@ -78,10 +63,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
   // Reset form when opening
   useEffect(() => {
     if (isOpen) {
-      setSelectedActivity(null);
-      setActivityDuration('');
-      setActivityNotes('');
-      setShowActivityDuration(false);
       setSaved(false);
       const levels: Record<string, number> = {};
       const rehab: Record<string, boolean> = {};
@@ -102,14 +83,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
       enoughProtein: false,
     };
 
-    const activityEntries = selectedActivity
-      ? [{
-          type: selectedActivity,
-          durationMinutes: activityDuration ? parseInt(activityDuration) : undefined,
-          notes: activityNotes || undefined,
-        }]
-      : [];
-
     const injuryLogEntries = injuries.map((injury) => ({
       injuryId: injury.id,
       painLevel: painLevels[injury.id] ?? 0,
@@ -118,7 +91,7 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
 
     RecoveryService.saveCheckIn({
       date: today,
-      activities: activityEntries,
+      activities: [],
       injuryLogs: injuryLogEntries,
       habits: checkInHabits,
     });
@@ -211,77 +184,6 @@ export function QuickCheckInSheet({ isOpen, onClose, date }: Props) {
                 ))}
               </div>
             )}
-
-            {/* Activity */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Bike size={15} className="text-moss" />
-                <p className="text-sm font-semibold text-ink">Actividad</p>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {ACTIVITY_OPTS.map(({ type, label, emoji }) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      setSelectedActivity(selectedActivity === type ? null : type);
-                      setShowActivityDuration(selectedActivity !== type);
-                    }}
-                    className={`flex flex-col items-center gap-1 rounded-2xl py-3 px-1 text-center transition-all ${
-                      selectedActivity === type
-                        ? 'bg-ink text-white'
-                        : 'bg-canvas text-ink'
-                    }`}
-                  >
-                    <span className="text-lg">{emoji}</span>
-                    <span className="text-[10px] font-medium leading-none">{label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {selectedActivity && showActivityDuration && (
-                <div className="space-y-2 animate-fade-in">
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        value={activityDuration}
-                        onChange={(e) => setActivityDuration(e.target.value)}
-                        placeholder="45"
-                        className="w-full rounded-2xl bg-canvas border border-ink/8 px-4 py-3 text-sm outline-none pr-14"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-ink/40">min</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowActivityDuration(false)}
-                      className="h-11 w-11 rounded-2xl bg-canvas flex items-center justify-center flex-shrink-0"
-                    >
-                      <ChevronUp size={16} className="text-ink/40" />
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={activityNotes}
-                    onChange={(e) => setActivityNotes(e.target.value)}
-                    placeholder="Nota opcional..."
-                    className="w-full rounded-2xl bg-canvas border border-ink/8 px-4 py-3 text-sm outline-none"
-                  />
-                </div>
-              )}
-
-              {selectedActivity && !showActivityDuration && (
-                <button
-                  type="button"
-                  onClick={() => setShowActivityDuration(true)}
-                  className="flex items-center gap-1.5 text-xs text-ink/40 px-1"
-                >
-                  <ChevronDown size={12} />
-                  Añadir duración y nota
-                </button>
-              )}
-            </div>
 
             {/* Save */}
             <button

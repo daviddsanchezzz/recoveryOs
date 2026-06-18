@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Bike, Dumbbell, Footprints, Waves, Zap, Clock } from 'lucide-react';
+import { Activity, Bike, Dumbbell, Footprints, Waves, Zap, Clock, Plus } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { AddActivitySheet } from './add-activity-sheet';
 import type { ActivityType } from '../stores/recovery-store';
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
@@ -52,18 +53,30 @@ function relativeDate(dateStr: string): string {
 
 export function ActividadesScreen() {
   const [filter, setFilter] = useState<Filter>('all');
+  const [showAdd, setShowAdd] = useState(false);
   const { activities } = useRecoveryStore();
 
   const sorted = [...activities].sort((a, b) => b.date.localeCompare(a.date));
   const filtered = filter === 'all' ? sorted : sorted.filter((a) => a.type === filter);
 
   return (
-    <div className="px-4 pt-4 pb-4 space-y-4 animate-fade-in">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-ink">Actividades</h1>
-        <p className="text-sm text-ink/40">
-          {activities.length === 0 ? 'Sin actividades' : `${activities.length} sesiones registradas`}
-        </p>
+    <>
+    <div className="px-4 pt-4 pb-24 space-y-4 animate-fade-in">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5">
+          <h1 className="text-2xl font-bold text-ink">Actividades</h1>
+          <p className="text-sm text-ink/40">
+            {activities.length === 0 ? 'Sin actividades' : `${activities.length} sesiones registradas`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1.5 rounded-2xl bg-ink px-3.5 py-2 flex-shrink-0 mt-1"
+        >
+          <Plus size={13} className="text-white" />
+          <span className="text-xs font-semibold text-white">Añadir</span>
+        </button>
       </div>
 
       {/* Filter chips */}
@@ -93,7 +106,7 @@ export function ActividadesScreen() {
               ? 'Sin actividades registradas'
               : `Sin actividades de tipo ${ACTIVITY_LABELS[filter as ActivityType]}`}
           </p>
-          <p className="text-xs text-ink/25">Registra desde el Chat o el Check-in</p>
+          <p className="text-xs text-ink/25">Pulsa + para añadir una actividad</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -130,5 +143,7 @@ export function ActividadesScreen() {
         </div>
       )}
     </div>
+    <AddActivitySheet isOpen={showAdd} onClose={() => setShowAdd(false)} />
+    </>
   );
 }
