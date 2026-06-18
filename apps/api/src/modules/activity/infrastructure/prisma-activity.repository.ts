@@ -110,8 +110,9 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
     return { items: rows.slice(0, limit).map(toEntity), hasMore };
   }
 
-  async deleteById(id: string): Promise<void> {
-    await this.prisma.activity.delete({ where: { id } });
+  async deleteByIdAndUser(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.activity.deleteMany({ where: { id, userId } });
+    return count > 0;
   }
 
   async findByUserToday(userId: string, date: string): Promise<ActivityEntity[]> {

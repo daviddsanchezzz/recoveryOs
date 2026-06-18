@@ -8,7 +8,8 @@ export class DeleteActivityUseCase {
     private readonly repository: ActivityRepositoryPort,
   ) {}
 
-  async execute(id: string): Promise<void> {
-    await this.repository.deleteById(id);
+  async execute(id: string, userId: string): Promise<void> {
+    const deleted = await this.repository.deleteByIdAndUser(id, userId);
+    if (!deleted) throw new NotFoundException('Activity not found');
   }
 }

@@ -11,5 +11,5 @@ export interface ActivityRepositoryPort {
     beforeId?: string,
   ): Promise<{ items: ActivityEntity[]; hasMore: boolean }>;
   findByUserToday(userId: string, date: string): Promise<ActivityEntity[]>;
-  deleteById(id: string): Promise<void>;
+  deleteByIdAndUser(id: string, userId: string): Promise<boolean>;
 }

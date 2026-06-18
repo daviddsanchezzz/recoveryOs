@@ -28,7 +28,7 @@ export class ActivityController {
   async remove(@Param('id') id: string, @Req() req: any) {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
-    return this.deleteActivityUseCase.execute(id);
+    return this.deleteActivityUseCase.execute(id, session.user.id);
   }
 
   // Declare specific sub-routes before the bare :userId route
