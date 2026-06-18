@@ -109,14 +109,47 @@ model NutritionLog {
 model Activity {
   id             String   @id @default(cuid())
   userId         String
-  type           String
-  durationMin    Int
-  distanceKm     Float?
-  calories       Int?
-  source         String
+  type           String           // gym | bike | run | walk | swim | mobility | rehab | other
+  source         String           // manual | strava | coros
   performedAt    DateTime
   createdAt      DateTime @default(now())
+
+  // Common
+  durationMin    Int?
+  calories       Int?             // kcal
+  avgHeartRate   Int?             // bpm
+  maxHeartRate   Int?             // bpm
+  notes          String?
+
+  // Distance activities (run, walk, bike)
+  distanceKm     Float?
+  elevationGainM Float?           // meters
+
+  // Run / Walk
+  avgPaceSecPerKm Float?          // seconds/km → display as mm:ss/km
+  avgCadenceSpm  Int?             // steps/min
+
+  // Bike
+  avgSpeedKmh    Float?           // km/h
+  avgPowerW      Int?             // watts
+  avgCadenceRpm  Int?             // rpm
+  kilojoules     Float?           // kJ (from Strava)
+
+  // Swim
+  distanceM      Int?             // meters
+  avgPace100mSec Int?             // seconds per 100m
+
+  // Gym
+  muscleGroups   String[]         // pecho | espalda | biceps | triceps | hombro | core | pierna | gluteo
+  totalVolumeKg  Float?           // total kg lifted
+
+  // Strava integration (stravaId as String to avoid BigInt JSON issues)
+  stravaId       String?  @unique // Strava activity ID — used for deduplication
+  stravaName     String?          // activity name from Strava
+
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, performedAt])
 }
 
 model WeeklySummary {

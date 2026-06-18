@@ -1,6 +1,6 @@
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
-import type { ActivityType, InjuryStatus, WeightEntry } from '../stores/recovery-store';
+import type { InjuryStatus, WeightEntry } from '../stores/recovery-store';
 import { getJson, postJson } from './api';
 import { todayIso } from './date';
 
@@ -15,18 +15,38 @@ export const RecoveryService = {
   },
 
   // ─── Activity ─────────────────────────────────────────────
-  logActivity(data: {
-    type: ActivityType;
-    durationMinutes?: number;
-    notes?: string;
-    date?: string;
-  }) {
-    useRecoveryStore.getState().addActivity({
-      type: data.type,
-      durationMinutes: data.durationMinutes,
-      notes: data.notes,
-      date: data.date ?? todayIso(),
-    });
+  logActivity(data: Omit<Parameters<ReturnType<typeof useRecoveryStore.getState>['addActivity']>[0], 'id'> & { date?: string }) {
+    const resolvedDate = data.date ?? todayIso();
+    useRecoveryStore.getState().addActivity({ ...data, date: resolvedDate });
+
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      postJson('/activities', {
+        userId,
+        type:           data.type,
+        source:         data.stravaId ? 'strava' : 'manual',
+        performedAt:    resolvedDate + 'T12:00:00.000Z',
+        durationMin:    data.durationMinutes,
+        calories:       data.kcal,
+        avgHeartRate:   data.avgHeartRateBpm,
+        maxHeartRate:   data.maxHeartRateBpm,
+        notes:          data.notes,
+        distanceKm:     data.distanceKm,
+        elevationGainM: data.elevationGainM,
+        avgPaceSecPerKm:data.avgPaceSecPerKm,
+        avgCadenceSpm:  data.avgCadenceSpm,
+        avgSpeedKmh:    data.avgSpeedKmh,
+        avgPowerW:      data.avgPowerW,
+        avgCadenceRpm:  data.avgCadenceRpm,
+        kilojoules:     data.kilojoules,
+        distanceM:      data.distanceM,
+        avgPace100mSec: data.avgPacePer100mSec,
+        muscleGroups:   data.muscleGroups,
+        totalVolumeKg:  data.totalVolumeKg,
+        stravaId:       data.stravaId ? String(data.stravaId) : undefined,
+        stravaName:     data.stravaName,
+      }).catch(() => {});
+    }
   },
 
   // ─── Injury pain ──────────────────────────────────────────

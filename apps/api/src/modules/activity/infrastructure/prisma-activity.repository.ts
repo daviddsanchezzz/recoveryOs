@@ -1,67 +1,97 @@
 import { Injectable } from '@nestjs/common';
+import { Activity } from '@prisma/client';
 import { ActivityEntity } from '../domain/activity.entity';
 import { ActivityRepositoryPort } from '../domain/activity-repository.port';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
+
+function toEntity(row: Activity): ActivityEntity {
+  return new ActivityEntity({
+    id:              row.id,
+    userId:          row.userId,
+    type:            row.type,
+    source:          row.source,
+    performedAt:     row.performedAt,
+    durationMin:     row.durationMin,
+    calories:        row.calories,
+    avgHeartRate:    row.avgHeartRate,
+    maxHeartRate:    row.maxHeartRate,
+    notes:           row.notes,
+    distanceKm:      row.distanceKm,
+    elevationGainM:  row.elevationGainM,
+    avgPaceSecPerKm: row.avgPaceSecPerKm,
+    avgCadenceSpm:   row.avgCadenceSpm,
+    avgSpeedKmh:     row.avgSpeedKmh,
+    avgPowerW:       row.avgPowerW,
+    avgCadenceRpm:   row.avgCadenceRpm,
+    kilojoules:      row.kilojoules,
+    distanceM:       row.distanceM,
+    avgPace100mSec:  row.avgPace100mSec,
+    muscleGroups:    row.muscleGroups,
+    totalVolumeKg:   row.totalVolumeKg,
+    stravaId:        row.stravaId,
+    stravaName:      row.stravaName,
+  });
+}
 
 @Injectable()
 export class PrismaActivityRepository implements ActivityRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(entry: ActivityEntity): Promise<ActivityEntity> {
+    const p = entry.props;
+
+    // Ensure user exists (demo / unauthenticated fallback)
     await this.prisma.user.upsert({
-      where: { id: entry.userId },
+      where:  { id: p.userId },
       update: {},
-      create: {
-        id: entry.userId,
-        email: `${entry.userId}@demo.local`,
-        name: 'Demo User',
-      },
+      create: { id: p.userId, email: `${p.userId}@demo.local`, name: 'Demo User' },
     });
 
-    const created = await this.prisma.activity.create({
-      data: {
-        id: entry.id,
-        userId: entry.userId,
-        type: entry.type,
-        durationMin: entry.durationMin,
-        distanceKm: entry.distanceKm,
-        calories: entry.calories,
-        source: entry.source,
-        performedAt: entry.performedAt,
-      },
-    });
+    // Upsert by stravaId to handle Strava re-syncs
+    const created = p.stravaId
+      ? await this.prisma.activity.upsert({
+          where:  { stravaId: p.stravaId },
+          update: {
+            type: p.type, durationMin: p.durationMin, calories: p.calories,
+            avgHeartRate: p.avgHeartRate, maxHeartRate: p.maxHeartRate, notes: p.notes,
+            distanceKm: p.distanceKm, elevationGainM: p.elevationGainM,
+            avgPaceSecPerKm: p.avgPaceSecPerKm, avgCadenceSpm: p.avgCadenceSpm,
+            avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW, avgCadenceRpm: p.avgCadenceRpm,
+            kilojoules: p.kilojoules, distanceM: p.distanceM, avgPace100mSec: p.avgPace100mSec,
+            muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg, stravaName: p.stravaName,
+          },
+          create: {
+            id: p.id, userId: p.userId, type: p.type, source: p.source, performedAt: p.performedAt,
+            durationMin: p.durationMin, calories: p.calories, avgHeartRate: p.avgHeartRate,
+            maxHeartRate: p.maxHeartRate, notes: p.notes, distanceKm: p.distanceKm,
+            elevationGainM: p.elevationGainM, avgPaceSecPerKm: p.avgPaceSecPerKm,
+            avgCadenceSpm: p.avgCadenceSpm, avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW,
+            avgCadenceRpm: p.avgCadenceRpm, kilojoules: p.kilojoules, distanceM: p.distanceM,
+            avgPace100mSec: p.avgPace100mSec, muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg,
+            stravaId: p.stravaId, stravaName: p.stravaName,
+          },
+        })
+      : await this.prisma.activity.create({
+          data: {
+            id: p.id, userId: p.userId, type: p.type, source: p.source, performedAt: p.performedAt,
+            durationMin: p.durationMin, calories: p.calories, avgHeartRate: p.avgHeartRate,
+            maxHeartRate: p.maxHeartRate, notes: p.notes, distanceKm: p.distanceKm,
+            elevationGainM: p.elevationGainM, avgPaceSecPerKm: p.avgPaceSecPerKm,
+            avgCadenceSpm: p.avgCadenceSpm, avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW,
+            avgCadenceRpm: p.avgCadenceRpm, kilojoules: p.kilojoules, distanceM: p.distanceM,
+            avgPace100mSec: p.avgPace100mSec, muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg,
+            stravaName: p.stravaName,
+          },
+        });
 
-    return new ActivityEntity(
-      created.id,
-      created.userId,
-      created.type,
-      created.durationMin,
-      created.distanceKm,
-      created.calories,
-      created.source,
-      created.performedAt,
-    );
+    return toEntity(created);
   }
 
   async findByUser(userId: string): Promise<ActivityEntity[]> {
-    const entries = await this.prisma.activity.findMany({
-      where: { userId },
+    const rows = await this.prisma.activity.findMany({
+      where:   { userId },
       orderBy: { performedAt: 'desc' },
     });
-
-    return entries.map(
-      (entry) =>
-        new ActivityEntity(
-          entry.id,
-          entry.userId,
-          entry.type,
-          entry.durationMin,
-          entry.distanceKm,
-          entry.calories,
-          entry.source,
-          entry.performedAt,
-        ),
-    );
+    return rows.map(toEntity);
   }
 }
-

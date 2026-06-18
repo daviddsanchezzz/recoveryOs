@@ -13,27 +13,29 @@ export class GetActivitySummaryUseCase {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const recentEntries = entries.filter((entry) => entry.performedAt >= weekAgo);
-    const totalMinutes = recentEntries.reduce((sum, entry) => sum + entry.durationMin, 0);
+    const recentEntries = entries.filter((entry) => entry.props.performedAt >= weekAgo);
+    const totalMinutes = recentEntries.reduce(
+      (sum, e) => sum + (e.props.durationMin ?? 0), 0,
+    );
 
     const byType = recentEntries.reduce<Record<string, { count: number; totalMinutes: number }>>(
-      (accumulator, entry) => {
-        const current = accumulator[entry.type] ?? { count: 0, totalMinutes: 0 };
-        accumulator[entry.type] = {
-          count: current.count + 1,
-          totalMinutes: current.totalMinutes + entry.durationMin,
+      (acc, entry) => {
+        const current = acc[entry.props.type] ?? { count: 0, totalMinutes: 0 };
+        acc[entry.props.type] = {
+          count:        current.count + 1,
+          totalMinutes: current.totalMinutes + (entry.props.durationMin ?? 0),
         };
-        return accumulator;
+        return acc;
       },
       {},
     );
 
     return {
-      entries: recentEntries,
+      entries: recentEntries.map((e) => e.props),
       totalMinutes,
       byType: Object.entries(byType).map(([type, value]) => ({
         type,
-        count: value.count,
+        count:        value.count,
         totalMinutes: value.totalMinutes,
       })),
     };

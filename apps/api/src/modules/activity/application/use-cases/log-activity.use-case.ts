@@ -11,18 +11,33 @@ export class LogActivityUseCase {
   ) {}
 
   execute(input: LogActivityDto) {
-    const entry = new ActivityEntity(
-      crypto.randomUUID(),
-      input.userId,
-      input.type,
-      input.durationMin,
-      input.distanceKm ?? null,
-      input.calories ?? null,
-      input.source,
-      input.performedAt,
-    );
+    const entry = new ActivityEntity({
+      id:             crypto.randomUUID(),
+      userId:         input.userId,
+      type:           input.type,
+      source:         input.source,
+      performedAt:    input.performedAt,
+      durationMin:    input.durationMin     ?? null,
+      calories:       input.calories        ?? null,
+      avgHeartRate:   input.avgHeartRate    ?? null,
+      maxHeartRate:   input.maxHeartRate    ?? null,
+      notes:          input.notes           ?? null,
+      distanceKm:     input.distanceKm      ?? null,
+      elevationGainM: input.elevationGainM  ?? null,
+      avgPaceSecPerKm:input.avgPaceSecPerKm ?? null,
+      avgCadenceSpm:  input.avgCadenceSpm   ?? null,
+      avgSpeedKmh:    input.avgSpeedKmh     ?? null,
+      avgPowerW:      input.avgPowerW       ?? null,
+      avgCadenceRpm:  input.avgCadenceRpm   ?? null,
+      kilojoules:     input.kilojoules      ?? null,
+      distanceM:      input.distanceM       ?? null,
+      avgPace100mSec: input.avgPace100mSec  ?? null,
+      muscleGroups:   input.muscleGroups    ?? [],
+      totalVolumeKg:  input.totalVolumeKg   ?? null,
+      stravaId:       input.stravaId        ?? null,
+      stravaName:     input.stravaName      ?? null,
+    });
 
     return this.repository.create(entry);
   }
 }
-

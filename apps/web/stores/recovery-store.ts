@@ -41,12 +41,47 @@ export type WeightEntry = {
   weightKg: number;
 };
 
+export type MuscleGroup =
+  | 'pecho' | 'espalda' | 'biceps' | 'triceps'
+  | 'hombro' | 'core' | 'pierna' | 'gluteo';
+
 export type ActivityEntry = {
   id: string;
   date: string;
   type: ActivityType;
   durationMinutes?: number;
   notes?: string;
+
+  // Common metrics
+  kcal?: number;
+  avgHeartRateBpm?: number;
+  maxHeartRateBpm?: number;
+
+  // Distance activities (run, walk, bike)
+  distanceKm?: number;
+  elevationGainM?: number;
+
+  // Run / Walk
+  avgPaceSecPerKm?: number;   // display as mm:ss/km
+  avgCadenceSpm?: number;     // steps per minute
+
+  // Bike
+  avgSpeedKmh?: number;
+  avgPowerW?: number;
+  avgCadenceRpm?: number;
+  kilojoules?: number;
+
+  // Swim
+  distanceM?: number;
+  avgPacePer100mSec?: number;
+
+  // Gym
+  muscleGroups?: MuscleGroup[];
+  totalVolumeKg?: number;
+
+  // Strava integration
+  stravaId?: number;
+  stravaName?: string;
 };
 
 export type DailyHabits = {
@@ -70,11 +105,7 @@ export type DailyCheckIn = {
 type CheckInInput = {
   date: string;
   weightKg?: number;
-  activities: Array<{
-    type: ActivityType;
-    durationMinutes?: number;
-    notes?: string;
-  }>;
+  activities: Array<Omit<ActivityEntry, 'id' | 'date'>>;
   injuryLogs: Array<{
     injuryId: string;
     painLevel: number;
@@ -148,11 +179,9 @@ export const useRecoveryStore = create<RecoveryState>()(
             state.activities,
             input.date,
             input.activities.map((activity) => ({
+              ...activity,
               id: createId('activity'),
               date: input.date,
-              type: activity.type,
-              durationMinutes: activity.durationMinutes,
-              notes: activity.notes,
             })),
           );
 
