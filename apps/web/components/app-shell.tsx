@@ -12,6 +12,7 @@ import { ChatPanel }          from './chat-panel';
 import { useSessionStore }    from '../stores/session-store';
 import { getJson }            from '../lib/api';
 import { RecoveryService }    from '../lib/services';
+import { todayIso }           from '../lib/date';
 import type { TabId }         from './bottom-nav';
 
 export function AppShell() {
@@ -42,7 +43,7 @@ export function AppShell() {
 
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email, name: session.user.name });
-          void RecoveryService.loadUserData(session.user.id);
+          void RecoveryService.loadTodayData(session.user.id, todayIso());
         } else {
           clearUser();
         }

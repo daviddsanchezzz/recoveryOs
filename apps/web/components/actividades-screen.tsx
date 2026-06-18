@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity, Bike, Dumbbell, Footprints, Waves, Zap,
-  Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt,
+  Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { useSessionStore } from '../stores/session-store';
+import { RecoveryService } from '../lib/services';
 import { AddActivitySheet } from './add-activity-sheet';
 import type { ActivityType, ActivityEntry } from '../stores/recovery-store';
 
@@ -92,7 +94,6 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
 
   return (
     <div className="rounded-3xl bg-white shadow-card p-4 space-y-3">
-      {/* Header row */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-2xl bg-canvas flex items-center justify-center flex-shrink-0">
           <Icon size={18} className="text-moss" />
@@ -113,19 +114,16 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
         )}
       </div>
 
-      {/* Muscle groups (gym) */}
       {isGym && act.muscleGroups && act.muscleGroups.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {act.muscleGroups.map((m) => <Chip key={m} label={MUSCLE_LABELS[m] ?? m} />)}
         </div>
       )}
 
-      {/* Stats grid */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {act.durationMinutes && (
           <Stat icon={Clock} value={act.durationMinutes} unit="min" />
         )}
-        {/* Run/Walk */}
         {isRun && act.distanceKm && (
           <Stat icon={Gauge} value={act.distanceKm.toFixed(2)} unit="km" />
         )}
@@ -135,7 +133,6 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
         {isRun && act.elevationGainM && (
           <Stat icon={Mountain} value={act.elevationGainM} unit="m ↑" />
         )}
-        {/* Bike */}
         {isBike && act.distanceKm && (
           <Stat icon={Gauge} value={act.distanceKm.toFixed(1)} unit="km" />
         )}
@@ -148,15 +145,12 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
         {isBike && act.avgPowerW && (
           <Stat icon={Bolt} value={act.avgPowerW} unit="W" />
         )}
-        {/* Swim */}
         {isSwim && act.distanceM && (
           <Stat icon={Gauge} value={act.distanceM} unit="m" />
         )}
-        {/* Gym volume */}
         {isGym && act.totalVolumeKg && (
           <Stat icon={Dumbbell} value={act.totalVolumeKg.toLocaleString('es-ES')} unit="kg vol." />
         )}
-        {/* Common */}
         {act.kcal && (
           <Stat icon={Flame} value={act.kcal} unit="kcal" color="text-orange-400" />
         )}
@@ -165,7 +159,6 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
         )}
       </div>
 
-      {/* Notes */}
       {act.notes && (
         <p className="text-xs text-ink/40 leading-relaxed">{act.notes}</p>
       )}
@@ -174,9 +167,41 @@ function ActivityCard({ act }: { act: ActivityEntry }) {
 }
 
 export function ActividadesScreen() {
-  const [filter,  setFilter]  = useState<Filter>('all');
-  const [showAdd, setShowAdd] = useState(false);
-  const { activities } = useRecoveryStore();
+  const [filter,      setFilter]      = useState<Filter>('all');
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const { activities, activitiesMeta } = useRecoveryStore();
+  const user = useSessionStore((s) => s.user);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Load first page on first visit
+  useEffect(() => {
+    if (!activitiesMeta.loaded && user) {
+      setLoadingMore(true);
+      void RecoveryService.loadActivitiesPage(user.id).finally(() => setLoadingMore(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Infinite scroll: watch sentinel div
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && activitiesMeta.hasMore && !loadingMore && activitiesMeta.loaded && user) {
+          setLoadingMore(true);
+          void RecoveryService.loadActivitiesPage(user.id, activitiesMeta.nextCursor ?? undefined)
+            .finally(() => setLoadingMore(false));
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [activitiesMeta, loadingMore, user]);
 
   const sorted   = [...activities].sort((a, b) => b.date.localeCompare(a.date));
   const filtered = filter === 'all' ? sorted : sorted.filter((a) => a.type === filter);
@@ -188,7 +213,9 @@ export function ActividadesScreen() {
           <div className="space-y-0.5">
             <h1 className="text-2xl font-bold text-ink">Actividades</h1>
             <p className="text-sm text-ink/40">
-              {activities.length === 0 ? 'Sin actividades' : `${activities.length} sesiones registradas`}
+              {activities.length === 0
+                ? 'Sin actividades'
+                : `${activities.length} sesiones${activitiesMeta.hasMore ? '+' : ''}`}
             </p>
           </div>
           <button type="button" onClick={() => setShowAdd(true)}
@@ -212,7 +239,11 @@ export function ActividadesScreen() {
         </div>
 
         {/* List */}
-        {filtered.length === 0 ? (
+        {!activitiesMeta.loaded && loadingMore ? (
+          <div className="flex justify-center py-12">
+            <Loader2 size={22} className="text-ink/30 animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-4xl bg-canvas-light border border-sand/40 p-8 flex flex-col items-center gap-2 text-center">
             <Activity size={24} className="text-ink/20" />
             <p className="text-sm text-ink/40">
@@ -226,6 +257,21 @@ export function ActividadesScreen() {
           <div className="space-y-3">
             {filtered.map((act) => <ActivityCard key={act.id} act={act} />)}
           </div>
+        )}
+
+        {/* Sentinel for infinite scroll */}
+        <div ref={sentinelRef} className="h-1" />
+
+        {/* Load-more spinner */}
+        {loadingMore && activitiesMeta.loaded && (
+          <div className="flex justify-center py-4">
+            <Loader2 size={18} className="text-ink/30 animate-spin" />
+          </div>
+        )}
+
+        {/* End of list */}
+        {activitiesMeta.loaded && !activitiesMeta.hasMore && activities.length > 0 && (
+          <p className="text-center text-xs text-ink/25 pb-2">— Todas las actividades cargadas —</p>
         )}
       </div>
 

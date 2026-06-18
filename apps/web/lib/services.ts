@@ -1,8 +1,60 @@
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
-import type { InjuryStatus, WeightEntry } from '../stores/recovery-store';
+import type { ActivityEntry, InjuryStatus, WeightEntry } from '../stores/recovery-store';
 import { getJson, postJson } from './api';
 import { todayIso } from './date';
+
+type ServerActivity = {
+  id: string;
+  type: string;
+  performedAt: string;
+  durationMin?: number | null;
+  calories?: number | null;
+  avgHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  notes?: string | null;
+  distanceKm?: number | null;
+  elevationGainM?: number | null;
+  avgPaceSecPerKm?: number | null;
+  avgCadenceSpm?: number | null;
+  avgSpeedKmh?: number | null;
+  avgPowerW?: number | null;
+  avgCadenceRpm?: number | null;
+  kilojoules?: number | null;
+  distanceM?: number | null;
+  avgPace100mSec?: number | null;
+  muscleGroups?: string[];
+  totalVolumeKg?: number | null;
+  stravaId?: string | null;
+  stravaName?: string | null;
+};
+
+function mapServerActivity(a: ServerActivity): ActivityEntry {
+  return {
+    id:               a.id,
+    type:             a.type as ActivityEntry['type'],
+    date:             a.performedAt.includes('T') ? a.performedAt.split('T')[0] : a.performedAt,
+    durationMinutes:  a.durationMin ?? undefined,
+    kcal:             a.calories ?? undefined,
+    avgHeartRateBpm:  a.avgHeartRate ?? undefined,
+    maxHeartRateBpm:  a.maxHeartRate ?? undefined,
+    notes:            a.notes ?? undefined,
+    distanceKm:       a.distanceKm ?? undefined,
+    elevationGainM:   a.elevationGainM ?? undefined,
+    avgPaceSecPerKm:  a.avgPaceSecPerKm ?? undefined,
+    avgCadenceSpm:    a.avgCadenceSpm ?? undefined,
+    avgSpeedKmh:      a.avgSpeedKmh ?? undefined,
+    avgPowerW:        a.avgPowerW ?? undefined,
+    avgCadenceRpm:    a.avgCadenceRpm ?? undefined,
+    kilojoules:       a.kilojoules ?? undefined,
+    distanceM:        a.distanceM ?? undefined,
+    avgPacePer100mSec:a.avgPace100mSec ?? undefined,
+    muscleGroups:     (a.muscleGroups ?? []) as ActivityEntry['muscleGroups'],
+    totalVolumeKg:    a.totalVolumeKg ?? undefined,
+    stravaId:         a.stravaId ? Number(a.stravaId) : undefined,
+    stravaName:       a.stravaName ?? undefined,
+  };
+}
 
 export const RecoveryService = {
   // ─── Weight ───────────────────────────────────────────────
@@ -100,23 +152,51 @@ export const RecoveryService = {
   },
 
   // ─── Server sync ─────────────────────────────────────────
-  async loadUserData(userId: string): Promise<void> {
-    try {
-      const summary = await getJson<{
-        currentWeightKg: number | null;
-        trend: Array<{ date: string; value: number }>;
-      }>(`/weights/${userId}/summary`);
 
-      if (summary.trend.length > 0) {
-        const entries: WeightEntry[] = summary.trend.map((t, i) => ({
+  // Called at startup: loads only what Today screen needs
+  async loadTodayData(userId: string, date: string): Promise<void> {
+    const store = useRecoveryStore.getState();
+
+    const [weightsResult, todayResult] = await Promise.allSettled([
+      getJson<{ currentWeightKg: number | null; trend: Array<{ date: string; value: number }> }>(
+        `/weights/${userId}/summary`,
+      ),
+      getJson<ServerActivity[]>(`/activities/${userId}/today?date=${date}`),
+    ]);
+
+    if (weightsResult.status === 'fulfilled') {
+      const { trend } = weightsResult.value;
+      if (trend.length > 0) {
+        const entries: WeightEntry[] = trend.map((t, i) => ({
           id: `server-w-${i}`,
           date: t.date.includes('T') ? t.date.split('T')[0] : t.date,
           weightKg: t.value,
         }));
-        useRecoveryStore.getState().seedWeightFromServer(entries);
+        store.seedWeightFromServer(entries);
       }
-    } catch {
-      // API unavailable — keep local data
     }
+
+    if (todayResult.status === 'fulfilled') {
+      store.seedTodayActivities(todayResult.value.map(mapServerActivity));
+    }
+  },
+
+  // Called lazily when Actividades tab opens, and on each scroll-to-bottom
+  async loadActivitiesPage(userId: string, beforeId?: string): Promise<void> {
+    const store = useRecoveryStore.getState();
+    const url = beforeId
+      ? `/activities/${userId}?limit=50&beforeId=${beforeId}`
+      : `/activities/${userId}?limit=50`;
+
+    try {
+      const res = await getJson<{ items: ServerActivity[]; hasMore: boolean; nextCursor: string | null }>(url);
+      store.appendActivities(res.items.map(mapServerActivity), res.hasMore, res.nextCursor);
+    } catch {
+      // keep existing data on error
+    }
+  },
+
+  clearData(): void {
+    useRecoveryStore.getState().clearAllData();
   },
 };

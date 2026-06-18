@@ -124,12 +124,19 @@ type ProfileState = {
   };
 };
 
+type ActivitiesMeta = {
+  loaded: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
+};
+
 type RecoveryState = {
   profile: ProfileState;
   injuries: Injury[];
   injuryLogs: InjuryLog[];
   weightEntries: WeightEntry[];
   activities: ActivityEntry[];
+  activitiesMeta: ActivitiesMeta;
   checkIns: DailyCheckIn[];
   selectedDate: string;
   setSelectedDate: (date: string) => void;
@@ -141,6 +148,9 @@ type RecoveryState = {
   logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
   setProfile: (input: Partial<ProfileState>) => void;
   seedWeightFromServer: (entries: WeightEntry[]) => void;
+  seedTodayActivities: (entries: ActivityEntry[]) => void;
+  appendActivities: (entries: ActivityEntry[], hasMore: boolean, nextCursor: string | null) => void;
+  clearAllData: () => void;
 };
 
 function createId(prefix: string) {
@@ -151,6 +161,8 @@ function replaceByDate<T extends { date: string }>(entries: T[], date: string, n
   return [...entries.filter((entry) => !sameDay(entry.date, date)), ...nextEntries];
 }
 
+const INITIAL_ACTIVITIES_META: ActivitiesMeta = { loaded: false, hasMore: true, nextCursor: null };
+
 export const useRecoveryStore = create<RecoveryState>()(
   persist(
     (set) => ({
@@ -159,6 +171,7 @@ export const useRecoveryStore = create<RecoveryState>()(
       injuryLogs: recoveryMockData.injuryLogs,
       weightEntries: recoveryMockData.weightEntries,
       activities: recoveryMockData.activities,
+      activitiesMeta: INITIAL_ACTIVITIES_META,
       checkIns: recoveryMockData.checkIns,
       selectedDate: todayIso(),
       setSelectedDate: (date) => set({ selectedDate: date }),
@@ -271,8 +284,49 @@ export const useRecoveryStore = create<RecoveryState>()(
           },
         })),
       seedWeightFromServer: (entries) => set({ weightEntries: entries }),
+      seedTodayActivities: (entries) =>
+        set((state) => {
+          const existingIds = new Set(state.activities.map((a) => a.id));
+          const fresh = entries.filter((e) => !existingIds.has(e.id));
+          return { activities: [...fresh, ...state.activities] };
+        }),
+      appendActivities: (entries, hasMore, nextCursor) =>
+        set((state) => {
+          const existingIds = new Set(state.activities.map((a) => a.id));
+          const fresh = entries.filter((e) => !existingIds.has(e.id));
+          return {
+            activities: [...state.activities, ...fresh],
+            activitiesMeta: { loaded: true, hasMore, nextCursor },
+          };
+        }),
+      clearAllData: () =>
+        set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
     }),
-    { name: 'recoveryos-v1-store' },
+    {
+      name: 'recoveryos-v1-store',
+      version: 2,
+      partialize: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { activitiesMeta: _meta, ...rest } = state;
+        return rest as RecoveryState;
+      },
+      migrate: (persisted: unknown, fromVersion: number) => {
+        const state = persisted as Record<string, unknown>;
+        if (fromVersion < 2) {
+          // Remove mock activities (IDs like a-14, a-13, a-8a, a-3b …)
+          const isMockId = (id: string) => /^a-\d+[a-z]?$/.test(id);
+          const acts = (state.activities as ActivityEntry[] | undefined) ?? [];
+          state.activities = acts.filter((a) => !isMockId(a.id));
+          // Also scrub them from embedded checkIn.activities arrays
+          const cis = (state.checkIns as DailyCheckIn[] | undefined) ?? [];
+          state.checkIns = cis.map((ci) => ({
+            ...ci,
+            activities: (ci.activities ?? []).filter((a) => !isMockId(a.id)),
+          }));
+        }
+        return state as RecoveryState;
+      },
+    },
   ),
 );
 

@@ -6,6 +6,7 @@ import { X, Settings, Link2, ChevronRight, LogOut, Plus } from 'lucide-react';
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { postJson } from '../lib/api';
+import { RecoveryService } from '../lib/services';
 import { Portal } from './portal';
 
 export function AvatarDrawer({
@@ -41,6 +42,7 @@ export function AvatarDrawer({
     } catch {
       // continue regardless
     } finally {
+      RecoveryService.clearData();
       clearUser();
       setIsLoggingOut(false);
       onClose();
