@@ -81,7 +81,8 @@ export function AddActivitySheet({
   const isEditing = !!editActivity;
 
   const [type, setType] = useState<ActivityType | null>(null);
-  const [duration,   setDuration]   = useState('');
+  const [durH,       setDurH]       = useState('');
+  const [durM,       setDurM]       = useState('');
   const [kcal,       setKcal]       = useState('');
   const [avgHr,      setAvgHr]      = useState('');
   const [notes,      setNotes]      = useState('');
@@ -100,12 +101,16 @@ export function AddActivitySheet({
   const [volumeKg,   setVolumeKg]   = useState('');
   const [saved,      setSaved]      = useState(false);
 
+  const totalDurationMin = parseInt(durH || '0') * 60 + parseInt(durM || '0');
+
   // Prefill when editing
   useEffect(() => {
     if (!isOpen) return;
     if (editActivity) {
       setType(editActivity.type);
-      setDuration(editActivity.durationMinutes ? String(editActivity.durationMinutes) : '');
+      const dm = editActivity.durationMinutes ?? 0;
+      setDurH(dm >= 60 ? String(Math.floor(dm / 60)) : '');
+      setDurM(dm % 60 ? String(dm % 60) : '');
       setKcal(editActivity.kcal ? String(editActivity.kcal) : '');
       setAvgHr(editActivity.avgHeartRateBpm ? String(editActivity.avgHeartRateBpm) : '');
       setNotes(editActivity.notes ?? '');
@@ -132,7 +137,7 @@ export function AddActivitySheet({
 
   function reset() {
     setType(null);
-    setDuration(''); setKcal(''); setAvgHr(''); setNotes(''); setDate(todayIso());
+    setDurH(''); setDurM(''); setKcal(''); setAvgHr(''); setNotes(''); setDate(todayIso());
     setDistKm(''); setPaceMm(''); setPaceSs(''); setElevGain(''); setCadSpm('');
     setSpeedKmh(''); setPowerW(''); setCadRpm('');
     setDistM(''); setPace100('');
@@ -148,7 +153,7 @@ export function AddActivitySheet({
     RecoveryService.logActivity({
       type,
       date,
-      durationMinutes: duration ? parseInt(duration, 10) : undefined,
+      durationMinutes: totalDurationMin > 0 ? totalDurationMin : undefined,
       kcal:            kcal     ? parseInt(kcal, 10)     : undefined,
       avgHeartRateBpm: avgHr    ? parseInt(avgHr, 10)    : undefined,
       notes:           notes.trim() || undefined,
@@ -289,7 +294,26 @@ export function AddActivitySheet({
                 )}
 
                 <div className="flex gap-2">
-                  <Field label="Duración" unit="min" value={duration} onChange={setDuration} placeholder="60" />
+                  {/* Duration: h + min */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink/40 mb-1">Duración</p>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number" inputMode="numeric" min={0} max={23}
+                        value={durH} onChange={(e) => setDurH(e.target.value)}
+                        placeholder="0"
+                        className="w-10 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                      />
+                      <span className="text-xs text-ink/35 font-semibold">h</span>
+                      <input
+                        type="number" inputMode="numeric" min={0} max={59}
+                        value={durM} onChange={(e) => setDurM(e.target.value)}
+                        placeholder="00"
+                        className="w-12 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                      />
+                      <span className="text-xs text-ink/35 font-semibold">min</span>
+                    </div>
+                  </div>
                   <Field label="Calorías" unit="kcal" value={kcal} onChange={setKcal} placeholder="400" />
                   <Field label="FC media" unit="bpm" value={avgHr} onChange={setAvgHr} placeholder="145" />
                 </div>

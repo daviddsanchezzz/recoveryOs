@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Settings, Link2, ChevronRight, LogOut, Plus } from 'lucide-react';
+import { X, Settings, Link2, ChevronRight, LogOut, AlertCircle } from 'lucide-react';
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { postJson } from '../lib/api';
 import { RecoveryService } from '../lib/services';
 import { Portal } from './portal';
+import { LesionesScreen } from './lesiones-screen';
 
 export function AvatarDrawer({
   isOpen,
@@ -17,23 +18,23 @@ export function AvatarDrawer({
   onClose: () => void;
 }) {
   const sessionUser = useSessionStore((s) => s.user);
-  const clearUser = useSessionStore((s) => s.clearUser);
-  const { profile, injuries, addInjury, updateInjury } = useRecoveryStore();
+  const clearUser   = useSessionStore((s) => s.clearUser);
+  const { profile, injuries } = useRecoveryStore();
   const router = useRouter();
 
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isAddingInjury, setIsAddingInjury] = useState(false);
-  const [newInjuryName, setNewInjuryName] = useState('');
-  const [newInjuryBodyPart, setNewInjuryBodyPart] = useState('');
+  const [isLoggingOut,      setIsLoggingOut]      = useState(false);
+  const [showLesionesScreen, setShowLesionesScreen] = useState(false);
 
   const displayName = profile.name || sessionUser?.name || 'Usuario';
-  const email = sessionUser?.email ?? '';
-  const initials = displayName
+  const email       = sessionUser?.email ?? '';
+  const initials    = displayName
     .split(' ')
     .map((n) => n[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
+
+  const activeCount = injuries.filter((i) => i.status === 'active' || i.status === 'recovering').length;
 
   async function logout() {
     setIsLoggingOut(true);
@@ -48,20 +49,6 @@ export function AvatarDrawer({
       onClose();
       router.push('/login');
     }
-  }
-
-  function createInjury() {
-    if (!newInjuryName.trim()) return;
-    addInjury({
-      name: newInjuryName.trim(),
-      bodyPart: newInjuryBodyPart.trim() || undefined,
-      startDate: new Date().toISOString().slice(0, 10),
-      status: 'active',
-      description: undefined,
-    });
-    setNewInjuryName('');
-    setNewInjuryBodyPart('');
-    setIsAddingInjury(false);
   }
 
   if (!isOpen) return null;
@@ -103,14 +90,11 @@ export function AvatarDrawer({
 
           {/* Active goals */}
           {profile.activeGoals.length > 0 && (
-            <div className="px-5 pt-4 pb-3">
+            <div className="px-5 pt-4 pb-3 border-b border-ink/5">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 mb-2">Objetivos</p>
               <div className="flex flex-wrap gap-2">
                 {profile.activeGoals.map((g) => (
-                  <span
-                    key={g}
-                    className="rounded-full bg-moss-light px-3 py-1 text-xs font-medium text-moss"
-                  >
+                  <span key={g} className="rounded-full bg-moss-light px-3 py-1 text-xs font-medium text-moss">
                     {g}
                   </span>
                 ))}
@@ -118,85 +102,23 @@ export function AvatarDrawer({
             </div>
           )}
 
-          {/* Injuries */}
-          <div className="px-5 pt-3 pb-4 border-b border-ink/5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Lesiones</p>
-              <button
-                type="button"
-                onClick={() => setIsAddingInjury(!isAddingInjury)}
-                className="h-6 w-6 rounded-lg bg-canvas-light flex items-center justify-center"
-              >
-                <Plus size={12} className="text-ink/60" />
-              </button>
+          {/* Injuries — tap to open full screen */}
+          <button
+            type="button"
+            onClick={() => setShowLesionesScreen(true)}
+            className="w-full flex items-center justify-between px-5 py-4 border-b border-ink/5 text-left active:bg-canvas-light transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle size={15} className="text-ember" />
+              <span className="text-sm text-ink">Lesiones</span>
+              {activeCount > 0 && (
+                <span className="text-xs font-semibold text-ember bg-orange-50 rounded-full px-2 py-0.5">
+                  {activeCount} activa{activeCount > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
-
-            {isAddingInjury && (
-              <div className="space-y-2 bg-white rounded-3xl p-4 shadow-card mb-2">
-                <input
-                  value={newInjuryName}
-                  onChange={(e) => setNewInjuryName(e.target.value)}
-                  placeholder="Nombre de la lesión"
-                  className="w-full rounded-2xl bg-canvas px-4 py-3 text-sm text-ink outline-none border border-ink/10"
-                />
-                <input
-                  value={newInjuryBodyPart}
-                  onChange={(e) => setNewInjuryBodyPart(e.target.value)}
-                  placeholder="Zona (tobillo, rodilla...)"
-                  className="w-full rounded-2xl bg-canvas px-4 py-3 text-sm text-ink outline-none border border-ink/10"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={createInjury}
-                    className="flex-1 rounded-2xl bg-ink py-2.5 text-sm font-medium text-white"
-                  >
-                    Añadir
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingInjury(false)}
-                    className="rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink/60"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {injuries.length === 0 && !isAddingInjury ? (
-              <p className="text-sm text-ink/30">Sin lesiones registradas</p>
-            ) : (
-              <div className="space-y-0">
-                {injuries.map((injury) => (
-                  <div
-                    key={injury.id}
-                    className="flex items-center justify-between py-2.5 border-b border-ink/5 last:border-0 gap-2"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-ink">{injury.name}</p>
-                      {injury.bodyPart && (
-                        <p className="text-xs text-ink/40 capitalize">{injury.bodyPart}</p>
-                      )}
-                    </div>
-                    <select
-                      value={injury.status}
-                      onChange={(e) =>
-                        updateInjury(injury.id, {
-                          status: e.target.value as 'active' | 'recovering' | 'resolved',
-                        })
-                      }
-                      className="rounded-xl bg-canvas border border-ink/10 px-2.5 py-1.5 text-xs text-ink/60 outline-none"
-                    >
-                      <option value="active">Activa</option>
-                      <option value="recovering">Recuperando</option>
-                      <option value="resolved">Resuelta</option>
-                    </select>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            <ChevronRight size={14} className="text-ink/20" />
+          </button>
 
           {/* Menu items */}
           <div className="px-5 py-2">
@@ -237,6 +159,10 @@ export function AvatarDrawer({
           </div>
         </div>
       </div>
+
+      {showLesionesScreen && (
+        <LesionesScreen onClose={() => setShowLesionesScreen(false)} />
+      )}
     </Portal>
   );
 }
