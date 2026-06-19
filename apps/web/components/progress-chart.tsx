@@ -7,19 +7,26 @@ import {
 } from 'recharts';
 import type { ChartPoint } from '../lib/progress-metrics';
 
+const HEIGHT = 160;
+
 interface ProgressChartProps {
   data: ChartPoint[];
   type: 'bar' | 'line';
   color: string;
   formatValue?: (v: number) => string;
+  formatYTick?: (v: number) => string;
 }
 
-export function ProgressChart({ data, type, color, formatValue }: ProgressChartProps) {
-  // Defer recharts render to client only to avoid SSR mismatch
+function defaultYFmt(v: number): string {
+  return v % 1 === 0 ? String(v) : v.toFixed(1);
+}
+
+export function ProgressChart({ data, type, color, formatValue, formatYTick }: ProgressChartProps) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
-  const fmt = formatValue ?? String;
+  const fmt   = formatValue ?? String;
+  const yFmt  = formatYTick ?? defaultYFmt;
 
   const tickStyle = {
     fontSize: 10,
@@ -40,9 +47,8 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
     );
   };
 
-  if (!ready) return <div style={{ height: 220 }} />;
+  if (!ready) return <div style={{ height: HEIGHT }} />;
 
-  // Tight Y-domain with padding — needed for line charts where range is narrow (e.g. weight 78-79 kg)
   const validValues = data.filter((p) => p.value != null).map((p) => Number(p.value));
   const dataMin = validValues.length > 0 ? Math.min(...validValues) : 0;
   const dataMax = validValues.length > 0 ? Math.max(...validValues) : 100;
@@ -52,13 +58,22 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
     Math.round((dataMax + pad) * 10) / 10,
   ];
 
+  const yAxisProps = {
+    tickFormatter: yFmt,
+    tick: tickStyle,
+    tickLine: false,
+    axisLine: false,
+    tickCount: 4,
+    width: 34,
+  };
+
   if (type === 'bar') {
     return (
       <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barCategoryGap="32%">
+        <ResponsiveContainer width="100%" height={HEIGHT}>
+          <BarChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }} barCategoryGap="32%">
             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
-            <YAxis domain={[0, yDomain[1]]} hide />
+            <YAxis domain={[0, yDomain[1]]} {...yAxisProps} />
             <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
             <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} />
           </BarChart>
@@ -69,10 +84,10 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
 
   return (
     <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={HEIGHT}>
+        <LineChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
           <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
-          <YAxis domain={yDomain} hide />
+          <YAxis domain={yDomain} {...yAxisProps} />
           <Tooltip content={tooltipContent} cursor={false} />
           <Line
             type="monotone"
