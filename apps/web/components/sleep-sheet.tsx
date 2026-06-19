@@ -8,6 +8,11 @@ import { Portal } from './portal';
 
 const QUALITY_LABELS: Record<number, string> = { 1: 'Mala', 2: 'Regular', 3: 'Normal', 4: 'Buena', 5: 'Óptima' };
 
+function toHoursMinutes(durationH: number): { h: string; m: string } {
+  const totalMin = Math.round(durationH * 60);
+  return { h: String(Math.floor(totalMin / 60)), m: String(totalMin % 60) };
+}
+
 interface SleepSheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,27 +26,33 @@ export function SleepSheet({
   isOpen, onClose,
   defaultDate, defaultDurationH, defaultQuality = 3, editId,
 }: SleepSheetProps) {
-  const [hours,   setHours]   = useState(defaultDurationH !== undefined ? String(defaultDurationH) : '');
+  const init = defaultDurationH !== undefined ? toHoursMinutes(defaultDurationH) : { h: '', m: '' };
+  const [h,       setH]       = useState(init.h);
+  const [m,       setM]       = useState(init.m);
   const [quality, setQuality] = useState<1 | 2 | 3 | 4 | 5>(defaultQuality);
   const [date,    setDate]    = useState(defaultDate ?? todayIso());
   const [saved,   setSaved]   = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setHours(defaultDurationH !== undefined ? String(defaultDurationH) : '');
+      const parsed = defaultDurationH !== undefined ? toHoursMinutes(defaultDurationH) : { h: '', m: '' };
+      setH(parsed.h);
+      setM(parsed.m);
       setQuality(defaultQuality);
       setDate(defaultDate ?? todayIso());
       setSaved(false);
     }
   }, [isOpen, defaultDate, defaultDurationH, defaultQuality]);
 
+  const totalH   = (parseInt(h || '0') * 60 + parseInt(m || '0')) / 60;
+  const isValid  = totalH > 0;
+
   function handleSave() {
-    const h = parseFloat(hours.replace(',', '.'));
-    if (isNaN(h) || h <= 0) return;
+    if (!isValid) return;
     if (editId) {
-      RecoveryService.updateSleep(editId, { durationH: h, quality, date });
+      RecoveryService.updateSleep(editId, { durationH: totalH, quality, date });
     } else {
-      RecoveryService.logSleep({ durationH: h, quality, date });
+      RecoveryService.logSleep({ durationH: totalH, quality, date });
     }
     setSaved(true);
     setTimeout(onClose, 600);
@@ -67,19 +78,32 @@ export function SleepSheet({
         </div>
 
         <div className="px-5 pt-2 pb-2 space-y-5">
-          {/* Hours input */}
-          <div className="flex items-baseline justify-center gap-2">
+          {/* Hours + minutes */}
+          <div className="flex items-center justify-center gap-1">
             <input
               type="number"
-              inputMode="decimal"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
+              inputMode="numeric"
+              min={0}
+              max={23}
+              value={h}
+              onChange={(e) => setH(e.target.value)}
               placeholder="0"
               // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
-              className="text-6xl font-bold text-ink text-center w-36 bg-transparent outline-none placeholder:text-ink/15"
+              className="text-6xl font-bold text-ink text-center w-24 bg-transparent outline-none placeholder:text-ink/15"
             />
-            <span className="text-2xl font-medium text-ink/40">h</span>
+            <span className="text-3xl font-bold text-ink/30 pb-1">h</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={59}
+              value={m}
+              onChange={(e) => setM(e.target.value)}
+              placeholder="00"
+              className="text-6xl font-bold text-ink text-center w-28 bg-transparent outline-none placeholder:text-ink/15"
+            />
+            <span className="text-3xl font-bold text-ink/30 pb-1">min</span>
           </div>
 
           {/* Quality */}
@@ -118,7 +142,7 @@ export function SleepSheet({
           <button
             type="button"
             onClick={handleSave}
-            disabled={!hours.trim() || saved}
+            disabled={!isValid || saved}
             className="w-full rounded-2xl bg-ink py-4 text-sm font-semibold text-white disabled:opacity-30 transition-opacity"
           >
             {saved ? '¡Guardado! ✓' : 'Guardar'}
