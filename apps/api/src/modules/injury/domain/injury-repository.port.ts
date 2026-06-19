@@ -1,9 +1,25 @@
-import { InjuryEntryEntity } from './injury-entry.entity';
+import { InjuryEntity, InjuryStatus } from './injury.entity';
+import { InjuryLogEntity } from './injury-log.entity';
 
-export const INJURY_REPOSITORY = Symbol('INJURY_REPOSITORY');
+export const INJURY_REPOSITORY = 'INJURY_REPOSITORY';
 
 export interface InjuryRepositoryPort {
-  create(entry: InjuryEntryEntity): Promise<InjuryEntryEntity>;
-  findByUser(userId: string): Promise<InjuryEntryEntity[]>;
-}
+  createInjury(injury: InjuryEntity): Promise<InjuryEntity>;
+  findInjuriesByUser(userId: string): Promise<(InjuryEntity & { logs: InjuryLogEntity[] })[]>;
+  updateInjury(
+    id: string,
+    data: Partial<{
+      name: string;
+      bodyPart: string;
+      description: string;
+      startDate: Date;
+      status: InjuryStatus;
+    }>,
+  ): Promise<InjuryEntity>;
+  deleteInjury(id: string): Promise<void>;
 
+  createLog(log: InjuryLogEntity): Promise<InjuryLogEntity>;
+  findLogsByInjury(injuryId: string): Promise<InjuryLogEntity[]>;
+  findLogsByUser(userId: string): Promise<InjuryLogEntity[]>;
+  deleteLog(id: string): Promise<void>;
+}

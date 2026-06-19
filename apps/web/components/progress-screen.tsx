@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, Zap, Activity } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
+import { LesionesScreen } from './lesiones-screen';
+import { SuenoScreen } from './sueno-screen';
 import {
   type ProgressTab,
   type ActivityFilter,
@@ -51,7 +53,9 @@ export function ProgressScreen() {
   const [activeTab,        setActiveTab]        = useState<ProgressTab>('actividad');
   const [activityFilter,   setActivityFilter]   = useState<ActivityFilter>('all');
   const [chartMetric,      setChartMetric]      = useState<ChartMetric>('tiempo');
-  const [showWeightScreen, setShowWeightScreen] = useState(false);
+  const [showWeightScreen,   setShowWeightScreen]   = useState(false);
+  const [showLesionesScreen, setShowLesionesScreen] = useState(false);
+  const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
 
   const { activities, weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
     useRecoveryStore();
@@ -149,6 +153,8 @@ export function ProgressScreen() {
           <ProgressWeeklySummary
             summary={summary}
             onWeightPress={() => setShowWeightScreen(true)}
+            onDolorPress={() => setShowLesionesScreen(true)}
+            onSuenoPress={() => setShowSuenoScreen(true)}
           />
         </div>
 
@@ -202,9 +208,9 @@ export function ProgressScreen() {
         <ProgressTrends trends={trends} />
       </div>
 
-      {showWeightScreen && (
-        <WeightScreen onClose={() => setShowWeightScreen(false)} />
-      )}
+      {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
+      {showLesionesScreen && <LesionesScreen  onClose={() => setShowLesionesScreen(false)} />}
+      {showSuenoScreen    && <SuenoScreen     onClose={() => setShowSuenoScreen(false)} />}
     </div>
   );
 }

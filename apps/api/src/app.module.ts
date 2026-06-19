@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { InjuryModule } from './modules/injury/injury.module';
 import { NutritionModule } from './modules/nutrition/nutrition.module';
+import { SleepModule } from './modules/sleep/sleep.module';
 import { WeeklySummaryModule } from './modules/weekly-summary/weekly-summary.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
@@ -18,6 +19,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     ActivityModule,
     WeightModule,
     InjuryModule,
+    SleepModule,
     NutritionModule,
     DashboardModule,
     AiChatModule,

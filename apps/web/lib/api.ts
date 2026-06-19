@@ -31,3 +31,29 @@ export async function postJson<TResponse>(path: string, body: unknown): Promise<
 
   return response.json() as Promise<TResponse>;
 }
+
+export async function patchJson<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  const response = await fetch(`/api${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<TResponse>;
+}
+
+export async function deleteJson(path: string): Promise<void> {
+  const response = await fetch(`/api${path}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+}

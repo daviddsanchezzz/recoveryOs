@@ -149,17 +149,23 @@ type RecoveryState = {
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   saveSleep: (input: Omit<SleepEntry, 'id'>) => void;
+  updateSleepEntry: (id: string, data: Partial<Omit<SleepEntry, 'id'>>) => void;
+  removeSleepEntry: (id: string) => void;
   saveDailyCheckIn: (input: CheckInInput) => void;
   addInjury: (input: Omit<Injury, 'id'>) => void;
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
+  removeInjury: (id: string) => void;
   saveWeight: (weightKg: number, date?: string) => void;
   addActivity: (input: ActivityEntry) => void;
   removeActivity: (id: string) => void;
   logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
+  removeInjuryLog: (id: string) => void;
   setProfile: (input: Partial<ProfileState>) => void;
   seedWeightFromServer: (entries: WeightEntry[]) => void;
   seedTodayActivities: (entries: ActivityEntry[]) => void;
   appendActivities: (entries: ActivityEntry[], hasMore: boolean, nextCursor: string | null, replace?: boolean) => void;
+  seedInjuriesFromServer: (injuries: Injury[], logs: InjuryLog[]) => void;
+  seedSleepFromServer: (entries: SleepEntry[]) => void;
   clearAllData: () => void;
 };
 
@@ -315,6 +321,23 @@ export const useRecoveryStore = create<RecoveryState>()(
             { ...input, id: createId('sleep') },
           ],
         })),
+      updateSleepEntry: (id, data) =>
+        set((state) => ({
+          sleepEntries: state.sleepEntries.map((e) => (e.id === id ? { ...e, ...data } : e)),
+        })),
+      removeSleepEntry: (id) =>
+        set((state) => ({ sleepEntries: state.sleepEntries.filter((e) => e.id !== id) })),
+      removeInjury: (id) =>
+        set((state) => ({
+          injuries: state.injuries.filter((i) => i.id !== id),
+          injuryLogs: state.injuryLogs.filter((l) => l.injuryId !== id),
+        })),
+      removeInjuryLog: (id) =>
+        set((state) => ({ injuryLogs: state.injuryLogs.filter((l) => l.id !== id) })),
+      seedInjuriesFromServer: (injuries, logs) =>
+        set({ injuries, injuryLogs: logs }),
+      seedSleepFromServer: (entries) =>
+        set({ sleepEntries: entries }),
       clearAllData: () =>
         set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], sleepEntries: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
     }),

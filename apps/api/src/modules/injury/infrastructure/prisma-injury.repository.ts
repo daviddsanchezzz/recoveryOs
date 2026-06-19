@@ -1,67 +1,112 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { InjuryEntryEntity } from '../domain/injury-entry.entity';
+import { InjuryEntity, InjuryStatus } from '../domain/injury.entity';
+import { InjuryLogEntity } from '../domain/injury-log.entity';
 import { InjuryRepositoryPort } from '../domain/injury-repository.port';
+
+function toEntity(r: {
+  id: string;
+  userId: string;
+  name: string;
+  bodyPart: string | null;
+  description: string | null;
+  startDate: Date;
+  status: string;
+}): InjuryEntity {
+  return new InjuryEntity(r.id, r.userId, r.name, r.startDate, r.status as InjuryStatus, r.bodyPart ?? undefined, r.description ?? undefined);
+}
+
+function toLogEntity(r: {
+  id: string;
+  injuryId: string;
+  userId: string;
+  date: Date;
+  painLevel: number;
+  didRehab: boolean;
+  notes: string | null;
+}): InjuryLogEntity {
+  return new InjuryLogEntity(r.id, r.injuryId, r.userId, r.date, r.painLevel, r.didRehab, r.notes ?? undefined);
+}
 
 @Injectable()
 export class PrismaInjuryRepository implements InjuryRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(entry: InjuryEntryEntity): Promise<InjuryEntryEntity> {
+  private async ensureUser(userId: string) {
     await this.prisma.user.upsert({
-      where: { id: entry.userId },
+      where: { id: userId },
       update: {},
-      create: {
-        id: entry.userId,
-        email: `${entry.userId}@demo.local`,
-        name: 'Demo User',
-      },
+      create: { id: userId, email: `${userId}@demo.local`, name: 'Demo User' },
     });
-
-    const created = await this.prisma.injuryEntry.create({
-      data: {
-        id: entry.id,
-        userId: entry.userId,
-        date: entry.date,
-        walkingPain: entry.walkingPain,
-        stiffness: entry.stiffness,
-        swelling: entry.swelling,
-        rehabCompleted: entry.rehabCompleted,
-        notes: entry.notes,
-      },
-    });
-
-    return new InjuryEntryEntity(
-      created.id,
-      created.userId,
-      created.date,
-      created.walkingPain,
-      created.stiffness,
-      created.swelling,
-      created.rehabCompleted,
-      created.notes ?? undefined,
-    );
   }
 
-  async findByUser(userId: string): Promise<InjuryEntryEntity[]> {
-    const entries = await this.prisma.injuryEntry.findMany({
+  async createInjury(injury: InjuryEntity): Promise<InjuryEntity> {
+    await this.ensureUser(injury.userId);
+    const r = await this.prisma.injury.create({
+      data: {
+        id: injury.id,
+        userId: injury.userId,
+        name: injury.name,
+        bodyPart: injury.bodyPart,
+        description: injury.description,
+        startDate: injury.startDate,
+        status: injury.status,
+      },
+    });
+    return toEntity(r);
+  }
+
+  async findInjuriesByUser(userId: string): Promise<(InjuryEntity & { logs: InjuryLogEntity[] })[]> {
+    const rows = await this.prisma.injury.findMany({
+      where: { userId },
+      orderBy: { startDate: 'desc' },
+      include: { logs: { orderBy: { date: 'desc' } } },
+    });
+    return rows.map((r) => Object.assign(toEntity(r), { logs: r.logs.map(toLogEntity) }));
+  }
+
+  async updateInjury(id: string, data: Partial<{ name: string; bodyPart: string; description: string; startDate: Date; status: InjuryStatus }>): Promise<InjuryEntity> {
+    const r = await this.prisma.injury.update({ where: { id }, data });
+    return toEntity(r);
+  }
+
+  async deleteInjury(id: string): Promise<void> {
+    await this.prisma.injury.delete({ where: { id } });
+  }
+
+  async createLog(log: InjuryLogEntity): Promise<InjuryLogEntity> {
+    await this.ensureUser(log.userId);
+    const r = await this.prisma.injuryLog.create({
+      data: {
+        id: log.id,
+        injuryId: log.injuryId,
+        userId: log.userId,
+        date: log.date,
+        painLevel: log.painLevel,
+        didRehab: log.didRehab,
+        notes: log.notes,
+      },
+    });
+    return toLogEntity(r);
+  }
+
+  async findLogsByInjury(injuryId: string): Promise<InjuryLogEntity[]> {
+    const rows = await this.prisma.injuryLog.findMany({
+      where: { injuryId },
+      orderBy: { date: 'desc' },
+    });
+    return rows.map(toLogEntity);
+  }
+
+  async findLogsByUser(userId: string): Promise<InjuryLogEntity[]> {
+    const rows = await this.prisma.injuryLog.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
     });
+    return rows.map(toLogEntity);
+  }
 
-    return entries.map(
-      (entry) =>
-        new InjuryEntryEntity(
-          entry.id,
-          entry.userId,
-          entry.date,
-          entry.walkingPain,
-          entry.stiffness,
-          entry.swelling,
-          entry.rehabCompleted,
-          entry.notes ?? undefined,
-        ),
-    );
+  async deleteLog(id: string): Promise<void> {
+    await this.prisma.injuryLog.delete({ where: { id } });
   }
 }
-

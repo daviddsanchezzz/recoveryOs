@@ -30,9 +30,11 @@ function Metric({ label, value, accent = false }: { label: string; value: string
 interface Props {
   summary: WeeklySummary;
   onWeightPress?: () => void;
+  onDolorPress?: () => void;
+  onSuenoPress?: () => void;
 }
 
-export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
+export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, onSuenoPress }: Props) {
   if (summary.tab === 'actividad') {
     const { totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm } = summary;
     const hasExtras = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
@@ -109,7 +111,11 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const trendText  = trend === 'mejorando' ? '↓ Mejorando' : trend === 'empeorando' ? '↑ Empeorando' : trend === 'estable' ? '→ Estable' : null;
     const trendColor = trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-red-500' : 'text-ink/40';
     return (
-      <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+      <button
+        type="button"
+        onClick={onDolorPress}
+        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
+      >
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -127,7 +133,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
             </div>
           )}
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -164,7 +170,11 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const qualityLabels = ['', 'Mala', 'Regular', 'Normal', 'Buena', 'Óptima'];
     const qualLabel = avgQuality != null ? qualityLabels[Math.round(avgQuality)] : null;
     return (
-      <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+      <button
+        type="button"
+        onClick={onSuenoPress}
+        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
+      >
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -188,7 +198,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
             Total semana: <span className="text-ink font-semibold">{totalH}h</span>
           </p>
         )}
-      </div>
+      </button>
     );
   }
 

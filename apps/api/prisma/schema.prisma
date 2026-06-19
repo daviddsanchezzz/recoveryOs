@@ -20,7 +20,9 @@ model User {
   accounts        Account[]
   sessions        Session[]
   weightEntries   WeightEntry[]
-  injuryEntries   InjuryEntry[]
+  injuries        Injury[]
+  injuryLogs      InjuryLog[]
+  sleepEntries    SleepEntry[]
   nutritionLogs   NutritionLog[]
   activities      Activity[]
   weeklySummaries WeeklySummary[]
@@ -80,17 +82,48 @@ model WeightEntry {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model InjuryEntry {
-  id                    String   @id @default(cuid())
-  userId                String
-  date                  DateTime
-  walkingPain           Int
-  stiffness             Int
-  swelling              Boolean
-  rehabCompleted        Boolean
-  notes                 String?
-  createdAt             DateTime @default(now())
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Injury {
+  id          String      @id @default(cuid())
+  userId      String
+  name        String
+  bodyPart    String?
+  description String?
+  startDate   DateTime
+  status      String      @default("active") // active | recovering | resolved
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs        InjuryLog[]
+
+  @@index([userId])
+}
+
+model InjuryLog {
+  id        String   @id @default(cuid())
+  injuryId  String
+  userId    String
+  date      DateTime
+  painLevel Int      // 0-10
+  didRehab  Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  injury    Injury   @relation(fields: [injuryId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([injuryId])
+}
+
+model SleepEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  durationH Float
+  quality   Int      // 1-5
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 model NutritionLog {

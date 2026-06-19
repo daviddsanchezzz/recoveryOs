@@ -1,7 +1,7 @@
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
-import type { ActivityEntry, InjuryStatus, WeightEntry } from '../stores/recovery-store';
-import { getJson, postJson } from './api';
+import type { ActivityEntry, Injury, InjuryLog, InjuryStatus, SleepEntry, WeightEntry } from '../stores/recovery-store';
+import { deleteJson, getJson, patchJson, postJson } from './api';
 import { todayIso } from './date';
 
 type ServerActivity = {
@@ -29,6 +29,35 @@ type ServerActivity = {
   stravaName?: string | null;
 };
 
+type ServerInjury = {
+  id: string;
+  userId: string;
+  name: string;
+  bodyPart?: string | null;
+  description?: string | null;
+  startDate: string;
+  status: string;
+  logs?: ServerInjuryLog[];
+};
+
+type ServerInjuryLog = {
+  id: string;
+  injuryId: string;
+  userId: string;
+  date: string;
+  painLevel: number;
+  didRehab: boolean;
+  notes?: string | null;
+};
+
+type ServerSleepEntry = {
+  id: string;
+  userId: string;
+  date: string;
+  durationH: number;
+  quality: number;
+};
+
 function mapServerActivity(a: ServerActivity): ActivityEntry {
   return {
     id:               a.id,
@@ -53,6 +82,41 @@ function mapServerActivity(a: ServerActivity): ActivityEntry {
     totalVolumeKg:    a.totalVolumeKg ?? undefined,
     stravaId:         a.stravaId ? Number(a.stravaId) : undefined,
     stravaName:       a.stravaName ?? undefined,
+  };
+}
+
+function isoDate(s: string): string {
+  return s.includes('T') ? s.split('T')[0] : s;
+}
+
+function mapServerInjury(i: ServerInjury): Injury {
+  return {
+    id: i.id,
+    name: i.name,
+    bodyPart: i.bodyPart ?? undefined,
+    description: i.description ?? undefined,
+    startDate: isoDate(i.startDate),
+    status: i.status as InjuryStatus,
+  };
+}
+
+function mapServerInjuryLog(l: ServerInjuryLog): InjuryLog {
+  return {
+    id: l.id,
+    injuryId: l.injuryId,
+    date: isoDate(l.date),
+    painLevel: l.painLevel,
+    didRehab: l.didRehab,
+    notes: l.notes ?? undefined,
+  };
+}
+
+function mapServerSleep(s: ServerSleepEntry): SleepEntry {
+  return {
+    id: s.id,
+    date: isoDate(s.date),
+    durationH: s.durationH,
+    quality: s.quality as SleepEntry['quality'],
   };
 }
 
@@ -103,33 +167,96 @@ export const RecoveryService = {
     }
   },
 
-  // ─── Injury pain ──────────────────────────────────────────
-  logPain(data: {
-    injuryId: string;
-    painLevel: number;
-    didRehab: boolean;
-    notes?: string;
-    date?: string;
-  }) {
+  deleteActivity(id: string): void {
+    useRecoveryStore.getState().removeActivity(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+    }
+  },
+
+  // ─── Injuries ─────────────────────────────────────────────
+  createInjury(data: { name: string; bodyPart?: string; description?: string; startDate: string; status?: InjuryStatus }) {
+    const status = data.status ?? 'active';
+    useRecoveryStore.getState().addInjury({ ...data, status });
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      postJson<ServerInjury>('/injuries', { userId, ...data, startDate: data.startDate, status }).catch(() => {});
+    }
+  },
+
+  updateInjuryStatus(id: string, status: InjuryStatus) {
+    useRecoveryStore.getState().updateInjury(id, { status });
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      patchJson(`/injuries/${id}`, { status }).catch(() => {});
+    }
+  },
+
+  deleteInjury(id: string) {
+    useRecoveryStore.getState().removeInjury(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      deleteJson(`/injuries/${id}`).catch(() => {});
+    }
+  },
+
+  // ─── Injury logs (dolor/rehab) ────────────────────────────
+  logPain(data: { injuryId: string; painLevel: number; didRehab: boolean; notes?: string; date?: string }) {
     const resolvedDate = data.date ?? todayIso();
+    const id = crypto.randomUUID();
     useRecoveryStore.getState().logInjuryPain({
+      id,
       injuryId: data.injuryId,
       painLevel: data.painLevel,
       didRehab: data.didRehab,
       notes: data.notes,
       date: resolvedDate,
-    });
+    } as InjuryLog);
+
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      postJson('/injury', {
+      postJson(`/injuries/${data.injuryId}/logs`, {
         userId,
         date: resolvedDate,
-        walkingPain: data.painLevel,
-        stiffness: data.painLevel,
-        swelling: false,
-        rehabCompleted: data.didRehab,
-        ...(data.notes ? { notes: data.notes } : {}),
+        painLevel: data.painLevel,
+        didRehab: data.didRehab,
+        notes: data.notes,
       }).catch(() => {});
+    }
+  },
+
+  deleteInjuryLog(id: string) {
+    useRecoveryStore.getState().removeInjuryLog(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      deleteJson(`/injuries/logs/${id}`).catch(() => {});
+    }
+  },
+
+  // ─── Sleep ────────────────────────────────────────────────
+  logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; date?: string }) {
+    const resolvedDate = data.date ?? todayIso();
+    useRecoveryStore.getState().saveSleep({ ...data, date: resolvedDate });
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      postJson('/sleep', { userId, date: resolvedDate, durationH: data.durationH, quality: data.quality }).catch(() => {});
+    }
+  },
+
+  updateSleep(id: string, data: { durationH?: number; quality?: 1 | 2 | 3 | 4 | 5; date?: string }) {
+    useRecoveryStore.getState().updateSleepEntry(id, data);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      patchJson(`/sleep/${id}`, data).catch(() => {});
+    }
+  },
+
+  deleteSleep(id: string) {
+    useRecoveryStore.getState().removeSleepEntry(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      deleteJson(`/sleep/${id}`).catch(() => {});
     }
   },
 
@@ -138,32 +265,18 @@ export const RecoveryService = {
     useRecoveryStore.getState().saveDailyCheckIn(data);
   },
 
-  // ─── Injuries ─────────────────────────────────────────────
-  addInjury(data: {
-    name: string;
-    description?: string;
-    bodyPart?: string;
-    startDate: string;
-    status: InjuryStatus;
-  }) {
-    useRecoveryStore.getState().addInjury(data);
-  },
-
-  updateInjuryStatus(id: string, status: InjuryStatus) {
-    useRecoveryStore.getState().updateInjury(id, { status });
-  },
-
   // ─── Server sync ─────────────────────────────────────────
 
-  // Called at startup: loads only what Today screen needs
   async loadTodayData(userId: string, date: string): Promise<void> {
     const store = useRecoveryStore.getState();
 
-    const [weightsResult, todayResult] = await Promise.allSettled([
+    const [weightsResult, todayResult, injuriesResult, sleepResult] = await Promise.allSettled([
       getJson<{ currentWeightKg: number | null; trend: Array<{ date: string; value: number }> }>(
         `/weights/${userId}/summary`,
       ),
       getJson<ServerActivity[]>(`/activities/${userId}/today?date=${date}`),
+      getJson<ServerInjury[]>(`/injuries/${userId}`),
+      getJson<ServerSleepEntry[]>(`/sleep/${userId}`),
     ]);
 
     if (weightsResult.status === 'fulfilled') {
@@ -181,9 +294,18 @@ export const RecoveryService = {
     if (todayResult.status === 'fulfilled') {
       store.seedTodayActivities(todayResult.value.map(mapServerActivity));
     }
+
+    if (injuriesResult.status === 'fulfilled') {
+      const injuries = injuriesResult.value.map(mapServerInjury);
+      const logs = injuriesResult.value.flatMap((i) => (i.logs ?? []).map(mapServerInjuryLog));
+      store.seedInjuriesFromServer(injuries, logs);
+    }
+
+    if (sleepResult.status === 'fulfilled') {
+      store.seedSleepFromServer(sleepResult.value.map(mapServerSleep));
+    }
   },
 
-  // Called lazily when Actividades tab opens, and on each scroll-to-bottom
   async loadActivitiesPage(userId: string, beforeId?: string): Promise<void> {
     const store = useRecoveryStore.getState();
     const url = beforeId
@@ -192,18 +314,9 @@ export const RecoveryService = {
 
     try {
       const res = await getJson<{ items: ServerActivity[]; hasMore: boolean; nextCursor: string | null }>(url);
-      // First page (no cursor) replaces store to avoid stale local-ID duplicates
       store.appendActivities(res.items.map(mapServerActivity), res.hasMore, res.nextCursor, !beforeId);
     } catch {
       // keep existing data on error
-    }
-  },
-
-  deleteActivity(id: string): void {
-    useRecoveryStore.getState().removeActivity(id);
-    const userId = useSessionStore.getState().user?.id;
-    if (userId) {
-      fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
     }
   },
 
