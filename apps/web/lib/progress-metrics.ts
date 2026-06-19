@@ -7,7 +7,12 @@ export type ProgressTab     = 'actividad' | 'peso' | 'dolor' | 'rehab' | 'sueno'
 export type ActivityFilter  = 'all' | 'gym' | 'bike' | 'walk' | 'run' | 'swim' | 'rehab' | 'movilidad';
 export type ChartMetric     = 'tiempo' | 'sesiones' | 'distancia' | 'peso' | 'dolor' | 'adherencia' | 'horas' | 'calidad';
 
-export type ChartPoint = { label: string; value: number | null; weekStart: string };
+export type ChartPoint = {
+  label: string;       // short X-axis tick, e.g. "14/4"
+  rangeLabel: string;  // tooltip label — "15/06 - 21/06" for weekly, "7/2" for individual
+  value: number | null;
+  weekStart: string;
+};
 
 export type ChartMetricOption = {
   key: ChartMetric;
@@ -104,14 +109,24 @@ function matchesFilter(type: ActivityType, filter: ActivityFilter): boolean {
   return (type as string) === filter;
 }
 
-function getLast12WeekRanges(): { start: string; end: string; label: string }[] {
+function fmtShort(iso: string): string {
+  const d = new Date(iso + 'T12:00:00');
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getLast12WeekRanges(): { start: string; end: string; label: string; rangeLabel: string }[] {
   const today = todayIso();
   return Array.from({ length: 12 }, (_, i) => {
     const weeksAgo = 11 - i;
     const end      = addDays(today, -(weeksAgo * 7));
     const start    = addDays(end, -6);
     const dObj     = new Date(end + 'T12:00:00');
-    return { start, end, label: `${dObj.getDate()}/${dObj.getMonth() + 1}` };
+    return {
+      start,
+      end,
+      label:      `${dObj.getDate()}/${dObj.getMonth() + 1}`,
+      rangeLabel: `${fmtShort(start)} - ${fmtShort(end)}`,
+    };
   });
 }
 
@@ -205,7 +220,7 @@ export function get12WeekChartData(
   metric: ChartMetric,
   data: ProgressStoreData,
 ): ChartPoint[] {
-  return getLast12WeekRanges().map(({ start, end, label }) => {
+  return getLast12WeekRanges().map(({ start, end, label, rangeLabel }) => {
     let value: number | null = null;
 
     switch (tab) {
@@ -242,7 +257,7 @@ export function get12WeekChartData(
       }
     }
 
-    return { label, value, weekStart: start };
+    return { label, rangeLabel, value, weekStart: start };
   });
 }
 
@@ -252,7 +267,8 @@ export function getLast12WeightChartData(data: ProgressStoreData): ChartPoint[] 
   const sorted = [...data.weightEntries].sort((a, b) => a.date.localeCompare(b.date));
   return sorted.slice(-12).map((entry) => {
     const d = new Date(entry.date + 'T12:00:00');
-    return { label: `${d.getDate()}/${d.getMonth() + 1}`, value: entry.weightKg, weekStart: entry.date };
+    const label = `${d.getDate()}/${d.getMonth() + 1}`;
+    return { label, rangeLabel: label, value: entry.weightKg, weekStart: entry.date };
   });
 }
 

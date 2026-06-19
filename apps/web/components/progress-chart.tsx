@@ -34,7 +34,7 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
     const point = payload[0].payload as ChartPoint;
     return (
       <div className="bg-ink text-white rounded-xl px-3 py-2 shadow-lg pointer-events-none space-y-0.5">
-        <p className="text-[10px] text-white/50 font-medium leading-none">{point.label}</p>
+        <p className="text-[10px] text-white/50 font-medium leading-none">{point.rangeLabel}</p>
         <p className="text-xs font-bold leading-none">{fmt(Number(payload[0].value))}</p>
       </div>
     );

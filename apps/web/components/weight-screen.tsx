@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { X, Plus, Scale, TrendingDown, TrendingUp, Minus, Pencil } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { WeightSheet } from './weight-sheet';
-import { WeightLineChart } from './weight-line-chart';
+import { ProgressChart } from './progress-chart';
 import { Portal } from './portal';
+import { getLast12WeightChartData } from '../lib/progress-metrics';
 import type { WeightEntry } from '../stores/recovery-store';
 
 function relativeDate(dateStr: string): string {
@@ -29,9 +30,9 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
 
   const { weightEntries } = useRecoveryStore();
 
-  const sorted      = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
-  const chartEntries = sorted.slice(-14);
-  const latest      = sorted[sorted.length - 1];
+  const sorted     = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  const latest     = sorted[sorted.length - 1];
+  const chartData  = getLast12WeightChartData({ activities: [], weightEntries, injuryLogs: [], checkIns: [], sleepEntries: [] });
   const prev        = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
   const delta       = latest && prev ? Number((latest.weightKg - prev.weightKg).toFixed(1)) : null;
 
@@ -96,16 +97,23 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Line chart */}
-          {chartEntries.length >= 2 && (
-            <div className="rounded-4xl bg-white shadow-card px-5 pt-5 pb-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-ink/30">
-                Evolución — últimas {chartEntries.length} entradas
+          {chartData.length >= 2 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/30 px-1">
+                Últimos {chartData.length} registros
               </p>
-              <WeightLineChart entries={chartEntries} latestId={latest?.id} />
+              <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3">
+                <ProgressChart
+                  data={chartData}
+                  type="line"
+                  color="#b56b45"
+                  formatValue={(v) => `${v} kg`}
+                />
+              </div>
             </div>
           )}
 
-          {chartEntries.length === 0 && (
+          {chartData.length === 0 && (
             <div className="rounded-4xl bg-canvas-light border border-sand/40 p-8 flex flex-col items-center gap-2 text-center">
               <Scale size={24} className="text-ink/20" />
               <p className="text-sm text-ink/40">Sin registros de peso aún</p>
