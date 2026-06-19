@@ -125,9 +125,9 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
           ))}
         </div>
 
-        {/* Activity sub-filter (only when Actividad is active) */}
+        {/* Activity sub-filter — flat icon-only style, distinct from main tabs */}
         {activeTab === 'actividad' && (
-          <div className="flex gap-2 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex overflow-x-auto px-4 pt-0.5" style={{ scrollbarWidth: 'none' }}>
             {ACTIVITY_FILTERS.map(({ id, label, Icon }) => {
               const isActive = activityFilter === id;
               return (
@@ -136,16 +136,10 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
                   type="button"
                   onClick={() => setActivityFilter(id)}
                   aria-label={label}
-                  className={`flex-shrink-0 flex items-center gap-1.5 rounded-xl transition-all duration-200 ${
-                    id === 'all'
-                      ? 'px-3 py-1.5'
-                      : 'h-9 w-9 justify-center'
-                  } ${isActive ? 'bg-moss text-white' : 'bg-white text-ink/40 shadow-card'}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-1 px-3 py-1 transition-all duration-200"
                 >
-                  <Icon size={15} />
-                  {id === 'all' && (
-                    <span className="text-xs font-semibold">{label}</span>
-                  )}
+                  <Icon size={16} className={`transition-colors duration-200 ${isActive ? 'text-moss' : 'text-ink/25'}`} />
+                  <span className={`h-1 w-1 rounded-full transition-all duration-200 ${isActive ? 'bg-moss' : 'bg-transparent'}`} />
                 </button>
               );
             })}
