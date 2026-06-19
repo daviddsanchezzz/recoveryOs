@@ -1,5 +1,6 @@
 'use client';
 
+import { Plus, ArrowRight } from 'lucide-react';
 import { todayIso } from '../lib/date';
 import type { WeeklySummary } from '../lib/progress-metrics';
 
@@ -27,14 +28,59 @@ function Metric({ label, value, accent = false }: { label: string; value: string
   );
 }
 
+function CardActions({
+  onDetail,
+  onAdd,
+  detailLabel = 'Ver detalle',
+}: {
+  onDetail?: () => void;
+  onAdd?: () => void;
+  detailLabel?: string;
+}) {
+  if (!onDetail && !onAdd) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 pt-3 border-t border-ink/6 mt-3">
+      {onDetail ? (
+        <button
+          type="button"
+          onClick={onDetail}
+          className="flex items-center gap-1 text-xs font-semibold text-ink/40 hover:text-ink/70 transition-colors"
+        >
+          {detailLabel}
+          <ArrowRight size={12} />
+        </button>
+      ) : <span />}
+      {onAdd && (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="h-8 w-8 rounded-2xl bg-ink flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+        >
+          <Plus size={14} className="text-white" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   summary: WeeklySummary;
   onWeightPress?: () => void;
   onDolorPress?: () => void;
   onSuenoPress?: () => void;
+  onWeightAdd?: () => void;
+  onDolorAdd?: () => void;
+  onSuenoAdd?: () => void;
+  onActividadPress?: () => void;
+  onActividadAdd?: () => void;
 }
 
-export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, onSuenoPress }: Props) {
+export function ProgressWeeklySummary({
+  summary,
+  onWeightPress, onDolorPress, onSuenoPress,
+  onWeightAdd, onDolorAdd, onSuenoAdd,
+  onActividadPress, onActividadAdd,
+}: Props) {
   if (summary.tab === 'actividad') {
     const { totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm } = summary;
     const hasExtras = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
@@ -57,6 +103,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
             )}
           </div>
         )}
+        <CardActions onDetail={onActividadPress} onAdd={onActividadAdd} detailLabel="Ver actividades" />
       </div>
     );
   }
@@ -76,11 +123,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
       : 'text-ink/40';
 
     return (
-      <button
-        type="button"
-        onClick={onWeightPress}
-        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
-      >
+      <div className="rounded-4xl bg-white shadow-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -102,7 +145,8 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
             </div>
           )}
         </div>
-      </button>
+        <CardActions onDetail={onWeightPress} onAdd={onWeightAdd} />
+      </div>
     );
   }
 
@@ -111,11 +155,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
     const trendText  = trend === 'mejorando' ? '↓ Mejorando' : trend === 'empeorando' ? '↑ Empeorando' : trend === 'estable' ? '→ Estable' : null;
     const trendColor = trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-red-500' : 'text-ink/40';
     return (
-      <button
-        type="button"
-        onClick={onDolorPress}
-        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
-      >
+      <div className="rounded-4xl bg-white shadow-card p-5">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -133,7 +173,8 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
             </div>
           )}
         </div>
-      </button>
+        <CardActions onDetail={onDolorPress} onAdd={onDolorAdd} detailLabel="Ver lesiones" />
+      </div>
     );
   }
 
@@ -170,11 +211,7 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
     const qualityLabels = ['', 'Mala', 'Regular', 'Normal', 'Buena', 'Óptima'];
     const qualLabel = avgQuality != null ? qualityLabels[Math.round(avgQuality)] : null;
     return (
-      <button
-        type="button"
-        onClick={onSuenoPress}
-        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
-      >
+      <div className="rounded-4xl bg-white shadow-card p-5">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -194,11 +231,12 @@ export function ProgressWeeklySummary({ summary, onWeightPress, onDolorPress, on
           </div>
         </div>
         {totalH != null && (
-          <p className="text-sm text-ink/40">
+          <p className="text-sm text-ink/40 mt-3">
             Total semana: <span className="text-ink font-semibold">{totalH}h</span>
           </p>
         )}
-      </button>
+        <CardActions onDetail={onSuenoPress} onAdd={onSuenoAdd} detailLabel="Ver sueño" />
+      </div>
     );
   }
 

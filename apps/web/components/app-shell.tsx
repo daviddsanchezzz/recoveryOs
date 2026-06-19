@@ -114,7 +114,7 @@ export function AppShell() {
           {activeTab === 'hoy'         && <TodayScreen />}
           {activeTab === 'plan'        && <PlanScreen />}
           {activeTab === 'actividades' && <ActividadesScreen />}
-          {activeTab === 'progreso'    && <ProgressScreen />}
+          {activeTab === 'progreso'    && <ProgressScreen onNavToActividades={() => switchTab('actividades')} />}
           {activeTab === 'chat'        && <ChatPanel />}
         </div>
       </main>

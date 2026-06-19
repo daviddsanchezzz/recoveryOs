@@ -6,6 +6,11 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
 import { LesionesScreen } from './lesiones-screen';
 import { SuenoScreen } from './sueno-screen';
+import { WeightSheet } from './weight-sheet';
+import { SleepSheet } from './sleep-sheet';
+import { DolorSheet } from './dolor-sheet';
+import { AddActivitySheet } from './add-activity-sheet';
+import { todayIso } from '../lib/date';
 import {
   type ProgressTab,
   type ActivityFilter,
@@ -49,13 +54,17 @@ const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.Element
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function ProgressScreen() {
+export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: () => void } = {}) {
   const [activeTab,        setActiveTab]        = useState<ProgressTab>('actividad');
   const [activityFilter,   setActivityFilter]   = useState<ActivityFilter>('all');
   const [chartMetric,      setChartMetric]      = useState<ChartMetric>('tiempo');
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
+  const [showWeightSheet,    setShowWeightSheet]    = useState(false);
+  const [showSleepSheet,     setShowSleepSheet]     = useState(false);
+  const [showDolorSheet,     setShowDolorSheet]     = useState(false);
+  const [showActivitySheet,  setShowActivitySheet]  = useState(false);
 
   const { activities, weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
     useRecoveryStore();
@@ -155,6 +164,11 @@ export function ProgressScreen() {
             onWeightPress={() => setShowWeightScreen(true)}
             onDolorPress={() => setShowLesionesScreen(true)}
             onSuenoPress={() => setShowSuenoScreen(true)}
+            onWeightAdd={() => setShowWeightSheet(true)}
+            onDolorAdd={() => setShowDolorSheet(true)}
+            onSuenoAdd={() => setShowSleepSheet(true)}
+            onActividadPress={onNavToActividades}
+            onActividadAdd={() => setShowActivitySheet(true)}
           />
         </div>
 
@@ -211,6 +225,24 @@ export function ProgressScreen() {
       {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
       {showLesionesScreen && <LesionesScreen  onClose={() => setShowLesionesScreen(false)} />}
       {showSuenoScreen    && <SuenoScreen     onClose={() => setShowSuenoScreen(false)} />}
+
+      <WeightSheet
+        isOpen={showWeightSheet}
+        onClose={() => setShowWeightSheet(false)}
+        defaultDate={todayIso()}
+      />
+      <SleepSheet
+        isOpen={showSleepSheet}
+        onClose={() => setShowSleepSheet(false)}
+      />
+      <DolorSheet
+        isOpen={showDolorSheet}
+        onClose={() => setShowDolorSheet(false)}
+      />
+      <AddActivitySheet
+        isOpen={showActivitySheet}
+        onClose={() => setShowActivitySheet(false)}
+      />
     </div>
   );
 }

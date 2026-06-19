@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X, Activity } from 'lucide-react';
 import { RecoveryService } from '../lib/services';
+import { useRecoveryStore } from '../stores/recovery-store';
 import { todayIso } from '../lib/date';
 import { Portal } from './portal';
 import type { Injury } from '../stores/recovery-store';
@@ -10,37 +11,45 @@ import type { Injury } from '../stores/recovery-store';
 interface DolorSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  injury: Injury | null;
+  injury?: Injury | null;
   defaultDate?: string;
 }
 
 const PAIN_LABELS = ['Sin dolor', 'Muy leve', 'Leve', 'Leve-mod.', 'Moderado', 'Moderado', 'Moderado-int.', 'Intenso', 'Muy intenso', 'Severo', 'Máximo'];
 
-export function DolorSheet({ isOpen, onClose, injury, defaultDate }: DolorSheetProps) {
-  const [pain,     setPain]     = useState(0);
-  const [didRehab, setDidRehab] = useState(false);
-  const [notes,    setNotes]    = useState('');
-  const [date,     setDate]     = useState(defaultDate ?? todayIso());
-  const [saved,    setSaved]    = useState(false);
+export function DolorSheet({ isOpen, onClose, injury = null, defaultDate }: DolorSheetProps) {
+  const allInjuries   = useRecoveryStore((s) => s.injuries);
+  const activeOptions = allInjuries.filter((i) => i.status === 'active' || i.status === 'recovering');
+
+  const [selectedId, setSelectedId] = useState<string | null>(injury?.id ?? null);
+  const [pain,       setPain]       = useState(0);
+  const [didRehab,   setDidRehab]   = useState(false);
+  const [notes,      setNotes]      = useState('');
+  const [date,       setDate]       = useState(defaultDate ?? todayIso());
+  const [saved,      setSaved]      = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setSelectedId(injury?.id ?? (activeOptions.length === 1 ? activeOptions[0].id : null));
       setPain(0);
       setDidRehab(false);
       setNotes('');
       setDate(defaultDate ?? todayIso());
       setSaved(false);
     }
-  }, [isOpen, defaultDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, injury, defaultDate]);
+
+  const resolvedInjury = injury ?? activeOptions.find((i) => i.id === selectedId) ?? null;
 
   function handleSave() {
-    if (!injury) return;
-    RecoveryService.logPain({ injuryId: injury.id, painLevel: pain, didRehab, notes: notes.trim() || undefined, date });
+    if (!resolvedInjury) return;
+    RecoveryService.logPain({ injuryId: resolvedInjury.id, painLevel: pain, didRehab, notes: notes.trim() || undefined, date });
     setSaved(true);
     setTimeout(onClose, 600);
   }
 
-  if (!isOpen || !injury) return null;
+  if (!isOpen) return null;
 
   const painColor =
     pain <= 2 ? 'text-moss' :
@@ -59,7 +68,7 @@ export function DolorSheet({ isOpen, onClose, injury, defaultDate }: DolorSheetP
             <Activity size={18} className="text-red-500" />
             <div>
               <h2 className="text-lg font-bold text-ink leading-tight">Registrar dolor</h2>
-              <p className="text-xs text-ink/40 leading-none">{injury.name}</p>
+              {resolvedInjury && <p className="text-xs text-ink/40 leading-none">{resolvedInjury.name}</p>}
             </div>
           </div>
           <button type="button" onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-full bg-canvas">
@@ -68,6 +77,30 @@ export function DolorSheet({ isOpen, onClose, injury, defaultDate }: DolorSheetP
         </div>
 
         <div className="px-5 pt-2 pb-2 space-y-5">
+          {/* Injury picker — shown when no injury is pre-selected */}
+          {!injury && (
+            activeOptions.length === 0 ? (
+              <p className="text-sm text-ink/50 text-center py-4">No tienes lesiones activas registradas.</p>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Lesión</p>
+                <div className="flex flex-wrap gap-2">
+                  {activeOptions.map((inj) => (
+                    <button
+                      key={inj.id}
+                      type="button"
+                      onClick={() => setSelectedId(inj.id)}
+                      className={`rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                        selectedId === inj.id ? 'bg-ink text-white' : 'bg-canvas text-ink/60'
+                      }`}
+                    >
+                      {inj.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
           {/* Pain slider */}
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
@@ -122,7 +155,7 @@ export function DolorSheet({ isOpen, onClose, injury, defaultDate }: DolorSheetP
           <button
             type="button"
             onClick={handleSave}
-            disabled={saved}
+            disabled={saved || !resolvedInjury}
             className="w-full rounded-2xl bg-ink py-4 text-sm font-semibold text-white disabled:opacity-30 transition-opacity"
           >
             {saved ? '¡Guardado! ✓' : 'Guardar'}
