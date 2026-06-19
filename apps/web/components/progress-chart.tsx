@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, LineChart, Line,
-  XAxis, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import type { ChartPoint } from '../lib/progress-metrics';
 
@@ -40,21 +40,23 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
 
   if (!ready) return <div style={{ height: 220 }} />;
 
+  // Tight Y-domain with padding — needed for line charts where range is narrow (e.g. weight 78-79 kg)
+  const validValues = data.filter((p) => p.value != null).map((p) => Number(p.value));
+  const dataMin = validValues.length > 0 ? Math.min(...validValues) : 0;
+  const dataMax = validValues.length > 0 ? Math.max(...validValues) : 100;
+  const pad     = Math.max((dataMax - dataMin) * 0.4, type === 'line' ? 0.5 : 1);
+  const yDomain: [number, number] = [
+    Math.round((dataMin - pad) * 10) / 10,
+    Math.round((dataMax + pad) * 10) / 10,
+  ];
+
   if (type === 'bar') {
     return (
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 8, right: 2, left: 2, bottom: 0 }} barCategoryGap="32%">
-          <XAxis
-            dataKey="label"
-            axisLine={false}
-            tickLine={false}
-            tick={tickStyle}
-            interval={2}
-          />
-          <Tooltip
-            content={tooltipContent}
-            cursor={{ fill: '#13201a', fillOpacity: 0.04 }}
-          />
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barCategoryGap="32%">
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+          <YAxis domain={[0, yDomain[1]]} hide />
+          <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
           <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -63,14 +65,9 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 8, right: 2, left: 2, bottom: 0 }}>
-        <XAxis
-          dataKey="label"
-          axisLine={false}
-          tickLine={false}
-          tick={tickStyle}
-          interval={2}
-        />
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+        <YAxis domain={yDomain} hide />
         <Tooltip content={tooltipContent} cursor={false} />
         <Line
           type="monotone"
