@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Calendar as CalendarIcon,
-  Scale, Zap, Moon, Dumbbell, Heart,
+  Scale, Zap, Moon, Dumbbell,
   Sparkles, Plus, ChevronRight,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
@@ -139,10 +139,16 @@ export function TodayScreen() {
 
   const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
 
-  const avgPainToday  = dayLogs.length > 0
+  const avgPainToday = dayLogs.length > 0
     ? (dayLogs.reduce((s, l) => s + l.painLevel, 0) / dayLogs.length).toFixed(1)
     : null;
-  const painValue = avgPainToday ? `${avgPainToday}/10` : null;
+  const dolorRehabDone = dayLogs.length > 0 || hasRehab;
+  const dolorRehabValue = (() => {
+    const parts: string[] = [];
+    if (avgPainToday) parts.push(`${avgPainToday}/10`);
+    if (hasRehab)     parts.push('rehab ✓');
+    return parts.length > 0 ? parts.join(' · ') : null;
+  })();
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -218,26 +224,16 @@ export function TodayScreen() {
               doneColor="text-ember"
               doneBg="bg-ember-light"
               onAdd={() => setShowWeightSheet(true)}
-              onDetail={() => setShowWeightScreen(true)}
             />
             {activeInjuries.length > 0 && (
               <DailyRow
                 icon={Zap}
-                label="Dolor"
-                value={painValue}
-                done={dayLogs.length > 0}
+                label="Dolor · Rehab"
+                value={dolorRehabValue}
+                done={dolorRehabDone}
                 doneColor="text-red-400"
                 doneBg="bg-red-50"
                 onAdd={() => setShowDolorSheet(true)}
-              />
-            )}
-            {activeInjuries.length > 0 && (
-              <DailyRow
-                icon={Heart}
-                label="Rehab"
-                value={hasRehab ? 'Completado hoy' : null}
-                done={hasRehab}
-                onAdd={!hasRehab ? () => setShowDolorSheet(true) : undefined}
               />
             )}
           </div>
