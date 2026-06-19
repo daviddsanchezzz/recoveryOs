@@ -3,18 +3,19 @@
 import { useState } from 'react';
 import {
   Calendar as CalendarIcon,
-  CheckCircle2, Circle,
-  Scale, Zap,
+  Scale, Zap, Moon, Dumbbell, Heart,
   Sparkles, Plus, ChevronRight,
 } from 'lucide-react';
-import { WeeklyCalendar } from './weekly-calendar';
-import { MonthlyCalendar } from './monthly-calendar';
-import { WeightSheet } from './weight-sheet';
-import { WeightScreen } from './weight-screen';
-import { ActivityCard } from './actividades-screen';
+import { WeeklyCalendar }   from './weekly-calendar';
+import { MonthlyCalendar }  from './monthly-calendar';
+import { WeightSheet }      from './weight-sheet';
+import { WeightScreen }     from './weight-screen';
+import { SleepSheet }       from './sleep-sheet';
+import { DolorSheet }       from './dolor-sheet';
+import { ActivityCard }     from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
-import { RecoveryService } from '../lib/services';
+import { RecoveryService }  from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
 import type { ActivityEntry } from '../stores/recovery-store';
@@ -24,128 +25,139 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-function weightAgo(dateStr: string): string {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr + 'T12:00:00'); d.setHours(0, 0, 0, 0);
-  const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
-  if (diff === 0) return 'Hoy';
-  if (diff === 1) return 'Ayer';
-  return `Hace ${diff} días`;
+function fmtSleep(h: number): string {
+  const totalMin = Math.round(h * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
+  return mm === 0 ? `${hh}h` : `${hh}h ${mm}min`;
 }
 
-function WeightCard({
-  onOpen,
-  onAdd,
-  weights,
-}: {
-  onOpen: () => void;
-  onAdd: () => void;
-  weights: import('../stores/recovery-store').WeightEntry[];
-}) {
-  const sorted  = [...weights].sort((a, b) => b.date.localeCompare(a.date));
-  const latest  = sorted[0];
+function fmtMins(v: number): string {
+  if (v === 0) return '';
+  const h = Math.floor(v / 60);
+  const m = Math.round(v % 60);
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
 
+// ── Reusable daily-log row ────────────────────────────────────────────────────
+
+function DailyRow({
+  icon: Icon,
+  label,
+  value,
+  done,
+  doneColor = 'text-moss',
+  doneBg    = 'bg-moss-light',
+  onAdd,
+  onDetail,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value?: string | null;
+  done: boolean;
+  doneColor?: string;
+  doneBg?: string;
+  onAdd?: () => void;
+  onDetail?: () => void;
+}) {
   return (
-    <div className="w-full rounded-3xl bg-white shadow-card px-5 py-4 flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
-      >
-        <div className="h-10 w-10 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-          <Scale size={18} className="text-moss" />
-        </div>
-        <div>
-          {latest ? (
-            <p className="text-base font-bold text-ink leading-tight">
-              {latest.weightKg.toFixed(1)} kg
-              <span className="text-xs font-normal text-ink/40 ml-2">{weightAgo(latest.date)}</span>
-            </p>
-          ) : (
-            <p className="text-sm text-ink/30">Sin registros</p>
-          )}
-        </div>
-      </button>
-      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-        <button
-          type="button"
-          onClick={onAdd}
-          className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center active:scale-95 transition-transform"
-          aria-label="Añadir peso"
-        >
-          <Plus size={15} className="text-white" />
-        </button>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
-          aria-label="Ver historial de peso"
-        >
-          <ChevronRight size={15} className="text-ink/40" />
-        </button>
+    <div className="flex items-center gap-3 py-3.5">
+      <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${done ? doneBg : 'bg-canvas'}`}>
+        <Icon size={16} className={`transition-colors ${done ? doneColor : 'text-ink/20'}`} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-ink leading-none">{label}</p>
+        <p className={`text-xs mt-0.5 leading-none ${value ? 'text-ink/50' : 'text-ink/25'}`}>
+          {value ?? 'Sin registrar'}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <Plus size={14} className="text-white" />
+          </button>
+        )}
+        {onDetail && (
+          <button
+            type="button"
+            onClick={onDetail}
+            className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <ChevronRight size={14} className="text-ink/40" />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function CheckItem({ done, label }: { done: boolean; label: string }) {
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      {done
-        ? <CheckCircle2 size={20} className="text-moss flex-shrink-0" />
-        : <Circle size={20} className="text-ink/20 flex-shrink-0" />}
-      <span className={`text-sm ${done ? 'text-ink/40 line-through' : 'text-ink'}`}>{label}</span>
-    </div>
-  );
-}
+// ── Screen ───────────────────────────────────────────────────────────────────
 
 export function TodayScreen() {
   const [showMonthly,      setShowMonthly]      = useState(false);
   const [showWeightSheet,  setShowWeightSheet]  = useState(false);
   const [showWeightScreen, setShowWeightScreen] = useState(false);
+  const [showSleepSheet,   setShowSleepSheet]   = useState(false);
+  const [showDolorSheet,   setShowDolorSheet]   = useState(false);
   const [showAddActivity,  setShowAddActivity]  = useState(false);
   const [editActivity,     setEditActivity]     = useState<ActivityEntry | undefined>(undefined);
 
   const {
     selectedDate, setSelectedDate,
-    checkIns, weightEntries, activities, injuryLogs, injuries,
+    checkIns, weightEntries, activities, injuryLogs, injuries, sleepEntries,
   } = useRecoveryStore();
 
   const today   = todayIso();
   const isToday = sameDay(selectedDate, today);
 
-  // Data for the selected day
+  // ── Day data ─────────────────────────────────────────────────────────────
   const dayCheckIn    = checkIns.find((c) => sameDay(c.date, selectedDate));
   const dayActivities = activities.filter((a) => sameDay(a.date, selectedDate));
   const dayLogs       = injuryLogs.filter((l) => sameDay(l.date, selectedDate));
+  const todaySleep    = sleepEntries.find((s) => sameDay(s.date, selectedDate));
+  const todayWeight   = weightEntries.find((w) => sameDay(w.date, selectedDate));
+  const activeInjuries = injuries.filter((i) => i.status !== 'resolved');
+  const hasRehab       = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
 
-  const hasRehab    = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
-  const hasActivity = dayActivities.length > 0;
+  // ── Row values ───────────────────────────────────────────────────────────
+  const sleepValue = todaySleep
+    ? `${fmtSleep(todaySleep.durationH)} · calidad ${todaySleep.quality}/5`
+    : null;
 
-  // Insight
+  const totalActMins  = dayActivities.reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
+  const activityValue = dayActivities.length > 0
+    ? [`${dayActivities.length} sesión${dayActivities.length > 1 ? 'es' : ''}`, totalActMins > 0 ? fmtMins(totalActMins) : null].filter(Boolean).join(' · ')
+    : null;
+
+  const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
+
+  const avgPainToday  = dayLogs.length > 0
+    ? (dayLogs.reduce((s, l) => s + l.painLevel, 0) / dayLogs.length).toFixed(1)
+    : null;
+  const painValue = avgPainToday ? `${avgPainToday}/10` : null;
+
+  // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
     activeInjuries: injuries, injuryLogs, checkIns, weights: weightEntries,
   });
 
-  // Month label shown above the calendar
   const selDateObj = new Date(selectedDate + 'T12:00:00');
   const monthLabel = `${MONTH_NAMES[selDateObj.getMonth()]} ${selDateObj.getFullYear()}`;
-
-  // Active injuries
-  const activeInjuries = injuries.filter((i) => i.status !== 'resolved');
-
-  // Human-readable date label
-  const dayLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const dayLabel   = selDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <>
       <div className="px-4 pt-3 pb-4 space-y-4 animate-fade-in">
 
-        {/* ── Weekly calendar block ─────────────────────────── */}
+        {/* ── Weekly calendar ───────────────────────────────── */}
         <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-ink uppercase tracking-wide">{monthLabel}</p>
@@ -158,7 +170,6 @@ export function TodayScreen() {
               <CalendarIcon size={15} className="text-ink/50" />
             </button>
           </div>
-
           <WeeklyCalendar
             selectedDate={selectedDate}
             onSelect={setSelectedDate}
@@ -177,20 +188,62 @@ export function TodayScreen() {
           <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
         </div>
 
-        {/* ── Tasks checklist ───────────────────────────────── */}
+        {/* ── Registros del día ─────────────────────────────── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Tareas del día
+            Registros de hoy
           </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-1">
-            <div className="divide-y divide-ink/5">
-              <div className="pb-1"><CheckItem done={hasRehab}    label="Rehabilitación" /></div>
-              <div className="pt-1"><CheckItem done={hasActivity} label="Actividad"       /></div>
-            </div>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-1 divide-y divide-ink/5">
+            <DailyRow
+              icon={Moon}
+              label="Sueño"
+              value={sleepValue}
+              done={!!todaySleep}
+              doneColor="text-sand"
+              doneBg="bg-sand/20"
+              onAdd={() => setShowSleepSheet(true)}
+            />
+            <DailyRow
+              icon={Dumbbell}
+              label="Actividad"
+              value={activityValue}
+              done={dayActivities.length > 0}
+              onAdd={() => setShowAddActivity(true)}
+            />
+            <DailyRow
+              icon={Scale}
+              label="Peso"
+              value={weightValue}
+              done={!!todayWeight}
+              doneColor="text-ember"
+              doneBg="bg-ember-light"
+              onAdd={() => setShowWeightSheet(true)}
+              onDetail={() => setShowWeightScreen(true)}
+            />
+            {activeInjuries.length > 0 && (
+              <DailyRow
+                icon={Zap}
+                label="Dolor"
+                value={painValue}
+                done={dayLogs.length > 0}
+                doneColor="text-red-400"
+                doneBg="bg-red-50"
+                onAdd={() => setShowDolorSheet(true)}
+              />
+            )}
+            {activeInjuries.length > 0 && (
+              <DailyRow
+                icon={Heart}
+                label="Rehab"
+                value={hasRehab ? 'Completado hoy' : null}
+                done={hasRehab}
+                onAdd={!hasRehab ? () => setShowDolorSheet(true) : undefined}
+              />
+            )}
           </div>
         </div>
 
-        {/* ── Activities ───────────────────────────────────── */}
+        {/* ── Activities detail ─────────────────────────────── */}
         {dayActivities.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
@@ -209,75 +262,23 @@ export function TodayScreen() {
           </div>
         )}
 
-        {/* ── Weight card ──────────────────────────────────── */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Peso
-          </p>
-          <WeightCard
-            onOpen={() => setShowWeightScreen(true)}
-            onAdd={() => setShowWeightSheet(true)}
-            weights={weightEntries}
-          />
-        </div>
-
-        {/* ── Pain logs ────────────────────────────────────── */}
-        {dayLogs.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Dolor registrado
-            </p>
-            <div className="rounded-4xl bg-white shadow-card p-5 space-y-2.5">
-              {dayLogs.map((log) => (
-                <div key={log.id} className="flex items-center gap-3">
-                  <div
-                    className={`h-8 w-8 rounded-xl flex items-center justify-center ${
-                      log.painLevel >= 5 ? 'bg-ember-light' : 'bg-moss-light'
-                    }`}
-                  >
-                    <Zap
-                      size={14}
-                      className={log.painLevel >= 5 ? 'text-ember' : 'text-moss'}
-                    />
-                  </div>
-                  <span className="text-sm text-ink">
-                    <span className="font-semibold">Dolor {log.painLevel}/10</span>
-                    {log.didRehab && (
-                      <span className="ml-2 text-[11px] bg-moss-light text-moss rounded-full px-2 py-0.5">
-                        Rehab ✓
-                      </span>
-                    )}
-                    {log.notes && (
-                      <span className="text-ink/40"> · {log.notes}</span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Injury status ─────────────────────────────────── */}
+        {/* ── Active injury status ──────────────────────────── */}
         {activeInjuries.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
               Lesiones activas
             </p>
             {activeInjuries.map((injury) => {
-              const logs = injuryLogs.filter((l) => l.injuryId === injury.id);
+              const logs   = injuryLogs.filter((l) => l.injuryId === injury.id);
               const recent = [...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
-              const avg =
-                recent.length > 0
-                  ? Number(
-                      (recent.reduce((s, l) => s + l.painLevel, 0) / recent.length).toFixed(1),
-                    )
-                  : null;
+              const avgPain = recent.length > 0
+                ? Number((recent.reduce((s, l) => s + l.painLevel, 0) / recent.length).toFixed(1))
+                : null;
               const painColor =
-                avg === null ? 'text-ink/30'
-                : avg <= 3   ? 'text-moss'
-                : avg <= 6   ? 'text-ember'
+                avgPain === null ? 'text-ink/30'
+                : avgPain <= 3  ? 'text-moss'
+                : avgPain <= 6  ? 'text-ember'
                 : 'text-red-500';
-
               let trend: 'mejorando' | 'empeorando' | 'estable' | null = null;
               if (recent.length >= 4) {
                 const half  = Math.floor(recent.length / 2);
@@ -287,31 +288,21 @@ export function TodayScreen() {
                 else if (newer > older + 0.5) trend = 'empeorando';
                 else                          trend = 'estable';
               }
-
               return (
                 <div key={injury.id} className="rounded-3xl bg-white shadow-card p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-ink">{injury.name}</p>
-                      {injury.bodyPart && (
-                        <p className="text-xs text-ink/40 capitalize mt-0.5">{injury.bodyPart}</p>
-                      )}
+                      {injury.bodyPart && <p className="text-xs text-ink/40 capitalize mt-0.5">{injury.bodyPart}</p>}
                       {trend && (
-                        <p
-                          className={`text-xs mt-1 font-medium ${
-                            trend === 'mejorando'  ? 'text-moss'
-                            : trend === 'empeorando' ? 'text-ember'
-                            : 'text-ink/40'
-                          }`}
-                        >
+                        <p className={`text-xs mt-1 font-medium ${trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-ember' : 'text-ink/40'}`}>
                           Tendencia: {trend}
                         </p>
                       )}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-2xl font-bold leading-none ${painColor}`}>
-                        {avg ?? '--'}
-                        <span className="text-xs font-normal text-ink/30">/10</span>
+                        {avgPain ?? '--'}<span className="text-xs font-normal text-ink/30">/10</span>
                       </p>
                       <p className="text-[10px] text-ink/30 mt-0.5">dolor medio</p>
                     </div>
@@ -322,7 +313,7 @@ export function TodayScreen() {
           </div>
         )}
 
-        {/* ── Contextual insight ────────────────────────────── */}
+        {/* ── Insight ───────────────────────────────────────── */}
         <div className="rounded-4xl bg-ink p-5 space-y-3">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-xl bg-white/10 flex items-center justify-center">
@@ -334,7 +325,7 @@ export function TodayScreen() {
         </div>
       </div>
 
-      {/* ── Sheets & modals ───────────────────────────────────── */}
+      {/* ── Sheets ───────────────────────────────────────────── */}
       <MonthlyCalendar
         isOpen={showMonthly}
         onClose={() => setShowMonthly(false)}
@@ -353,6 +344,20 @@ export function TodayScreen() {
       <WeightSheet
         isOpen={showWeightSheet}
         onClose={() => setShowWeightSheet(false)}
+        defaultDate={selectedDate}
+        defaultKg={todayWeight?.weightKg}
+      />
+      <SleepSheet
+        isOpen={showSleepSheet}
+        onClose={() => setShowSleepSheet(false)}
+        defaultDate={selectedDate}
+        defaultDurationH={todaySleep?.durationH}
+        defaultQuality={todaySleep?.quality}
+        editId={todaySleep?.id}
+      />
+      <DolorSheet
+        isOpen={showDolorSheet}
+        onClose={() => setShowDolorSheet(false)}
         defaultDate={selectedDate}
       />
       {showWeightScreen && (
