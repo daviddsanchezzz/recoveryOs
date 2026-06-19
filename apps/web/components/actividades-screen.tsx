@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Activity, Bike, Dumbbell, Footprints, Waves, Zap,
+  Activity, Bike, Dumbbell, Footprints, Waves, Zap, LayoutGrid,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
   MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react';
@@ -41,14 +41,14 @@ const MUSCLE_LABELS: Record<string, string> = {
 
 type Filter = ActivityType | 'all';
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all',  label: 'Todo'     },
-  { id: 'gym',  label: 'Gym'      },
-  { id: 'bike', label: 'Bici'     },
-  { id: 'run',  label: 'Correr'   },
-  { id: 'walk', label: 'Caminar'  },
-  { id: 'swim', label: 'Natación' },
-  { id: 'rehab',label: 'Rehab'    },
+const FILTERS: { id: Filter; label: string; Icon: React.ElementType }[] = [
+  { id: 'all',  label: 'Todo',     Icon: LayoutGrid },
+  { id: 'gym',  label: 'Gym',      Icon: Dumbbell   },
+  { id: 'bike', label: 'Bici',     Icon: Bike       },
+  { id: 'run',  label: 'Correr',   Icon: Activity   },
+  { id: 'walk', label: 'Caminar',  Icon: Footprints },
+  { id: 'swim', label: 'Natación', Icon: Waves      },
+  { id: 'rehab',label: 'Rehab',    Icon: Zap        },
 ];
 
 function relativeDate(dateStr: string): string {
@@ -291,13 +291,14 @@ export function ActividadesScreen() {
 
         {/* Filter chips */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {FILTERS.map((f) => (
-            <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-              className={`flex-shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all duration-150 ${
-                filter === f.id ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/50'
-              }`}
+          {FILTERS.map(({ id, label, Icon }) => (
+            <button key={id} type="button" onClick={() => setFilter(id)} aria-label={label}
+              className={`flex-shrink-0 flex items-center gap-1.5 rounded-2xl transition-all duration-150 ${
+                id === 'all' ? 'px-3 py-2' : 'h-9 w-9 justify-center'
+              } ${filter === id ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/50'}`}
             >
-              {f.label}
+              <Icon size={15} />
+              {id === 'all' && <span className="text-xs font-semibold">{label}</span>}
             </button>
           ))}
         </div>

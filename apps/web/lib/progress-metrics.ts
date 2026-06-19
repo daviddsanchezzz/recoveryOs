@@ -35,7 +35,12 @@ export type ActivitySummary = {
   distanceKm: number | null;
   avgHrBpm: number | null;
 };
-export type WeightSummary = { tab: 'peso'; currentKg: number | null; weeklyChange: number | null; weeklyAvg: number | null };
+export type WeightSummary = {
+  tab: 'peso';
+  currentKg: number | null;
+  lastEntryDate: string | null;
+  changeVsPrev: number | null;
+};
 export type PainSummary   = { tab: 'dolor'; avg: number | null; prevAvg: number | null; trend: 'mejorando' | 'empeorando' | 'estable' | null };
 export type RehabSummary  = { tab: 'rehab'; daysCompleted: number; pct: number };
 export type SleepSummary  = { tab: 'sueno'; avgH: number | null; totalH: number | null; avgQuality: number | null };
@@ -150,14 +155,16 @@ export function getWeeklySummary(
     }
 
     case 'peso': {
-      const thisWeek = data.weightEntries.filter((w) => w.date >= wStart && w.date <= wEnd);
-      const lastWeek = data.weightEntries.filter((w) => w.date >= pwStart && w.date <= pwEnd);
-      const sorted   = [...data.weightEntries].sort((a, b) => a.date.localeCompare(b.date));
-      const currentKg   = sorted[sorted.length - 1]?.weightKg ?? null;
-      const thisAvg     = avg(thisWeek.map((w) => w.weightKg));
-      const lastAvg     = avg(lastWeek.map((w) => w.weightKg));
-      const weeklyChange = thisAvg !== null && lastAvg !== null ? Number((thisAvg - lastAvg).toFixed(1)) : null;
-      return { tab: 'peso', currentKg, weeklyChange, weeklyAvg: thisAvg };
+      const sorted = [...data.weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+      const last   = sorted[sorted.length - 1];
+      const prev   = sorted[sorted.length - 2];
+      const changeVsPrev = last && prev ? Number((last.weightKg - prev.weightKg).toFixed(1)) : null;
+      return {
+        tab: 'peso',
+        currentKg:     last?.weightKg ?? null,
+        lastEntryDate: last?.date ?? null,
+        changeVsPrev,
+      };
     }
 
     case 'dolor': {

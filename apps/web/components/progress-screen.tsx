@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, Zap, Activity } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { WeightScreen } from './weight-screen';
 import {
   type ProgressTab,
   type ActivityFilter,
@@ -31,23 +33,24 @@ const TABS: { id: ProgressTab; label: string }[] = [
   { id: 'sueno',     label: 'Sueño'     },
 ];
 
-const ACTIVITY_FILTERS: { id: ActivityFilter; label: string }[] = [
-  { id: 'all',       label: 'Todo'      },
-  { id: 'gym',       label: 'Gym'       },
-  { id: 'bike',      label: 'Bici'      },
-  { id: 'run',       label: 'Correr'    },
-  { id: 'walk',      label: 'Caminar'   },
-  { id: 'swim',      label: 'Natación'  },
-  { id: 'rehab',     label: 'Rehab'     },
-  { id: 'movilidad', label: 'Movilidad' },
+const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.ElementType }[] = [
+  { id: 'all',       label: 'Todo',      Icon: LayoutGrid },
+  { id: 'gym',       label: 'Gym',       Icon: Dumbbell   },
+  { id: 'bike',      label: 'Bici',      Icon: Bike       },
+  { id: 'run',       label: 'Correr',    Icon: Activity   },
+  { id: 'walk',      label: 'Caminar',   Icon: Footprints },
+  { id: 'swim',      label: 'Natación',  Icon: Waves      },
+  { id: 'rehab',     label: 'Rehab',     Icon: Zap        },
+  { id: 'movilidad', label: 'Movilidad', Icon: Zap        },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ProgressScreen() {
-  const [activeTab,      setActiveTab]      = useState<ProgressTab>('actividad');
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
-  const [chartMetric,    setChartMetric]    = useState<ChartMetric>('tiempo');
+  const [activeTab,        setActiveTab]        = useState<ProgressTab>('actividad');
+  const [activityFilter,   setActivityFilter]   = useState<ActivityFilter>('all');
+  const [chartMetric,      setChartMetric]      = useState<ChartMetric>('tiempo');
+  const [showWeightScreen, setShowWeightScreen] = useState(false);
 
   const { activities, weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
     useRecoveryStore();
@@ -106,20 +109,27 @@ export function ProgressScreen() {
         {/* Activity sub-filter (only when Actividad is active) */}
         {activeTab === 'actividad' && (
           <div className="flex gap-2 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' }}>
-            {ACTIVITY_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setActivityFilter(f.id)}
-                className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                  activityFilter === f.id
-                    ? 'bg-moss text-white'
-                    : 'bg-white text-ink/40 shadow-card'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+            {ACTIVITY_FILTERS.map(({ id, label, Icon }) => {
+              const isActive = activityFilter === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActivityFilter(id)}
+                  aria-label={label}
+                  className={`flex-shrink-0 flex items-center gap-1.5 rounded-xl transition-all duration-200 ${
+                    id === 'all'
+                      ? 'px-3 py-1.5'
+                      : 'h-9 w-9 justify-center'
+                  } ${isActive ? 'bg-moss text-white' : 'bg-white text-ink/40 shadow-card'}`}
+                >
+                  <Icon size={15} />
+                  {id === 'all' && (
+                    <span className="text-xs font-semibold">{label}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -128,7 +138,10 @@ export function ProgressScreen() {
       <div className="px-4 space-y-5 pt-1">
 
         {/* 1 — Weekly summary */}
-        <ProgressWeeklySummary summary={summary} />
+        <ProgressWeeklySummary
+          summary={summary}
+          onWeightPress={() => setShowWeightScreen(true)}
+        />
 
         {/* 2 — 12-week chart */}
         <div className="rounded-4xl bg-white shadow-card px-4 pt-5 pb-3 space-y-1">
@@ -178,6 +191,10 @@ export function ProgressScreen() {
         {/* 5 — Trends */}
         <ProgressTrends trends={trends} />
       </div>
+
+      {showWeightScreen && (
+        <WeightScreen onClose={() => setShowWeightScreen(false)} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,13 @@
 'use client';
 
+import { todayIso } from '../lib/date';
 import type { WeeklySummary } from '../lib/progress-metrics';
+
+function daysSince(date: string): number {
+  const today = new Date(todayIso() + 'T12:00:00');
+  const d     = new Date(date + 'T12:00:00');
+  return Math.round((today.getTime() - d.getTime()) / 86_400_000);
+}
 
 function fmtMinutes(v: number): string {
   if (v === 0) return '--';
@@ -20,7 +27,12 @@ function Metric({ label, value, accent = false }: { label: string; value: string
   );
 }
 
-export function ProgressWeeklySummary({ summary }: { summary: WeeklySummary }) {
+interface Props {
+  summary: WeeklySummary;
+  onWeightPress?: () => void;
+}
+
+export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
   if (summary.tab === 'actividad') {
     const { totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm } = summary;
     const hasExtras = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
@@ -49,36 +61,48 @@ export function ProgressWeeklySummary({ summary }: { summary: WeeklySummary }) {
   }
 
   if (summary.tab === 'peso') {
-    const { currentKg, weeklyChange, weeklyAvg } = summary;
+    const { currentKg, lastEntryDate, changeVsPrev } = summary;
+    const days = lastEntryDate != null ? daysSince(lastEntryDate) : null;
+    const daysLabel =
+      days === null    ? null
+      : days === 0    ? 'Hoy'
+      : days === 1    ? 'Ayer'
+      : `Hace ${days} día${days > 1 ? 's' : ''}`;
     const changeColor =
-      weeklyChange == null ? 'text-ink/40'
-      : weeklyChange < 0  ? 'text-moss'
-      : weeklyChange > 0  ? 'text-ember'
+      changeVsPrev == null ? 'text-ink/40'
+      : changeVsPrev < 0  ? 'text-moss'
+      : changeVsPrev > 0  ? 'text-ember'
       : 'text-ink/40';
+
     return (
-      <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+      <button
+        type="button"
+        onClick={onWeightPress}
+        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform space-y-4"
+      >
         <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-0.5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
             <p className="text-3xl font-bold text-ink leading-tight">
-              {currentKg != null ? `${currentKg}` : '--'}
+              {currentKg != null ? currentKg : '--'}
               <span className="text-base font-semibold text-ink/30"> kg</span>
             </p>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Peso actual</p>
+            {daysLabel && (
+              <p className="text-xs text-ink/40 mt-1">{daysLabel}</p>
+            )}
           </div>
-          <div className="space-y-0.5">
-            <p className={`text-2xl font-bold leading-tight ${changeColor}`}>
-              {weeklyChange != null ? `${weeklyChange > 0 ? '+' : ''}${weeklyChange} kg` : '--'}
-            </p>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Esta semana</p>
-          </div>
+          {changeVsPrev != null && (
+            <div className="text-right">
+              <p className={`text-2xl font-bold leading-tight ${changeColor}`}>
+                {changeVsPrev > 0 ? '+' : ''}{changeVsPrev} kg
+              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40 mt-0.5">
+                vs anterior
+              </p>
+            </div>
+          )}
         </div>
-        {weeklyAvg != null && (
-          <p className="text-sm text-ink/40">
-            Media semanal: <span className="text-ink font-semibold">{weeklyAvg} kg</span>
-          </p>
-        )}
-      </div>
+      </button>
     );
   }
 
