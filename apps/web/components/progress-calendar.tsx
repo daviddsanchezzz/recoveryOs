@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { todayIso } from '../lib/date';
+import type { CalendarDot } from '../lib/progress-metrics';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -23,7 +24,7 @@ function getMonthCells(year: number, month: number): (string | null)[] {
 }
 
 interface ProgressCalendarProps {
-  getDots: (year: number, month: number) => Record<string, string>;
+  getDots: (year: number, month: number) => Record<string, CalendarDot>;
   selectedDate: string;
   onSelect: (date: string) => void;
 }
@@ -35,7 +36,7 @@ export function ProgressCalendar({ getDots, selectedDate, onSelect }: ProgressCa
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
-  const cells    = useMemo(() => getMonthCells(year, month), [year, month]);
+  const cells      = useMemo(() => getMonthCells(year, month), [year, month]);
   const dotsByDate = useMemo(() => getDots(year, month), [getDots, year, month]);
 
   const prevMonth = useCallback(() => {
@@ -52,19 +53,11 @@ export function ProgressCalendar({ getDots, selectedDate, onSelect }: ProgressCa
     <div className="rounded-4xl bg-white shadow-card overflow-hidden">
       {/* Month navigation */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="h-8 w-8 flex items-center justify-center rounded-full active:bg-canvas-light transition-colors"
-        >
+        <button type="button" onClick={prevMonth} className="h-8 w-8 flex items-center justify-center rounded-full active:bg-canvas-light transition-colors">
           <ChevronLeft size={16} className="text-ink/60" />
         </button>
         <p className="text-sm font-bold text-ink">{MONTH_NAMES[month]} {year}</p>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="h-8 w-8 flex items-center justify-center rounded-full active:bg-canvas-light transition-colors"
-        >
+        <button type="button" onClick={nextMonth} className="h-8 w-8 flex items-center justify-center rounded-full active:bg-canvas-light transition-colors">
           <ChevronRight size={16} className="text-ink/60" />
         </button>
       </div>
@@ -78,32 +71,40 @@ export function ProgressCalendar({ getDots, selectedDate, onSelect }: ProgressCa
         ))}
       </div>
 
-      {/* Day cells */}
-      <div className="grid grid-cols-7 gap-y-0.5 px-3 pb-4">
+      {/* Day cells — heatmap style */}
+      <div className="grid grid-cols-7 gap-y-1 px-3 pb-4">
         {cells.map((date, i) => {
           if (!date) return <div key={`e-${i}`} />;
           const isSelected = date === selectedDate;
           const isToday    = date === today;
-          const dotColor   = dotsByDate[date];
+          const dot        = dotsByDate[date];
+          const dotAlpha   = dot ? (dot.level === 1 ? 0.18 : dot.level === 2 ? 0.50 : 0.85) : 0;
+
           return (
             <button
               key={date}
               type="button"
               onClick={() => onSelect(date)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all duration-150 ${
-                isSelected ? 'bg-ink' : isToday ? 'bg-ember/10' : 'active:bg-canvas-light'
+              className={`relative flex items-center justify-center h-9 rounded-xl transition-all duration-150 ${
+                isSelected ? 'bg-ink' : ''
               }`}
             >
-              <span className={`text-sm font-bold leading-none ${
-                isSelected ? 'text-white' : isToday ? 'text-ember' : 'text-ink'
+              {/* Heatmap fill */}
+              {!isSelected && dot && (
+                <span
+                  className="absolute inset-0 rounded-xl"
+                  style={{ backgroundColor: dot.hex, opacity: dotAlpha }}
+                />
+              )}
+              {/* Today ring */}
+              {isToday && !isSelected && (
+                <span className="absolute inset-0 rounded-xl ring-1 ring-inset ring-ember/40" />
+              )}
+              <span className={`relative z-10 text-sm font-bold leading-none ${
+                isSelected ? 'text-white' : isToday ? 'text-ember' : dot && dot.level === 3 ? 'text-ink' : 'text-ink'
               }`}>
                 {date.slice(8)}
               </span>
-              <span className={`h-1 w-1 rounded-full transition-colors ${
-                dotColor
-                  ? `${dotColor}${isSelected ? ' opacity-50' : ''}`
-                  : 'opacity-0 bg-transparent'
-              }`} />
             </button>
           );
         })}

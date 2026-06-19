@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Activity, Scale, Flame } from 'lucide-react';
+import { Heart, Activity, Scale, Flame, Moon } from 'lucide-react';
 import type { StreakItem } from '../lib/progress-metrics';
 
 const ICON_MAP = {
@@ -8,6 +8,7 @@ const ICON_MAP = {
   activity: Activity,
   weight:   Scale,
   flame:    Flame,
+  moon:     Moon,
 } as const;
 
 const COLOR_MAP = {
@@ -15,6 +16,7 @@ const COLOR_MAP = {
   activity: 'text-ember',
   weight:   'text-ink/60',
   flame:    'text-ember',
+  moon:     'text-sand',
 } as const;
 
 export function ProgressStreaks({ streaks }: { streaks: StreakItem[] }) {
@@ -29,10 +31,7 @@ export function ProgressStreaks({ streaks }: { streaks: StreakItem[] }) {
           const Icon  = ICON_MAP[streak.iconName];
           const color = COLOR_MAP[streak.iconName];
           return (
-            <div
-              key={streak.key}
-              className="flex-shrink-0 rounded-3xl bg-white shadow-card p-4 min-w-[112px] space-y-2"
-            >
+            <div key={streak.key} className="flex-shrink-0 rounded-3xl bg-white shadow-card p-4 min-w-[112px] space-y-2">
               <Icon size={18} className={color} />
               <div>
                 <p className="text-2xl font-bold text-ink leading-tight">{streak.value}</p>
