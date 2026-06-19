@@ -36,8 +36,7 @@ import { ProgressTrends }        from './progress-trends';
 const TABS: { id: ProgressTab; label: string }[] = [
   { id: 'actividad', label: 'Actividad' },
   { id: 'peso',      label: 'Peso'      },
-  { id: 'dolor',     label: 'Dolor'     },
-  { id: 'rehab',     label: 'Rehab'     },
+  { id: 'lesion',    label: 'Lesión'    },
   { id: 'sueno',     label: 'Sueño'     },
 ];
 

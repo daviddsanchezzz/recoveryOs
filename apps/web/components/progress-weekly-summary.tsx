@@ -183,12 +183,15 @@ export function ProgressWeeklySummary({
     );
   }
 
-  if (summary.tab === 'dolor') {
-    const { avg, prevAvg, trend, deltaPoints } = summary;
+  if (summary.tab === 'lesion') {
+    const { avg, prevAvg, trend, deltaPoints, daysCompleted, pct, prevDaysCompleted } = summary;
     const trendText  = trend === 'mejorando' ? '↓ Mejorando' : trend === 'empeorando' ? '↑ Empeorando' : trend === 'estable' ? '→ Estable' : null;
     const trendColor = trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-red-500' : 'text-ink/40';
+    const metGoal    = pct >= 70;
+    const daysDelta  = daysCompleted - prevDaysCompleted;
     return (
-      <div className="rounded-4xl bg-white shadow-card p-5">
+      <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+        {/* Dolor row */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <div className="flex items-baseline gap-1.5">
@@ -207,36 +210,28 @@ export function ProgressWeeklySummary({
             </div>
           )}
         </div>
-        <CardActions onDetail={onDolorPress} onAdd={onDolorAdd} />
-      </div>
-    );
-  }
 
-  if (summary.tab === 'rehab') {
-    const { daysCompleted, pct, prevDaysCompleted } = summary;
-    const metGoal = pct >= 70;
-    const daysDelta = daysCompleted - prevDaysCompleted;
-    return (
-      <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
-        <div className="flex items-end gap-5">
-          <div className="space-y-0.5">
-            <div className="flex items-baseline gap-1.5">
-              <p className="text-3xl font-bold text-ink leading-tight">
-                {daysCompleted}
-                <span className="text-base font-semibold text-ink/30">/7</span>
-              </p>
-              {daysDelta !== 0 && prevDaysCompleted >= 0 && <Delta value={daysDelta} suffix=" días" />}
+        {/* Rehab row */}
+        <div className="pt-3 border-t border-ink/6 space-y-2">
+          <div className="flex items-end justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-2xl font-bold text-ink leading-tight">
+                  {daysCompleted}
+                  <span className="text-sm font-semibold text-ink/30">/7 días</span>
+                </p>
+                {daysDelta !== 0 && prevDaysCompleted >= 0 && <Delta value={daysDelta} suffix=" días" />}
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Rehab</p>
             </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Días rehab</p>
+            <p className={`text-xl font-bold pb-0.5 ${metGoal ? 'text-moss' : 'text-ember'}`}>{pct}%</p>
           </div>
-          <div className="space-y-0.5 pb-0.5">
-            <p className={`text-2xl font-bold leading-tight ${metGoal ? 'text-moss' : 'text-ember'}`}>{pct}%</p>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Objetivo ≥70%</p>
+          <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-700 ${metGoal ? 'bg-moss' : 'bg-ember'}`} style={{ width: `${pct}%` }} />
           </div>
         </div>
-        <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${metGoal ? 'bg-moss' : 'bg-ember'}`} style={{ width: `${pct}%` }} />
-        </div>
+
+        <CardActions onDetail={onDolorPress} onAdd={onDolorAdd} />
       </div>
     );
   }

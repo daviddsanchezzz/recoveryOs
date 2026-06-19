@@ -3,7 +3,7 @@ import { addDays, todayIso, weekDates } from './date';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
-export type ProgressTab    = 'actividad' | 'peso' | 'dolor' | 'rehab' | 'sueno';
+export type ProgressTab    = 'actividad' | 'peso' | 'lesion' | 'sueno';
 export type ActivityFilter = 'all' | 'gym' | 'bike' | 'walk' | 'run' | 'swim' | 'rehab' | 'movilidad';
 export type ChartMetric    = 'tiempo' | 'sesiones' | 'distancia' | 'peso' | 'dolor' | 'adherencia' | 'horas' | 'calidad';
 
@@ -57,15 +57,12 @@ export type WeightSummary = {
   weekChangeKg: number | null;
   monthChangeKg: number | null;
 };
-export type PainSummary = {
-  tab: 'dolor';
+export type LesionSummary = {
+  tab: 'lesion';
   avg: number | null;
   prevAvg: number | null;
   trend: 'mejorando' | 'empeorando' | 'estable' | null;
   deltaPoints: number | null;
-};
-export type RehabSummary = {
-  tab: 'rehab';
   daysCompleted: number;
   pct: number;
   prevDaysCompleted: number;
@@ -78,7 +75,7 @@ export type SleepSummary = {
   prevAvgH: number | null;
   prevAvgQuality: number | null;
 };
-export type WeeklySummary = ActivitySummary | WeightSummary | PainSummary | RehabSummary | SleepSummary;
+export type WeeklySummary = ActivitySummary | WeightSummary | LesionSummary | SleepSummary;
 
 export type ProgressStoreData = {
   activities: ActivityEntry[];
@@ -105,9 +102,11 @@ export const CHART_METRIC_OPTIONS: Record<ProgressTab, ChartMetricOption[]> = {
     { key: 'sesiones',  label: 'Sesiones',  chartType: 'bar',  formatValue: (v) => `${v} ses.` },
     { key: 'distancia', label: 'Distancia', chartType: 'bar',  formatValue: (v) => `${v} km`  },
   ],
-  peso:  [{ key: 'peso',       label: 'Peso',       chartType: 'line', formatValue: (v) => `${v} kg` }],
-  dolor: [{ key: 'dolor',      label: 'Dolor',      chartType: 'line', formatValue: (v) => `${v}/10` }],
-  rehab: [{ key: 'adherencia', label: 'Adherencia', chartType: 'bar',  formatValue: (v) => `${v}%`  }],
+  peso:   [{ key: 'peso',       label: 'Peso',       chartType: 'line', formatValue: (v) => `${v} kg` }],
+  lesion: [
+    { key: 'dolor',      label: 'Dolor',      chartType: 'line', formatValue: (v) => `${v}/10` },
+    { key: 'adherencia', label: 'Rehab',      chartType: 'bar',  formatValue: (v) => `${v}%`  },
+  ],
   sueno: [
     { key: 'horas',   label: 'Horas',   chartType: 'bar',  formatValue: (v) => `${v}h`  },
     { key: 'calidad', label: 'Calidad', chartType: 'line', formatValue: (v) => `${v}/5` },
@@ -117,24 +116,21 @@ export const CHART_METRIC_OPTIONS: Record<ProgressTab, ChartMetricOption[]> = {
 export const DEFAULT_CHART_METRIC: Record<ProgressTab, ChartMetric> = {
   actividad: 'tiempo',
   peso:      'peso',
-  dolor:     'dolor',
-  rehab:     'adherencia',
+  lesion:    'dolor',
   sueno:     'horas',
 };
 
 export const TAB_CHART_COLOR: Record<ProgressTab, string> = {
   actividad: '#54715a',
   peso:      '#b56b45',
-  dolor:     '#ef4444',
-  rehab:     '#13201a',
+  lesion:    '#ef4444',
   sueno:     '#d9c4a1',
 };
 
 const TAB_HEX: Record<ProgressTab, string> = {
   actividad: '#54715a',
   peso:      '#b56b45',
-  dolor:     '#ef4444',
-  rehab:     '#13201a',
+  lesion:    '#ef4444',
   sueno:     '#a89068',
 };
 
@@ -235,26 +231,22 @@ export function getWeeklySummary(
       return { tab: 'peso', currentKg: last?.weightKg ?? null, lastEntryDate: last?.date ?? null, changeVsPrev, weekChangeKg, monthChangeKg };
     }
 
-    case 'dolor': {
-      const thisLogs   = data.injuryLogs.filter((l) => l.date >= wStart);
-      const prevLogs   = data.injuryLogs.filter((l) => l.date >= pwStart && l.date <= pwEnd);
-      const avgThis    = avg(thisLogs.map((l) => l.painLevel));
-      const avgPrev    = avg(prevLogs.map((l) => l.painLevel));
+    case 'lesion': {
+      const thisLogs  = data.injuryLogs.filter((l) => l.date >= wStart);
+      const prevLogs  = data.injuryLogs.filter((l) => l.date >= pwStart && l.date <= pwEnd);
+      const avgThis   = avg(thisLogs.map((l) => l.painLevel));
+      const avgPrev   = avg(prevLogs.map((l) => l.painLevel));
       const deltaPoints = avgThis !== null && avgPrev !== null ? Number((avgThis - avgPrev).toFixed(1)) : null;
-      let trend: PainSummary['trend'] = null;
+      let trend: LesionSummary['trend'] = null;
       if (avgThis !== null && avgPrev !== null) {
-        if (avgThis < avgPrev - 0.3) trend = 'mejorando';
+        if (avgThis < avgPrev - 0.3)      trend = 'mejorando';
         else if (avgThis > avgPrev + 0.3) trend = 'empeorando';
-        else trend = 'estable';
+        else                              trend = 'estable';
       }
-      return { tab: 'dolor', avg: avgThis, prevAvg: avgPrev, trend, deltaPoints };
-    }
-
-    case 'rehab': {
-      const week          = weekDates();
+      const week              = weekDates();
       const daysCompleted     = week.filter((d) => didRehabOn(d, data)).length;
       const prevDaysCompleted = datesInRange(pwStart, pwEnd).filter((d) => didRehabOn(d, data)).length;
-      return { tab: 'rehab', daysCompleted, pct: Math.round((daysCompleted / 7) * 100), prevDaysCompleted };
+      return { tab: 'lesion', avg: avgThis, prevAvg: avgPrev, trend, deltaPoints, daysCompleted, pct: Math.round((daysCompleted / 7) * 100), prevDaysCompleted };
     }
 
     case 'sueno': {
@@ -290,9 +282,13 @@ export function get12WeekChartData(
         if (metric === 'distancia') { const km = acts.reduce((s, a) => s + (a.distanceKm ?? 0), 0); value = km > 0 ? Number(km.toFixed(1)) : null; }
         break;
       }
-      case 'peso':  { const we = data.weightEntries.filter((w) => w.date >= start && w.date <= end); value = avg(we.map((w) => w.weightKg)); break; }
-      case 'dolor': { const lo = data.injuryLogs.filter((l) => l.date >= start && l.date <= end);    value = avg(lo.map((l) => l.painLevel)); break; }
-      case 'rehab': { const d  = datesInRange(start, end).filter((d) => didRehabOn(d, data)).length;  value = Math.round((d / 7) * 100); break; }
+      case 'peso':   { const we = data.weightEntries.filter((w) => w.date >= start && w.date <= end); value = avg(we.map((w) => w.weightKg)); break; }
+      case 'lesion': {
+        const lo = data.injuryLogs.filter((l) => l.date >= start && l.date <= end);
+        if (metric === 'dolor')      value = avg(lo.map((l) => l.painLevel));
+        if (metric === 'adherencia') { const d = datesInRange(start, end).filter((d) => didRehabOn(d, data)).length; value = Math.round((d / 7) * 100); }
+        break;
+      }
       case 'sueno': {
         const se = data.sleepEntries.filter((s) => s.date >= start && s.date <= end);
         if (metric === 'horas')   value = avg(se.map((e) => e.durationH));
@@ -343,17 +339,16 @@ export function getCalendarDots(
       case 'peso':
         if (data.weightEntries.some((w) => w.date === date)) level = 2;
         break;
-      case 'dolor': {
+      case 'lesion': {
         const logs = data.injuryLogs.filter((l) => l.date === date);
         if (logs.length > 0) {
           const p = logs.reduce((s, l) => s + l.painLevel, 0) / logs.length;
           level = p >= 7 ? 3 : p >= 4 ? 2 : 1;
+        } else if (didRehabOn(date, data)) {
+          level = 1;
         }
         break;
       }
-      case 'rehab':
-        if (didRehabOn(date, data)) level = 2;
-        break;
       case 'sueno': {
         const e = data.sleepEntries.find((s) => s.date === date);
         if (e) level = e.durationH >= 8 ? 3 : e.durationH >= 6.5 ? 2 : 1;

@@ -142,13 +142,10 @@ export function TodayScreen() {
   const avgPainToday = dayLogs.length > 0
     ? (dayLogs.reduce((s, l) => s + l.painLevel, 0) / dayLogs.length).toFixed(1)
     : null;
-  const dolorRehabDone = dayLogs.length > 0 || hasRehab;
-  const dolorRehabValue = (() => {
-    const parts: string[] = [];
-    if (avgPainToday) parts.push(`${avgPainToday}/10`);
-    if (hasRehab)     parts.push('rehab ✓');
-    return parts.length > 0 ? parts.join(' · ') : null;
-  })();
+  const dolorRehabDone  = dayLogs.length > 0 || hasRehab;
+  const dolorRehabValue = dolorRehabDone
+    ? `${avgPainToday ?? '--'}/10 · ${hasRehab ? '✓' : '✗'}`
+    : null;
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -228,7 +225,7 @@ export function TodayScreen() {
             {activeInjuries.length > 0 && (
               <DailyRow
                 icon={Zap}
-                label="Dolor · Rehab"
+                label="Lesión"
                 value={dolorRehabValue}
                 done={dolorRehabDone}
                 doneColor="text-red-400"
