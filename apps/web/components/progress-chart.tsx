@@ -31,9 +31,11 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tooltipContent = ({ active, payload }: any) => {
     if (!active || !payload?.length || payload[0].value == null) return null;
+    const point = payload[0].payload as ChartPoint;
     return (
-      <div className="bg-ink text-white text-xs font-semibold rounded-xl px-3 py-1.5 shadow-lg pointer-events-none">
-        {fmt(Number(payload[0].value))}
+      <div className="bg-ink text-white rounded-xl px-3 py-2 shadow-lg pointer-events-none space-y-0.5">
+        <p className="text-[10px] text-white/50 font-medium leading-none">{point.label}</p>
+        <p className="text-xs font-bold leading-none">{fmt(Number(payload[0].value))}</p>
       </div>
     );
   };
@@ -52,33 +54,37 @@ export function ProgressChart({ data, type, color, formatValue }: ProgressChartP
 
   if (type === 'bar') {
     return (
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barCategoryGap="32%">
-          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
-          <YAxis domain={[0, yDomain[1]]} hide />
-          <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
-          <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barCategoryGap="32%">
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+            <YAxis domain={[0, yDomain[1]]} hide />
+            <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
+            <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
-        <YAxis domain={yDomain} hide />
-        <Tooltip content={tooltipContent} cursor={false} />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          strokeWidth={2.5}
-          dot={{ r: 3, fill: color, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
-          connectNulls={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+          <YAxis domain={yDomain} hide />
+          <Tooltip content={tooltipContent} cursor={false} />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: color, strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
