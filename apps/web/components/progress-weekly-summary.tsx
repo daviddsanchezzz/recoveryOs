@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, ArrowRight } from 'lucide-react';
+import { Plus, ChevronRight } from 'lucide-react';
 import { todayIso } from '../lib/date';
 import type { WeeklySummary } from '../lib/progress-metrics';
 
@@ -28,35 +28,26 @@ function Metric({ label, value, accent = false }: { label: string; value: string
   );
 }
 
-function CardActions({
-  onDetail,
-  onAdd,
-  detailLabel = 'Ver detalle',
-}: {
-  onDetail?: () => void;
-  onAdd?: () => void;
-  detailLabel?: string;
-}) {
+function CardActions({ onDetail, onAdd }: { onDetail?: () => void; onAdd?: () => void }) {
   if (!onDetail && !onAdd) return null;
   return (
-    <div className="flex items-center justify-between gap-2 pt-3 border-t border-ink/6 mt-3">
-      {onDetail ? (
-        <button
-          type="button"
-          onClick={onDetail}
-          className="flex items-center gap-1 text-xs font-semibold text-ink/40 hover:text-ink/70 transition-colors"
-        >
-          {detailLabel}
-          <ArrowRight size={12} />
-        </button>
-      ) : <span />}
+    <div className="flex items-center justify-end gap-1.5 mt-3">
       {onAdd && (
         <button
           type="button"
           onClick={onAdd}
-          className="h-8 w-8 rounded-2xl bg-ink flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+          className="h-8 w-8 rounded-2xl bg-ink flex items-center justify-center active:scale-95 transition-transform"
         >
           <Plus size={14} className="text-white" />
+        </button>
+      )}
+      {onDetail && (
+        <button
+          type="button"
+          onClick={onDetail}
+          className="h-8 w-8 rounded-2xl bg-ink/8 flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <ChevronRight size={14} className="text-ink/40" />
         </button>
       )}
     </div>
@@ -103,7 +94,7 @@ export function ProgressWeeklySummary({
             )}
           </div>
         )}
-        <CardActions onDetail={onActividadPress} onAdd={onActividadAdd} detailLabel="Ver actividades" />
+        <CardActions onDetail={onActividadPress} onAdd={onActividadAdd} />
       </div>
     );
   }
@@ -173,7 +164,7 @@ export function ProgressWeeklySummary({
             </div>
           )}
         </div>
-        <CardActions onDetail={onDolorPress} onAdd={onDolorAdd} detailLabel="Ver lesiones" />
+        <CardActions onDetail={onDolorPress} onAdd={onDolorAdd} />
       </div>
     );
   }
@@ -235,7 +226,7 @@ export function ProgressWeeklySummary({
             Total semana: <span className="text-ink font-semibold">{totalH}h</span>
           </p>
         )}
-        <CardActions onDetail={onSuenoPress} onAdd={onSuenoAdd} detailLabel="Ver sueño" />
+        <CardActions onDetail={onSuenoPress} onAdd={onSuenoAdd} />
       </div>
     );
   }
