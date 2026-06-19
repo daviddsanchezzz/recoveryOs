@@ -10,6 +10,7 @@ import {
   type ChartMetric,
   getWeeklySummary,
   get12WeekChartData,
+  getLast12WeightChartData,
   getCalendarDots,
   getStreaks,
   getTrends,
@@ -66,7 +67,12 @@ export function ProgressScreen() {
   }
 
   const summary   = useMemo(() => getWeeklySummary(activeTab, activityFilter, storeData),       [activeTab, activityFilter, storeData]);
-  const chartData = useMemo(() => get12WeekChartData(activeTab, activityFilter, chartMetric, storeData), [activeTab, activityFilter, chartMetric, storeData]);
+  const chartData = useMemo(
+    () => activeTab === 'peso'
+      ? getLast12WeightChartData(storeData)
+      : get12WeekChartData(activeTab, activityFilter, chartMetric, storeData),
+    [activeTab, activityFilter, chartMetric, storeData],
+  );
   const streaks   = useMemo(() => getStreaks(storeData),   [storeData]);
   const trends    = useMemo(() => getTrends(storeData),    [storeData]);
 
@@ -138,17 +144,20 @@ export function ProgressScreen() {
       <div className="px-4 space-y-5 pt-1">
 
         {/* 1 — Weekly summary */}
-        <ProgressWeeklySummary
-          summary={summary}
-          onWeightPress={() => setShowWeightScreen(true)}
-        />
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Esta semana</p>
+          <ProgressWeeklySummary
+            summary={summary}
+            onWeightPress={() => setShowWeightScreen(true)}
+          />
+        </div>
 
-        {/* 2 — 12-week chart */}
-        <div className="rounded-4xl bg-white shadow-card px-4 pt-5 pb-3 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 mb-1">
-            Evolución · 12 semanas
+        {/* 2 — Chart */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">
+            {activeTab === 'peso' ? 'Últimos 12 registros' : 'Evolución · 12 semanas'}
           </p>
-
+          <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3 space-y-1">
           <ProgressChart
             data={chartData}
             type={activeMetricOption.chartType}
@@ -173,6 +182,7 @@ export function ProgressScreen() {
               ))}
             </div>
           )}
+          </div>
         </div>
 
         {/* 3 — Inline monthly calendar */}

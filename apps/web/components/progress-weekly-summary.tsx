@@ -38,7 +38,6 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const hasExtras = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
     return (
       <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
         <div className="grid grid-cols-2 gap-4">
           <Metric label="Tiempo total" value={fmtMinutes(totalMinutes)} />
           <Metric label="Sesiones" value={sessions === 0 ? '--' : String(sessions)} />
@@ -78,9 +77,8 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
       <button
         type="button"
         onClick={onWeightPress}
-        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform space-y-4"
+        className="w-full rounded-4xl bg-white shadow-card p-5 text-left active:scale-[0.99] transition-transform"
       >
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -112,7 +110,6 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const trendColor = trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-red-500' : 'text-ink/40';
     return (
       <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -139,7 +136,6 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const metGoal = pct >= 70;
     return (
       <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
         <div className="flex items-end gap-5">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">
@@ -169,7 +165,6 @@ export function ProgressWeeklySummary({ summary, onWeightPress }: Props) {
     const qualLabel = avgQuality != null ? qualityLabels[Math.round(avgQuality)] : null;
     return (
       <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">Esta semana</p>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-0.5">
             <p className="text-3xl font-bold text-ink leading-tight">

@@ -246,6 +246,16 @@ export function get12WeekChartData(
   });
 }
 
+// ── Last 12 individual weight entries (for peso chart) ───────────────────────
+
+export function getLast12WeightChartData(data: ProgressStoreData): ChartPoint[] {
+  const sorted = [...data.weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.slice(-12).map((entry) => {
+    const d = new Date(entry.date + 'T12:00:00');
+    return { label: `${d.getDate()}/${d.getMonth() + 1}`, value: entry.weightKg, weekStart: entry.date };
+  });
+}
+
 // ── Calendar dots ────────────────────────────────────────────────────────────
 
 export function getCalendarDots(
