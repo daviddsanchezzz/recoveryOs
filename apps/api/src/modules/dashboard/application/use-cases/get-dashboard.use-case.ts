@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GetActivitySummaryUseCase } from '../../../activity/application/use-cases/get-activity-summary.use-case';
-import { GetInjurySummaryUseCase } from '../../../injury/application/use-cases/get-injury-summary.use-case';
+import { GetUserInjuriesUseCase } from '../../../injury/application/use-cases/get-user-injuries.use-case';
 import { GetNutritionSummaryUseCase } from '../../../nutrition/application/use-cases/get-nutrition-summary.use-case';
 import { GetWeightSummaryUseCase } from '../../../weight/application/use-cases/get-weight-summary.use-case';
 
@@ -8,23 +8,29 @@ import { GetWeightSummaryUseCase } from '../../../weight/application/use-cases/g
 export class GetDashboardUseCase {
   constructor(
     private readonly getWeightSummaryUseCase: GetWeightSummaryUseCase,
-    private readonly getInjurySummaryUseCase: GetInjurySummaryUseCase,
+    private readonly getUserInjuriesUseCase: GetUserInjuriesUseCase,
     private readonly getNutritionSummaryUseCase: GetNutritionSummaryUseCase,
     private readonly getActivitySummaryUseCase: GetActivitySummaryUseCase,
   ) {}
 
   async execute(userId: string) {
-    const [weight, injury, nutrition, activities] = await Promise.all([
+    const [weight, injuries, nutrition, activities] = await Promise.all([
       this.getWeightSummaryUseCase.execute(userId),
-      this.getInjurySummaryUseCase.execute(userId),
+      this.getUserInjuriesUseCase.execute(userId),
       this.getNutritionSummaryUseCase.execute(userId),
       this.getActivitySummaryUseCase.execute(userId),
     ]);
 
+    const activeInjuries = injuries.filter((i) => i.status === 'active' || i.status === 'recovering');
+    const injurySummary = {
+      activeCount: activeInjuries.length,
+      names: activeInjuries.map((i) => i.name),
+    };
+
     const weeklyAiSummary = [
-      injury.weeklyAveragePain !== null
-        ? `Dolor medio semanal ${injury.weeklyAveragePain}/10.`
-        : 'Sin datos de lesion todavia.',
+      activeInjuries.length > 0
+        ? `Lesiones activas: ${activeInjuries.map((i) => i.name).join(', ')}.`
+        : 'Sin lesiones activas.',
       nutrition.averageProtein !== null
         ? `Proteina media ${nutrition.averageProtein} g.`
         : 'Aun no hay comidas registradas.',
@@ -35,7 +41,7 @@ export class GetDashboardUseCase {
 
     return {
       weight,
-      injury,
+      injury: injurySummary,
       nutrition,
       activities,
       weeklyAiSummary,

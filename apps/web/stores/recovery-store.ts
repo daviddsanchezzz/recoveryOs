@@ -2,7 +2,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { recoveryMockData } from '../lib/mock-data';
 import { sameDay, todayIso } from '../lib/date';
 
 export type ActivityType =
@@ -182,14 +181,14 @@ const INITIAL_ACTIVITIES_META: ActivitiesMeta = { loaded: false, hasMore: true, 
 export const useRecoveryStore = create<RecoveryState>()(
   persist(
     (set) => ({
-      profile: recoveryMockData.profile,
-      injuries: recoveryMockData.injuries,
-      injuryLogs: recoveryMockData.injuryLogs,
-      weightEntries: recoveryMockData.weightEntries,
-      activities: recoveryMockData.activities,
+      profile: { name: '', activeGoals: [], preferences: { primaryFocus: 'recuperacion' } },
+      injuries: [],
+      injuryLogs: [],
+      weightEntries: [],
+      activities: [],
       activitiesMeta: INITIAL_ACTIVITIES_META,
-      checkIns: recoveryMockData.checkIns,
-      sleepEntries: recoveryMockData.sleepEntries,
+      checkIns: [],
+      sleepEntries: [],
       selectedDate: todayIso(),
       setSelectedDate: (date) => set({ selectedDate: date }),
       saveDailyCheckIn: (input) =>
@@ -343,27 +342,24 @@ export const useRecoveryStore = create<RecoveryState>()(
     }),
     {
       name: 'recoveryos-v1-store',
-      version: 2,
+      version: 3,
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { activitiesMeta: _meta, ...rest } = state;
         return rest as RecoveryState;
       },
-      migrate: (persisted: unknown, fromVersion: number) => {
-        const state = persisted as Record<string, unknown>;
-        if (fromVersion < 2) {
-          // Remove mock activities (IDs like a-14, a-13, a-8a, a-3b …)
-          const isMockId = (id: string) => /^a-\d+[a-z]?$/.test(id);
-          const acts = (state.activities as ActivityEntry[] | undefined) ?? [];
-          state.activities = acts.filter((a) => !isMockId(a.id));
-          // Also scrub them from embedded checkIn.activities arrays
-          const cis = (state.checkIns as DailyCheckIn[] | undefined) ?? [];
-          state.checkIns = cis.map((ci) => ({
-            ...ci,
-            activities: (ci.activities ?? []).filter((a) => !isMockId(a.id)),
-          }));
-        }
-        return state as RecoveryState;
+      migrate: (_persisted: unknown, _fromVersion: number) => {
+        // v3: wipe all mock data — start from a clean slate
+        return {
+          profile: { name: '', activeGoals: [], preferences: { primaryFocus: 'recuperacion' } },
+          injuries: [],
+          injuryLogs: [],
+          weightEntries: [],
+          activities: [],
+          checkIns: [],
+          sleepEntries: [],
+          selectedDate: todayIso(),
+        } as unknown as RecoveryState;
       },
     },
   ),

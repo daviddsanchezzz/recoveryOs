@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { LogActivityUseCase } from '../../../activity/application/use-cases/log-activity.use-case';
-import { GetInjurySummaryUseCase } from '../../../injury/application/use-cases/get-injury-summary.use-case';
-import { LogInjuryUseCase } from '../../../injury/application/use-cases/log-injury.use-case';
+import { GetUserInjuriesUseCase } from '../../../injury/application/use-cases/get-user-injuries.use-case';
 import { LogMealUseCase } from '../../../nutrition/application/use-cases/log-meal.use-case';
 import { GetWeightSummaryUseCase } from '../../../weight/application/use-cases/get-weight-summary.use-case';
 import { LogWeightUseCase } from '../../../weight/application/use-cases/log-weight.use-case';
@@ -15,8 +14,7 @@ export class ProcessChatMessageUseCase {
     private readonly parser: AiIntentParserPort,
     private readonly logWeightUseCase: LogWeightUseCase,
     private readonly getWeightSummaryUseCase: GetWeightSummaryUseCase,
-    private readonly logInjuryUseCase: LogInjuryUseCase,
-    private readonly getInjurySummaryUseCase: GetInjurySummaryUseCase,
+    private readonly getUserInjuriesUseCase: GetUserInjuriesUseCase,
     private readonly logMealUseCase: LogMealUseCase,
     private readonly logActivityUseCase: LogActivityUseCase,
   ) {}
@@ -44,21 +42,11 @@ export class ProcessChatMessageUseCase {
     }
 
     if (parsed.type === 'injury') {
-      await this.logInjuryUseCase.execute({
-        userId: input.userId,
-        date: parsed.payload.date,
-        walkingPain: parsed.payload.walkingPain,
-        stiffness: parsed.payload.stiffness,
-        swelling: parsed.payload.swelling,
-        rehabCompleted: parsed.payload.rehabCompleted,
-        notes: parsed.payload.notes,
-      });
-
-      const summary = await this.getInjurySummaryUseCase.execute(input.userId);
+      const injuries = await this.getUserInjuriesUseCase.execute(input.userId);
       return {
         intent: parsed.type,
         reply: parsed.reply,
-        record: summary.latest,
+        record: { activeCount: injuries.filter((i) => i.status === 'active').length },
       };
     }
 

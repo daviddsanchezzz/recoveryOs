@@ -10,7 +10,7 @@ export class GenerateWeeklySummaryUseCase {
 
     return {
       weekRange: 'Monday - Sunday',
-      health: `Dolor medio: ${dashboard.injury.weeklyAveragePain ?? 'sin datos'}`,
+      health: `Lesiones activas: ${dashboard.injury.activeCount > 0 ? dashboard.injury.names.join(', ') : 'ninguna'}`,
       training: dashboard.activities,
       nutrition: {
         averageCalories: dashboard.nutrition.averageCalories,
