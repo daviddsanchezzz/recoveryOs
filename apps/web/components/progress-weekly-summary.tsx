@@ -69,52 +69,68 @@ export function ProgressWeeklySummary({
 }: Props) {
 
   if (summary.tab === 'actividad') {
-    const { totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm, prevTotalMinutes, prevSessions, prevVolumeKg } = summary;
-    const hasExtras   = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
-    const timePct     = prevTotalMinutes > 0 ? Math.round(((totalMinutes - prevTotalMinutes) / prevTotalMinutes) * 100) : null;
-    const sessionsDelta = (prevSessions > 0 || sessions > 0) ? sessions - prevSessions : null;
-    const volDelta    = totalVolumeKg != null && prevVolumeKg != null && prevVolumeKg > 0
-      ? Math.round(((totalVolumeKg - prevVolumeKg) / prevVolumeKg) * 100) : null;
+    const { totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm, prevTotalMinutes, prevSessions } = summary;
+    const hasExtras     = (totalVolumeKg != null && totalVolumeKg > 0) || (distanceKm != null && distanceKm > 0) || avgHrBpm != null;
+    const timePct       = prevTotalMinutes > 0 ? Math.round(((totalMinutes - prevTotalMinutes) / prevTotalMinutes) * 100) : null;
+    const timeMinDiff   = prevTotalMinutes > 0 ? totalMinutes - prevTotalMinutes : null;
+    const sessionsDelta = sessions - prevSessions;
+
+    // Volume display: convert to tonnes when ≥ 1000 kg to avoid "17.807 kg" confusion
+    const fmtVol = (kg: number) => kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${Math.round(kg)} kg`;
 
     return (
-      <div className="rounded-4xl bg-white shadow-card p-5">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          <div className="space-y-0.5">
-            <div className="flex items-baseline gap-1.5">
-              <p className="text-2xl font-bold text-ink leading-tight">{fmtMinutes(totalMinutes)}</p>
-              {timePct !== null && <Delta value={timePct} suffix="%" />}
-            </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Tiempo total</p>
+      <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
+        {/* Primary — time hero + % comparison on the right */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-3xl font-bold text-ink leading-tight">{fmtMinutes(totalMinutes)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40 mt-0.5">Tiempo total</p>
           </div>
-          <div className="space-y-0.5">
-            <div className="flex items-baseline gap-1.5">
-              <p className="text-2xl font-bold text-ink leading-tight">{sessions === 0 ? '--' : sessions}</p>
-              {sessionsDelta !== null && <Delta value={sessionsDelta} suffix="" />}
+          {timePct !== null && timePct !== 0 && (
+            <div className="text-right flex-shrink-0">
+              <p className={`text-2xl font-bold leading-tight ${timePct > 0 ? 'text-moss' : 'text-ember'}`}>
+                {timePct > 0 ? '+' : ''}{timePct}%
+              </p>
+              <p className="text-[10px] text-ink/35 font-medium mt-0.5">vs sem. ant.</p>
             </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Sesiones</p>
-          </div>
+          )}
         </div>
+
+        {/* Secondary — sessions + absolute time diff */}
+        <div className="flex items-center gap-2">
+          <span className="text-base font-bold text-ink">{sessions === 0 ? '--' : sessions}</span>
+          <span className="text-sm text-ink/40">sesion{sessions !== 1 ? 'es' : ''}</span>
+          {sessionsDelta !== 0 && (prevSessions > 0 || sessions > 0) && (
+            <span className={`text-xs font-semibold ${sessionsDelta > 0 ? 'text-moss' : 'text-ember'}`}>
+              {sessionsDelta > 0 ? '+' : ''}{sessionsDelta}
+            </span>
+          )}
+          {timeMinDiff !== null && timeMinDiff !== 0 && (
+            <span className="text-xs text-ink/30 ml-1">
+              · {timeMinDiff > 0 ? '+' : ''}{fmtMinutes(Math.abs(timeMinDiff))}
+            </span>
+          )}
+        </div>
+
+        {/* Tertiary — volume / distance / HR as compact inline chips */}
         {hasExtras && (
-          <div className="pt-3 border-t border-ink/6 mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 pt-3 border-t border-ink/6">
             {totalVolumeKg != null && totalVolumeKg > 0 && (
-              <div className="space-y-0.5">
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-xl font-bold text-ink leading-tight">{totalVolumeKg.toLocaleString('es-ES')} kg</p>
-                  {volDelta !== null && <Delta value={volDelta} suffix="%" />}
-                </div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Volumen gym</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-bold text-ink">{fmtVol(totalVolumeKg)}</span>
+                <span className="text-[11px] text-ink/40">volumen</span>
               </div>
             )}
             {distanceKm != null && distanceKm > 0 && (
-              <div className="space-y-0.5">
-                <p className="text-xl font-bold text-ink leading-tight">{distanceKm.toFixed(1)} km</p>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Distancia</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-bold text-ink">{distanceKm.toFixed(1)} km</span>
+                <span className="text-[11px] text-ink/40">distancia</span>
               </div>
             )}
             {avgHrBpm != null && (
-              <div className="space-y-0.5">
-                <p className="text-xl font-bold text-ink leading-tight">{avgHrBpm} bpm</p>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">FC media</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-bold text-ink">{avgHrBpm}</span>
+                <span className="text-[11px] text-ink/40">bpm FC</span>
               </div>
             )}
           </div>
