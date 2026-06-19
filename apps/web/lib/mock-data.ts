@@ -1,3 +1,4 @@
+import type { ActivityEntry, SleepEntry } from '../stores/recovery-store';
 import { addDays, todayIso } from './date';
 
 const today = todayIso();
@@ -60,7 +61,7 @@ export const recoveryMockData = {
     { id: 'w-1',  date: d(-1),  weightKg: 78.0 },
   ],
 
-  activities: [],
+  activities: generateActivities(),
 
   // Injury logs — improving pain trend 5 → 2-3
   injuryLogs: [
@@ -141,4 +142,58 @@ export const recoveryMockData = {
       habits: habits(true, false, true, true),
     },
   ],
+
+  sleepEntries: generateSleepEntries(),
 };
+
+// ── Generators ─────────────────────────────────────────────────────────────
+
+function generateActivities(): ActivityEntry[] {
+  const acts: ActivityEntry[] = [];
+  let n = 1;
+
+  const gymDur  = [45, 55, 60, 50];
+  const gymVol  = [9500, 12000, 8500, 11000];
+  const bikeDur = [50, 90, 60, 75];
+  const bikeDist= [22, 38, 28, 32];
+  const walkDur = [30, 45, 35, 40];
+  const walkDist= [3.2, 5.1, 3.8, 4.5];
+
+  for (let w = 11; w >= 0; w--) {
+    const wEnd   = d(-(w * 7));
+    const wStart = addDays(wEnd, -6);
+    const m      = (11 - w) % 4;
+
+    const push = (offset: number, entry: Omit<ActivityEntry, 'id' | 'date'>) => {
+      const date = addDays(wStart, offset);
+      if (date <= d(0)) acts.push({ id: `m-act-${n++}`, date, ...entry });
+    };
+
+    // Gym: Mon / Wed / Fri
+    push(0, { type: 'gym', durationMinutes: gymDur[m],           totalVolumeKg: gymVol[m]            });
+    push(2, { type: 'gym', durationMinutes: gymDur[(m+1)%4],     totalVolumeKg: gymVol[(m+1)%4]      });
+    push(4, { type: 'gym', durationMinutes: gymDur[(m+2)%4],     totalVolumeKg: gymVol[(m+2)%4]      });
+
+    // Bike: Tue (skip every 3rd week)
+    if (w % 3 !== 2) push(1, { type: 'bike', durationMinutes: bikeDur[m], distanceKm: bikeDist[m], avgHeartRateBpm: 138 + m * 4 });
+
+    // Walk: Thu, and Sat on even weeks
+    push(3, { type: 'walk', durationMinutes: walkDur[m],         distanceKm: walkDist[m]             });
+    if (w % 2 === 0) push(5, { type: 'walk', durationMinutes: walkDur[(m+2)%4], distanceKm: walkDist[(m+2)%4] });
+  }
+
+  return acts;
+}
+
+function generateSleepEntries(): SleepEntry[] {
+  const entries: SleepEntry[] = [];
+  const durations: number[] = [7.5, 8.0, 6.5, 7.0, 8.5, 7.5, 7.0];
+  const qualities: (1 | 2 | 3 | 4 | 5)[] = [3, 4, 3, 4, 5, 4, 3];
+  let n = 1;
+  for (let i = 83; i >= 1; i--) {
+    if (i % 7 === 3) continue; // ~1 skipped night per week
+    const idx = i % 7;
+    entries.push({ id: `m-sleep-${n++}`, date: d(-i), durationH: durations[idx], quality: qualities[idx] });
+  }
+  return entries;
+}

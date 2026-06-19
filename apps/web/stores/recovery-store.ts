@@ -41,6 +41,13 @@ export type WeightEntry = {
   weightKg: number;
 };
 
+export type SleepEntry = {
+  id: string;
+  date: string;
+  durationH: number;
+  quality: 1 | 2 | 3 | 4 | 5;
+};
+
 export type MuscleGroup =
   | 'pecho' | 'espalda' | 'biceps' | 'triceps'
   | 'hombro' | 'core' | 'pierna' | 'gluteo';
@@ -138,8 +145,10 @@ type RecoveryState = {
   activities: ActivityEntry[];
   activitiesMeta: ActivitiesMeta;
   checkIns: DailyCheckIn[];
+  sleepEntries: SleepEntry[];
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  saveSleep: (input: Omit<SleepEntry, 'id'>) => void;
   saveDailyCheckIn: (input: CheckInInput) => void;
   addInjury: (input: Omit<Injury, 'id'>) => void;
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
@@ -174,6 +183,7 @@ export const useRecoveryStore = create<RecoveryState>()(
       activities: recoveryMockData.activities,
       activitiesMeta: INITIAL_ACTIVITIES_META,
       checkIns: recoveryMockData.checkIns,
+      sleepEntries: recoveryMockData.sleepEntries,
       selectedDate: todayIso(),
       setSelectedDate: (date) => set({ selectedDate: date }),
       saveDailyCheckIn: (input) =>
@@ -298,8 +308,15 @@ export const useRecoveryStore = create<RecoveryState>()(
             activitiesMeta: { loaded: true, hasMore, nextCursor },
           };
         }),
+      saveSleep: (input) =>
+        set((state) => ({
+          sleepEntries: [
+            ...state.sleepEntries.filter((e) => !sameDay(e.date, input.date)),
+            { ...input, id: createId('sleep') },
+          ],
+        })),
       clearAllData: () =>
-        set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
+        set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], sleepEntries: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
     }),
     {
       name: 'recoveryos-v1-store',
