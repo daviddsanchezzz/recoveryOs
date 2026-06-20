@@ -111,7 +111,7 @@ export function AppShell() {
       >
         {/* Chat gets h-full so its internal flex layout fills available space */}
         <div className={`mx-auto max-w-md ${activeTab === 'chat' ? 'h-full' : ''}`}>
-          {activeTab === 'hoy'         && <TodayScreen />}
+          {activeTab === 'hoy'         && <TodayScreen onNavToActividades={() => switchTab('actividades')} />}
           {activeTab === 'plan'        && <PlanScreen />}
           {activeTab === 'actividades' && <ActividadesScreen />}
           {activeTab === 'progreso'    && <ProgressScreen onNavToActividades={() => switchTab('actividades')} />}

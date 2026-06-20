@@ -11,7 +11,9 @@ import { MonthlyCalendar }  from './monthly-calendar';
 import { WeightSheet }      from './weight-sheet';
 import { WeightScreen }     from './weight-screen';
 import { SleepSheet }       from './sleep-sheet';
+import { SuenoScreen }      from './sueno-screen';
 import { DolorSheet }       from './dolor-sheet';
+import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard }     from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
@@ -64,15 +66,19 @@ function DailyRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-3.5">
-      {/* Checkbox circle */}
-      <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-        done ? doneBg : 'border-[1.5px] border-ink/15'
-      }`}>
+      {/* Circle = add/log button */}
+      <button
+        type="button"
+        onClick={onAdd}
+        className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-90 ${
+          done ? doneBg : 'border-[1.5px] border-ink/15 active:border-ink/30'
+        }`}
+      >
         {done
           ? <Check size={11} strokeWidth={2.5} className="text-white" />
-          : <Icon size={10} className="text-ink/20" />
+          : <Plus size={9} className="text-ink/30" />
         }
-      </div>
+      </button>
 
       {/* Label + value */}
       <div className="flex-1 min-w-0">
@@ -84,41 +90,32 @@ function DailyRow({
         </p>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        {onAdd && (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <Plus size={14} className="text-white" />
-          </button>
-        )}
-        {onDetail && (
-          <button
-            type="button"
-            onClick={onDetail}
-            className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <ChevronRight size={14} className="text-ink/40" />
-          </button>
-        )}
-      </div>
+      {/* Arrow → detail screen */}
+      {onDetail && (
+        <button
+          type="button"
+          onClick={onDetail}
+          className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
+        >
+          <ChevronRight size={14} className="text-ink/35" />
+        </button>
+      )}
     </div>
   );
 }
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
-export function TodayScreen() {
-  const [showMonthly,      setShowMonthly]      = useState(false);
-  const [showWeightSheet,  setShowWeightSheet]  = useState(false);
-  const [showWeightScreen, setShowWeightScreen] = useState(false);
-  const [showSleepSheet,   setShowSleepSheet]   = useState(false);
-  const [showDolorSheet,   setShowDolorSheet]   = useState(false);
-  const [showAddActivity,  setShowAddActivity]  = useState(false);
-  const [editActivity,     setEditActivity]     = useState<ActivityEntry | undefined>(undefined);
+export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () => void } = {}) {
+  const [showMonthly,        setShowMonthly]        = useState(false);
+  const [showWeightSheet,    setShowWeightSheet]    = useState(false);
+  const [showWeightScreen,   setShowWeightScreen]   = useState(false);
+  const [showSleepSheet,     setShowSleepSheet]     = useState(false);
+  const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
+  const [showDolorSheet,     setShowDolorSheet]     = useState(false);
+  const [showLesionesScreen, setShowLesionesScreen] = useState(false);
+  const [showAddActivity,    setShowAddActivity]    = useState(false);
+  const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
 
   const {
     selectedDate, setSelectedDate,
@@ -215,6 +212,7 @@ export function TodayScreen() {
               doneColor="text-sand"
               doneBg="bg-[#a07848]"
               onAdd={() => setShowSleepSheet(true)}
+              onDetail={() => setShowSuenoScreen(true)}
             />
             <DailyRow
               icon={Dumbbell}
@@ -224,6 +222,7 @@ export function TodayScreen() {
               doneColor="text-moss"
               doneBg="bg-moss"
               onAdd={() => setShowAddActivity(true)}
+              onDetail={onNavToActividades}
             />
             <DailyRow
               icon={Scale}
@@ -233,6 +232,7 @@ export function TodayScreen() {
               doneColor="text-ember"
               doneBg="bg-ember"
               onAdd={() => setShowWeightSheet(true)}
+              onDetail={() => setShowWeightScreen(true)}
             />
             {activeInjuries.length > 0 && (
               <DailyRow
@@ -243,6 +243,7 @@ export function TodayScreen() {
                 doneColor="text-red-400"
                 doneBg="bg-red-400"
                 onAdd={() => setShowDolorSheet(true)}
+                onDetail={() => setShowLesionesScreen(true)}
               />
             )}
           </div>
@@ -365,9 +366,9 @@ export function TodayScreen() {
         onClose={() => setShowDolorSheet(false)}
         defaultDate={selectedDate}
       />
-      {showWeightScreen && (
-        <WeightScreen onClose={() => setShowWeightScreen(false)} />
-      )}
+      {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
+      {showSuenoScreen    && <SuenoScreen     onClose={() => setShowSuenoScreen(false)} />}
+      {showLesionesScreen && <LesionesScreen  onClose={() => setShowLesionesScreen(false)} />}
     </>
   );
 }
