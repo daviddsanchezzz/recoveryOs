@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   Calendar as CalendarIcon,
   Scale, Zap, Moon, Dumbbell,
-  Sparkles, Plus, ChevronRight,
+  Sparkles, Plus, ChevronRight, Check,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -49,7 +49,7 @@ function DailyRow({
   value,
   done,
   doneColor = 'text-moss',
-  doneBg    = 'bg-moss-light',
+  doneBg    = 'bg-moss',
   onAdd,
   onDetail,
 }: {
@@ -64,17 +64,27 @@ function DailyRow({
 }) {
   return (
     <div className="flex items-center gap-3 py-3.5">
-      <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${done ? doneBg : 'bg-canvas'}`}>
-        <Icon size={16} className={`transition-colors ${done ? doneColor : 'text-ink/20'}`} />
+      {/* Checkbox circle */}
+      <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+        done ? doneBg : 'border-[1.5px] border-ink/15'
+      }`}>
+        {done
+          ? <Check size={11} strokeWidth={2.5} className="text-white" />
+          : <Icon size={10} className="text-ink/20" />
+        }
       </div>
 
+      {/* Label + value */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-ink leading-none">{label}</p>
-        <p className={`text-xs mt-0.5 leading-none ${value ? 'text-ink/50' : 'text-ink/25'}`}>
+        <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
+          {label}
+        </p>
+        <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
           {value ?? 'Sin registrar'}
         </p>
       </div>
 
+      {/* Action buttons */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {onAdd && (
           <button
@@ -203,7 +213,7 @@ export function TodayScreen() {
               value={sleepValue}
               done={!!todaySleep}
               doneColor="text-sand"
-              doneBg="bg-sand/20"
+              doneBg="bg-[#a07848]"
               onAdd={() => setShowSleepSheet(true)}
             />
             <DailyRow
@@ -211,6 +221,8 @@ export function TodayScreen() {
               label="Actividad"
               value={activityValue}
               done={dayActivities.length > 0}
+              doneColor="text-moss"
+              doneBg="bg-moss"
               onAdd={() => setShowAddActivity(true)}
             />
             <DailyRow
@@ -219,7 +231,7 @@ export function TodayScreen() {
               value={weightValue}
               done={!!todayWeight}
               doneColor="text-ember"
-              doneBg="bg-ember-light"
+              doneBg="bg-ember"
               onAdd={() => setShowWeightSheet(true)}
             />
             {activeInjuries.length > 0 && (
@@ -229,7 +241,7 @@ export function TodayScreen() {
                 value={dolorRehabValue}
                 done={dolorRehabDone}
                 doneColor="text-red-400"
-                doneBg="bg-red-50"
+                doneBg="bg-red-400"
                 onAdd={() => setShowDolorSheet(true)}
               />
             )}
