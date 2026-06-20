@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Timer, Bike, Dumbbell, Footprints, Waves, HeartPulse, RefreshCw, LayoutGrid, Activity,
+  SportShoe, Bike, Dumbbell, Footprints, Waves, HeartPulse, RefreshCw, LayoutGrid, Activity,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
   MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react';
@@ -17,7 +17,7 @@ const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
   bike:     Bike,
   walk:     Footprints,
   swim:     Waves,
-  run:      Timer,
+  run:      SportShoe,
   mobility: RefreshCw,
   rehab:    HeartPulse,
   other:    MoreHorizontal,
@@ -45,7 +45,7 @@ const FILTERS: { id: Filter; label: string; Icon: React.ElementType }[] = [
   { id: 'all',  label: 'Todo',     Icon: LayoutGrid },
   { id: 'gym',  label: 'Gym',      Icon: Dumbbell   },
   { id: 'bike', label: 'Bici',     Icon: Bike       },
-  { id: 'run',  label: 'Correr',   Icon: Timer      },
+  { id: 'run',  label: 'Correr',   Icon: SportShoe      },
   { id: 'walk', label: 'Caminar',  Icon: Footprints },
   { id: 'swim', label: 'Natación', Icon: Waves      },
   { id: 'rehab',label: 'Rehab',    Icon: HeartPulse },
