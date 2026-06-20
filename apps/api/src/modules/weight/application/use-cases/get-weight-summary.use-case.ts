@@ -32,7 +32,7 @@ export class GetWeightSummaryUseCase {
 
     return {
       currentWeightKg: latest?.weightKg ?? null,
-      trend: entries.map((entry) => ({ date: entry.date, value: entry.weightKg })),
+      trend: entries.map((entry) => ({ id: entry.id, date: entry.date, value: entry.weightKg })),
       weeklyAverageKg: average ? Number(average.toFixed(2)) : null,
       monthlyChangeKg: Number(monthlyChange.toFixed(2)),
     };

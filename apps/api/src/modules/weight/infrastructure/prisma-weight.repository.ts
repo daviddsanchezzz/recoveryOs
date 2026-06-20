@@ -38,5 +38,10 @@ export class PrismaWeightRepository implements WeightRepositoryPort {
 
     return entries.map((entry) => new WeightEntryEntity(entry.id, entry.userId, entry.date, entry.weightKg));
   }
+
+  async delete(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.weightEntry.deleteMany({ where: { id, userId } });
+    return count > 0;
+  }
 }
 

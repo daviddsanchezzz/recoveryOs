@@ -287,7 +287,7 @@ export const RecoveryService = {
     const store = useRecoveryStore.getState();
 
     const [weightsResult, todayResult, injuriesResult, sleepResult] = await Promise.allSettled([
-      getJson<{ currentWeightKg: number | null; trend: Array<{ date: string; value: number }> }>(
+      getJson<{ currentWeightKg: number | null; trend: Array<{ id: string; date: string; value: number }> }>(
         `/weights/${userId}/summary`,
       ),
       getJson<ServerActivity[]>(`/activities/${userId}/today?date=${date}`),
@@ -298,8 +298,8 @@ export const RecoveryService = {
     if (weightsResult.status === 'fulfilled') {
       const { trend } = weightsResult.value;
       if (trend.length > 0) {
-        const entries: WeightEntry[] = trend.map((t, i) => ({
-          id: `server-w-${i}`,
+        const entries: WeightEntry[] = trend.map((t) => ({
+          id: t.id,
           date: t.date.includes('T') ? t.date.split('T')[0] : t.date,
           weightKg: t.value,
         }));
