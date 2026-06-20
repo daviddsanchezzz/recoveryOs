@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsBoolean, IsDate, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class LogPainDto {
   @IsOptional()

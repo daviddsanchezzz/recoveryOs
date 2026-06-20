@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsDate, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class LogWeightDto {
   @IsOptional()

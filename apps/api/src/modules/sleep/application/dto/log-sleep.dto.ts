@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsInt, IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsDate, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class LogSleepDto {
   @IsOptional()
