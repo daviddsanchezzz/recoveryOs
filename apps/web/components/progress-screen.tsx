@@ -10,7 +10,8 @@ import { WeightSheet } from './weight-sheet';
 import { SleepSheet } from './sleep-sheet';
 import { DolorSheet } from './dolor-sheet';
 import { AddActivitySheet } from './add-activity-sheet';
-import { todayIso } from '../lib/date';
+import { todayIso, sameDay } from '../lib/date';
+import type { ProgressStoreData } from '../lib/progress-metrics';
 import {
   type ProgressTab,
   type ActivityFilter,
@@ -31,6 +32,118 @@ import { ProgressCalendar }      from './progress-calendar';
 import { ProgressStreaks }        from './progress-streaks';
 import { ProgressTrends }        from './progress-trends';
 import { NutricionMockup }       from './nutricion-mockup';
+
+// ── Calendar day detail ───────────────────────────────────────────────────────
+
+const ACT_LABELS: Record<string, string> = {
+  gym: 'Gym', bike: 'Bici', run: 'Correr', walk: 'Caminar',
+  swim: 'Natación', rehab: 'Rehab', mobility: 'Movilidad', hiit: 'HIIT',
+};
+
+function fmtMin(v: number): string {
+  const h = Math.floor(v / 60);
+  const m = Math.round(v % 60);
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
+
+function fmtSleepH(h: number): string {
+  const total = Math.round(h * 60);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return mm === 0 ? `${hh}h` : `${hh}h ${mm}min`;
+}
+
+function CalendarDayDetail({ tab, date, data }: {
+  tab: ProgressTab;
+  date: string;
+  data: ProgressStoreData;
+}) {
+  const label = new Date(date + 'T12:00:00').toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+
+  let hasData = false;
+  let body: React.ReactNode;
+
+  if (tab === 'actividad') {
+    const acts = data.activities.filter((a) => sameDay(a.date, date));
+    hasData = acts.length > 0;
+    body = hasData ? (
+      <div className="divide-y divide-ink/5">
+        {acts.map((act) => (
+          <div key={act.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+            <p className="text-sm font-semibold text-ink">{ACT_LABELS[act.type] ?? act.type}</p>
+            <p className="text-sm text-ink/50">{act.durationMinutes ? fmtMin(act.durationMinutes) : '--'}</p>
+          </div>
+        ))}
+      </div>
+    ) : <p className="text-sm text-ink/30">Sin actividad este día</p>;
+
+  } else if (tab === 'peso') {
+    const entry = data.weightEntries.find((w) => sameDay(w.date, date));
+    hasData = !!entry;
+    body = entry ? (
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink/50">Peso registrado</p>
+        <p className="text-xl font-bold text-ink">
+          {entry.weightKg.toFixed(1)}<span className="text-sm font-normal text-ink/40"> kg</span>
+        </p>
+      </div>
+    ) : <p className="text-sm text-ink/30">Sin registro de peso</p>;
+
+  } else if (tab === 'lesion') {
+    const logs = data.injuryLogs.filter((l) => sameDay(l.date, date));
+    const hasRehab = logs.some((l) => l.didRehab) ||
+      data.checkIns.some((c) => sameDay(c.date, date) && c.habits.rehab);
+    const avgPain = logs.length > 0
+      ? (logs.reduce((s, l) => s + l.painLevel, 0) / logs.length).toFixed(1)
+      : null;
+    hasData = !!avgPain || hasRehab;
+    body = hasData ? (
+      <div className="space-y-2">
+        {avgPain && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-ink/50">Dolor medio</p>
+            <p className="text-xl font-bold text-ink">
+              {avgPain}<span className="text-sm font-normal text-ink/40">/10</span>
+            </p>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-ink/50">Rehab</p>
+          <p className={`text-sm font-semibold ${hasRehab ? 'text-moss' : 'text-ink/25'}`}>
+            {hasRehab ? '✓ Completado' : '✗ No registrado'}
+          </p>
+        </div>
+      </div>
+    ) : <p className="text-sm text-ink/30">Sin datos de lesión este día</p>;
+
+  } else if (tab === 'sueno') {
+    const entry = data.sleepEntries.find((s) => sameDay(s.date, date));
+    hasData = !!entry;
+    body = entry ? (
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink/50">Sueño registrado</p>
+        <div className="text-right">
+          <p className="text-base font-bold text-ink">{fmtSleepH(entry.durationH)}</p>
+          <p className="text-xs text-ink/40">calidad {entry.quality}/5</p>
+        </div>
+      </div>
+    ) : <p className="text-sm text-ink/30">Sin registro de sueño</p>;
+
+  } else {
+    return null;
+  }
+
+  return (
+    <div className="rounded-3xl bg-white shadow-card px-5 py-4 space-y-2 animate-fade-in">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">{label}</p>
+      {body}
+    </div>
+  );
+}
 
 // ── Static config ────────────────────────────────────────────────────────────
 
@@ -205,7 +318,7 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
             </div>
           </div>
 
-          {/* 3 — Inline monthly calendar */}
+          {/* 3 — Inline monthly calendar + day detail */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
             <ProgressCalendar
@@ -213,6 +326,7 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
               selectedDate={selectedDate}
               onSelect={setSelectedDate}
             />
+            <CalendarDayDetail tab={progressTab} date={selectedDate} data={storeData} />
           </div>
 
           {/* 4 — Streaks */}

@@ -130,6 +130,14 @@ export const RecoveryService = {
     }
   },
 
+  deleteWeight(id: string) {
+    useRecoveryStore.getState().removeWeightEntry(id);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      deleteJson(`/weights/${id}`).catch(() => {});
+    }
+  },
+
   // ─── Activity ─────────────────────────────────────────────
   logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { date?: string }) {
     const resolvedDate = data.date ?? todayIso();

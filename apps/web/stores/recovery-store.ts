@@ -155,6 +155,7 @@ type RecoveryState = {
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
   removeInjury: (id: string) => void;
   saveWeight: (weightKg: number, date?: string) => void;
+  removeWeightEntry: (id: string) => void;
   addActivity: (input: ActivityEntry) => void;
   removeActivity: (id: string) => void;
   logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
@@ -265,6 +266,8 @@ export const useRecoveryStore = create<RecoveryState>()(
             { id: createId('weight'), date, weightKg },
           ]),
         })),
+      removeWeightEntry: (id) =>
+        set((state) => ({ weightEntries: state.weightEntries.filter((w) => w.id !== id) })),
       removeActivity: (id) =>
         set((state) => ({ activities: state.activities.filter((a) => a.id !== id) })),
       addActivity: (input) =>

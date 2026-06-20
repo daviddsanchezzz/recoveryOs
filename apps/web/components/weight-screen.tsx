@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Plus, Scale, TrendingDown, TrendingUp, Minus, Pencil } from 'lucide-react';
+import { X, Plus, Scale, TrendingDown, TrendingUp, Minus, Pencil, Trash2 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { RecoveryService } from '../lib/services';
 import { WeightSheet } from './weight-sheet';
 import { ProgressChart } from './progress-chart';
 import { Portal } from './portal';
@@ -121,28 +122,40 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* History list — tap to edit */}
+          {/* History list */}
           {sorted.length > 0 && (
             <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
                 Historial
               </p>
               {[...sorted].reverse().map((entry) => (
-                <button
+                <div
                   key={entry.id}
-                  type="button"
-                  onClick={() => openEdit(entry)}
-                  className="w-full rounded-3xl bg-white shadow-card px-4 py-3 flex items-center justify-between active:scale-[0.98] transition-transform"
+                  className="rounded-3xl bg-white shadow-card px-4 py-3 flex items-center gap-2"
                 >
-                  <p className="text-sm text-ink/50 capitalize">{fullDate(entry.date)}</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-bold text-ink">
-                      {entry.weightKg.toFixed(1)}
-                      <span className="text-xs font-normal text-ink/40"> kg</span>
-                    </p>
-                    <Pencil size={12} className="text-ink/25" />
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(entry)}
+                    className="flex-1 flex items-center justify-between active:opacity-70 transition-opacity"
+                  >
+                    <p className="text-sm text-ink/50 capitalize">{fullDate(entry.date)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-bold text-ink">
+                        {entry.weightKg.toFixed(1)}
+                        <span className="text-xs font-normal text-ink/40"> kg</span>
+                      </p>
+                      <Pencil size={12} className="text-ink/25" />
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => RecoveryService.deleteWeight(entry.id)}
+                    className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-xl bg-canvas active:bg-red-50 transition-colors group"
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 size={14} className="text-ink/25 group-active:text-red-400 transition-colors" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
