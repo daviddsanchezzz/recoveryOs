@@ -6,7 +6,7 @@ import {
   Scale, Zap, Moon, Dumbbell,
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
-  Bike, Waves, HeartPulse, RefreshCw, SportShoe, Target, Clock,
+  Bike, Waves, RefreshCw, SportShoe, Target, Clock,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -32,7 +32,6 @@ const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
   walk:     Footprints,
   swim:     Waves,
   mobility: RefreshCw,
-  rehab:    HeartPulse,
   other:    Target,
 };
 
@@ -344,12 +343,8 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                       <button
                         type="button"
                         onClick={() => {
-                          if (entry.type === 'rehab') {
-                            setShowDolorSheet(true);
-                          } else {
-                            setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
-                            setShowAddActivity(true);
-                          }
+                          setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
+                          setShowAddActivity(true);
                         }}
                         className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink hover:bg-ink/5 transition-colors flex-shrink-0"
                       >

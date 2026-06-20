@@ -11,7 +11,6 @@ export type ActivityType =
   | 'swim'
   | 'run'
   | 'mobility'
-  | 'rehab'
   | 'other';
 
 export type InjuryStatus = 'active' | 'recovering' | 'resolved';

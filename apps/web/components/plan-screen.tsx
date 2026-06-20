@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Dumbbell, Bike, Footprints, Waves, HeartPulse, RefreshCw, SportShoe,
+  Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe,
   Target, Layers, Sun, Clock, Plus, X, ChevronRight, ChevronLeft, Pencil,
   Check, CalendarDays,
 } from 'lucide-react';
@@ -27,7 +27,6 @@ const ACTIVITY_OPTIONS: { id: ActivityType; label: string; Icon: React.ElementTy
   { id: 'walk',     label: 'Caminar',   Icon: Footprints },
   { id: 'swim',     label: 'Natación',  Icon: Waves      },
   { id: 'mobility', label: 'Movilidad', Icon: RefreshCw  },
-  { id: 'rehab',    label: 'Rehab',     Icon: HeartPulse },
 ];
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = Object.fromEntries(
@@ -41,7 +40,6 @@ const DOT_COLOR: Record<ActivityType, string> = {
   walk:     'bg-sand',
   swim:     'bg-ink/40',
   mobility: 'bg-moss/60',
-  rehab:    'bg-ember/70',
   other:    'bg-ink/20',
 };
 

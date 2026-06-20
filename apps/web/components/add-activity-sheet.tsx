@@ -14,7 +14,6 @@ const ACTIVITY_OPTS: { type: ActivityType; label: string; emoji: string }[] = [
   { type: 'walk',     label: 'Caminar',   emoji: '🚶' },
   { type: 'swim',     label: 'Nadar',     emoji: '🏊' },
   { type: 'mobility', label: 'Movilidad', emoji: '🧘' },
-  { type: 'rehab',    label: 'Rehab',     emoji: '💪' },
   { type: 'other',    label: 'Otro',      emoji: '⚡' },
 ];
 

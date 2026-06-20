@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, HeartPulse, RefreshCw, SportShoe } from 'lucide-react';
+import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
 import { LesionesScreen } from './lesiones-screen';
@@ -39,7 +39,7 @@ import { NutricionMockup }       from './nutricion-mockup';
 
 const ACT_LABELS: Record<string, string> = {
   gym: 'Gym', bike: 'Bici', run: 'Correr', walk: 'Caminar',
-  swim: 'Natación', rehab: 'Rehab', mobility: 'Movilidad', hiit: 'HIIT',
+  swim: 'Natación', mobility: 'Movilidad', hiit: 'HIIT',
 };
 
 function fmtMin(v: number): string {
@@ -167,7 +167,6 @@ const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.Element
   { id: 'run',       label: 'Correr',    Icon: SportShoe  },
   { id: 'walk',      label: 'Caminar',   Icon: Footprints },
   { id: 'swim',      label: 'Natación',  Icon: Waves      },
-  { id: 'rehab',     label: 'Rehab',     Icon: HeartPulse },
   { id: 'movilidad', label: 'Movilidad', Icon: RefreshCw  },
 ];
 

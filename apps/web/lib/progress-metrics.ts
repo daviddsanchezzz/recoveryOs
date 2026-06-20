@@ -4,7 +4,7 @@ import { addDays, todayIso, weekDates } from './date';
 // ── Public types ─────────────────────────────────────────────────────────────
 
 export type ProgressTab    = 'actividad' | 'peso' | 'lesion' | 'sueno';
-export type ActivityFilter = 'all' | 'gym' | 'bike' | 'walk' | 'run' | 'swim' | 'rehab' | 'movilidad';
+export type ActivityFilter = 'all' | 'gym' | 'bike' | 'walk' | 'run' | 'swim' | 'movilidad';
 export type ChartMetric    = 'tiempo' | 'sesiones' | 'distancia' | 'peso' | 'dolor' | 'adherencia' | 'horas' | 'calidad';
 
 export type ChartPoint = {

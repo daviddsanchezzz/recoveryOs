@@ -79,7 +79,6 @@ function parseMessage(
     [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:bici|bike|ciclismo)/, 'bike'],
     [/(?:he?\s+)?(?:ido\s+en\s+)?bici\s+(\d+)\s*(?:min|minutos?)?/, 'bike'],
     [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:gym|pesas|fuerza)/, 'gym'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:rehab|rehabilitaci[oó]n)/, 'rehab'],
     [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?mobilidad/, 'mobility'],
     // generic: X min TYPE
     [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(\w+)/, null as unknown as ActivityType],
@@ -103,7 +102,7 @@ function parseMessage(
     const mins = parseInt(genericActivity[1]);
     const typeMap: Record<string, ActivityType> = {
       bici: 'bike', bike: 'bike', gym: 'gym', pesas: 'gym', caminar: 'walk', caminata: 'walk',
-      correr: 'run', carrera: 'run', nadar: 'swim', piscina: 'swim', rehab: 'rehab',
+      correr: 'run', carrera: 'run', nadar: 'swim', piscina: 'swim',
       movilidad: 'mobility', mobility: 'mobility', walk: 'walk', run: 'run', swim: 'swim',
     };
     const rawType = genericActivity[2];
