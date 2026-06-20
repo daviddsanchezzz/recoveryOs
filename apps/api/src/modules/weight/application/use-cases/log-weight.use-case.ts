@@ -11,7 +11,7 @@ export class LogWeightUseCase {
   ) {}
 
   execute(input: LogWeightDto) {
-    const entry = new WeightEntryEntity(crypto.randomUUID(), input.userId, input.date, input.weightKg);
+    const entry = new WeightEntryEntity(input.id ?? crypto.randomUUID(), input.userId, input.date, input.weightKg);
     return this.repository.create(entry);
   }
 }

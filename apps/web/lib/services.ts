@@ -124,11 +124,12 @@ function mapServerSleep(s: ServerSleepEntry): SleepEntry {
 export const RecoveryService = {
   // ─── Weight ───────────────────────────────────────────────
   logWeight(kg: number, date = todayIso()) {
-    useRecoveryStore.getState().saveWeight(kg, date);
+    const id = crypto.randomUUID();
+    useRecoveryStore.getState().saveWeight(kg, date, id);
     toast.success('Peso guardado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      postJson('/weights', { userId, date, weightKg: kg })
+      postJson('/weights', { id, userId, date, weightKg: kg })
         .catch(() => toast.error('No se pudo guardar el peso. Inténtalo de nuevo.'));
     }
   },
@@ -194,12 +195,13 @@ export const RecoveryService = {
 
   // ─── Injuries ─────────────────────────────────────────────
   createInjury(data: { name: string; bodyPart?: string; description?: string; startDate: string; status?: InjuryStatus }) {
+    const id = crypto.randomUUID();
     const status = data.status ?? 'active';
-    useRecoveryStore.getState().addInjury({ ...data, status });
+    useRecoveryStore.getState().addInjury({ ...data, status, id });
     toast.success('Lesión registrada');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      postJson<ServerInjury>('/injuries', { userId, ...data, startDate: data.startDate, status })
+      postJson<ServerInjury>('/injuries', { id, userId, ...data, startDate: data.startDate, status })
         .catch(() => toast.error('No se pudo guardar la lesión.'));
     }
   },
@@ -235,12 +237,13 @@ export const RecoveryService = {
       didRehab: data.didRehab,
       notes: data.notes,
       date: resolvedDate,
-    } as InjuryLog);
+    });
     toast.success('Dolor registrado');
 
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       postJson(`/injuries/${data.injuryId}/logs`, {
+        id,
         userId,
         date: resolvedDate,
         painLevel: data.painLevel,

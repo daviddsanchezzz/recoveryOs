@@ -1,7 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsInt, IsNumber, IsString, Max, Min } from 'class-validator';
+import { IsDate, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class LogSleepDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   userId!: string;
 

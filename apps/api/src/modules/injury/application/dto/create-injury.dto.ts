@@ -2,6 +2,10 @@ import { Type } from 'class-transformer';
 import { IsDate, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateInjuryDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   userId!: string;
 

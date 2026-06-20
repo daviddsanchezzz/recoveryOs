@@ -151,14 +151,14 @@ type RecoveryState = {
   updateSleepEntry: (id: string, data: Partial<Omit<SleepEntry, 'id'>>) => void;
   removeSleepEntry: (id: string) => void;
   saveDailyCheckIn: (input: CheckInInput) => void;
-  addInjury: (input: Omit<Injury, 'id'>) => void;
+  addInjury: (input: Omit<Injury, 'id'> & { id?: string }) => void;
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
   removeInjury: (id: string) => void;
-  saveWeight: (weightKg: number, date?: string) => void;
+  saveWeight: (weightKg: number, date?: string, id?: string) => void;
   removeWeightEntry: (id: string) => void;
   addActivity: (input: ActivityEntry) => void;
   removeActivity: (id: string) => void;
-  logInjuryPain: (input: Omit<InjuryLog, 'id'>) => void;
+  logInjuryPain: (input: Omit<InjuryLog, 'id'> & { id?: string }) => void;
   removeInjuryLog: (id: string) => void;
   setProfile: (input: Partial<ProfileState>) => void;
   seedWeightFromServer: (entries: WeightEntry[]) => void;
@@ -252,7 +252,7 @@ export const useRecoveryStore = create<RecoveryState>()(
         }),
       addInjury: (input) =>
         set((state) => ({
-          injuries: [...state.injuries, { ...input, id: createId('injury') }],
+          injuries: [...state.injuries, { ...input, id: input.id ?? createId('injury') }],
         })),
       updateInjury: (injuryId, input) =>
         set((state) => ({
@@ -260,10 +260,10 @@ export const useRecoveryStore = create<RecoveryState>()(
             injury.id === injuryId ? { ...injury, ...input } : injury,
           ),
         })),
-      saveWeight: (weightKg, date = todayIso()) =>
+      saveWeight: (weightKg, date = todayIso(), id) =>
         set((state) => ({
           weightEntries: replaceByDate(state.weightEntries, date, [
-            { id: createId('weight'), date, weightKg },
+            { id: id ?? createId('weight'), date, weightKg },
           ]),
         })),
       removeWeightEntry: (id) =>
@@ -283,7 +283,7 @@ export const useRecoveryStore = create<RecoveryState>()(
             ...state.injuryLogs.filter(
               (log) => !(sameDay(log.date, input.date) && log.injuryId === input.injuryId),
             ),
-            { ...input, id: createId('injury-log') },
+            { ...input, id: input.id ?? createId('injury-log') },
           ],
         })),
       setProfile: (input) =>

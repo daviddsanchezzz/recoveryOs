@@ -12,7 +12,7 @@ export class LogPainUseCase {
 
   execute(injuryId: string, input: LogPainDto) {
     const log = new InjuryLogEntity(
-      crypto.randomUUID(),
+      input.id ?? crypto.randomUUID(),
       injuryId,
       input.userId,
       input.date,

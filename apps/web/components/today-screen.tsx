@@ -352,6 +352,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         onClose={() => setShowWeightSheet(false)}
         defaultDate={selectedDate}
         defaultKg={todayWeight?.weightKg}
+        editId={todayWeight?.id}
       />
       <SleepSheet
         isOpen={showSleepSheet}

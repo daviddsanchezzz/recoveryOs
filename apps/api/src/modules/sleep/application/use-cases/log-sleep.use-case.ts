@@ -11,7 +11,7 @@ export class LogSleepUseCase {
   ) {}
 
   execute(input: LogSleepDto) {
-    const entry = new SleepEntryEntity(crypto.randomUUID(), input.userId, input.date, input.durationH, input.quality);
+    const entry = new SleepEntryEntity(input.id ?? crypto.randomUUID(), input.userId, input.date, input.durationH, input.quality);
     return this.repository.create(entry);
   }
 }

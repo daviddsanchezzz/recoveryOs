@@ -12,7 +12,7 @@ export class CreateInjuryUseCase {
 
   execute(input: CreateInjuryDto) {
     const injury = new InjuryEntity(
-      crypto.randomUUID(),
+      input.id ?? crypto.randomUUID(),
       input.userId,
       input.name,
       input.startDate,
