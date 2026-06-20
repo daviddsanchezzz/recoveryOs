@@ -342,166 +342,140 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
   isOpen: boolean; onClose: () => void; onApply: () => void;
 }) {
   const { template, addTemplateEntry, removeTemplateEntry, updateTemplateEntry } = usePlanStore();
+  const [sel,    setSel]    = useState(0);
   const [picker, setPicker] = useState<TemplatePicker | null>(null);
   const hasAny = Object.values(template).some((arr) => arr.length > 0);
 
-  function toggleAdd(dayIndex: number) {
-    setPicker((p) =>
-      p?.mode === 'add' && p.dayIndex === dayIndex ? null : { mode: 'add', dayIndex },
-    );
+  const entries    = template[sel] ?? [];
+  const isAddOpen  = picker?.mode === 'add'  && picker.dayIndex === sel;
+
+  function selectDay(i: number) { setSel(i); setPicker(null); }
+
+  function toggleAdd() {
+    setPicker((p) => (p?.mode === 'add' && p.dayIndex === sel ? null : { mode: 'add', dayIndex: sel }));
   }
 
-  function toggleEdit(dayIndex: number, entryIndex: number) {
+  function toggleEdit(idx: number) {
     setPicker((p) =>
-      p?.mode === 'edit' && p.dayIndex === dayIndex && p.entryIndex === entryIndex
+      p?.mode === 'edit' && p.dayIndex === sel && p.entryIndex === idx
         ? null
-        : { mode: 'edit', dayIndex, entryIndex },
+        : { mode: 'edit', dayIndex: sel, entryIndex: idx },
     );
   }
 
   function handleConfirm(entry: PlanEntry) {
     if (!picker) return;
-    if (picker.mode === 'add') {
-      addTemplateEntry(picker.dayIndex, entry);
-    } else {
-      updateTemplateEntry(picker.dayIndex, picker.entryIndex, entry);
-    }
+    if (picker.mode === 'add') addTemplateEntry(picker.dayIndex, entry);
+    else updateTemplateEntry(picker.dayIndex, picker.entryIndex, entry);
     setPicker(null);
   }
 
-  // Close picker when sheet closes
-  useEffect(() => { if (!isOpen) setPicker(null); }, [isOpen]);
+  useEffect(() => { if (!isOpen) { setPicker(null); setSel(0); } }, [isOpen]);
 
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Editar semana base">
-      <p className="text-sm text-ink/40 -mt-2">
-        Define tus actividades habituales. Toca una actividad para editarla.
-      </p>
+    <Sheet isOpen={isOpen} onClose={onClose} title="Semana base">
 
+      {/* Same 7-day strip as Esta semana */}
+      <TemplateDayStrip selectedIdx={sel} onSelect={selectDay} />
+
+      {/* Selected day */}
       <div className="space-y-3">
-        {DAY_NAMES.map((dayName, i) => {
-          const entries    = template[i] ?? [];
-          const isAddOpen  = picker?.mode === 'add'  && picker.dayIndex === i;
+        <div className="h-px bg-ink/5" />
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-ink/40">{DAY_NAMES[sel]}</p>
+          <button
+            type="button" onClick={toggleAdd}
+            className={`h-7 px-3 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all ${
+              isAddOpen ? 'bg-ink text-white' : 'bg-canvas text-ink/50 hover:text-ink'
+            }`}
+          >
+            {isAddOpen ? <X size={12} /> : <Plus size={12} />}
+            {isAddOpen ? 'Cancelar' : 'Añadir'}
+          </button>
+        </div>
 
-          return (
-            <div key={i} className="rounded-3xl bg-white shadow-card overflow-hidden">
+        {/* Existing entries with edit/delete */}
+        {entries.length > 0 && (
+          <div className="space-y-1.5">
+            {entries.map((entry, j) => {
+              const Icon      = ACTIVITY_ICONS[entry.type] ?? Target;
+              const isEditing = picker?.mode === 'edit' && picker.dayIndex === sel && picker.entryIndex === j;
+              return (
+                <div key={j}>
+                  <button
+                    type="button" onClick={() => toggleEdit(j)}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all ${
+                      isEditing ? 'bg-ink/[0.06] ring-1 ring-ink/10' : 'bg-canvas hover:bg-ink/5'
+                    }`}
+                  >
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isEditing ? 'bg-ink' : 'bg-white shadow-card'
+                    }`}>
+                      <Icon size={14} className={isEditing ? 'text-white' : 'text-moss'} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-ink leading-snug">{entry.label}</span>
+                      {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {entry.muscleGroups.map((m) => (
+                            <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5 leading-none">
+                              {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {entry.time && (
+                      <div className="flex items-center gap-1 bg-white shadow-card rounded-xl px-2.5 py-1.5 flex-shrink-0">
+                        <Clock size={10} className="text-ink/30" />
+                        <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
+                      </div>
+                    )}
+                    <div className={`h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isEditing ? 'text-ink' : 'text-ink/25'
+                    }`}>
+                      <Pencil size={11} />
+                    </div>
+                    <div
+                      role="button" tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); removeTemplateEntry(sel, j); if (isEditing) setPicker(null); }}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.stopPropagation(), removeTemplateEntry(sel, j))}
+                      className="h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors"
+                    >
+                      <X size={11} />
+                    </div>
+                  </button>
 
-              {/* Day header */}
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  entries.length > 0 ? 'bg-ink' : 'bg-canvas'
-                }`}>
-                  <span className={`text-[11px] font-bold uppercase ${entries.length > 0 ? 'text-white' : 'text-ink/30'}`}>
-                    {DAY_LETTERS[i]}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-semibold text-ink">{dayName}</span>
-                  {entries.length > 0 && (
-                    <p className="text-[10px] text-ink/30 mt-0.5">
-                      {entries.length} actividad{entries.length !== 1 ? 'es' : ''}
-                    </p>
+                  {isEditing && (
+                    <div className="mt-2">
+                      <ActivityPicker
+                        key={`edit-${sel}-${j}`}
+                        initial={entry}
+                        submitLabel="Guardar"
+                        onConfirm={handleConfirm}
+                      />
+                    </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toggleAdd(i)}
-                  className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all ${
-                    isAddOpen ? 'bg-ink text-white' : 'bg-canvas text-ink/40 hover:text-ink'
-                  }`}
-                >
-                  {isAddOpen ? <X size={14} /> : <Plus size={14} />}
-                </button>
-              </div>
+              );
+            })}
+          </div>
+        )}
 
-              {/* Existing entries */}
-              {entries.length > 0 && (
-                <div className="px-3 pb-3 space-y-1.5">
-                  {entries.map((entry, j) => {
-                    const Icon     = ACTIVITY_ICONS[entry.type] ?? Target;
-                    const isEditing = picker?.mode === 'edit' && picker.dayIndex === i && picker.entryIndex === j;
-                    return (
-                      <div key={j}>
-                        {/* Entry row */}
-                        <button
-                          type="button"
-                          onClick={() => toggleEdit(i, j)}
-                          className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all text-left ${
-                            isEditing ? 'bg-ink/8 ring-1 ring-ink/10' : 'bg-canvas hover:bg-ink/5'
-                          }`}
-                        >
-                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isEditing ? 'bg-ink' : 'bg-white shadow-card'
-                          }`}>
-                            <Icon size={14} className={isEditing ? 'text-white' : 'text-moss'} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-medium text-ink">{entry.label}</span>
-                            {entry.muscleGroups && entry.muscleGroups.length > 0 && (
-                              <div className="flex gap-1 mt-1 flex-wrap">
-                                {entry.muscleGroups.map((m) => (
-                                  <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5 leading-none">
-                                    {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {entry.time && (
-                            <div className="flex items-center gap-1 bg-white shadow-card rounded-xl px-2.5 py-1.5 flex-shrink-0">
-                              <Clock size={10} className="text-ink/30" />
-                              <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
-                            </div>
-                          )}
-                          {/* Edit indicator */}
-                          <div className={`h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isEditing ? 'bg-ink/10 text-ink' : 'text-ink/25'
-                          }`}>
-                            <Pencil size={11} />
-                          </div>
-                          {/* Delete — stop propagation so it doesn't open edit */}
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => { e.stopPropagation(); removeTemplateEntry(i, j); if (isEditing) setPicker(null); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeTemplateEntry(i, j); if (isEditing) setPicker(null); }}}
-                            className="h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors"
-                          >
-                            <X size={11} />
-                          </div>
-                        </button>
-
-                        {/* Inline edit picker */}
-                        {isEditing && (
-                          <div className="mt-2 px-1">
-                            <ActivityPicker
-                              key={`edit-${i}-${j}`}
-                              initial={entry}
-                              submitLabel="Guardar"
-                              onConfirm={handleConfirm}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Add picker */}
-              {isAddOpen && (
-                <div className="px-3 pb-3">
-                  <ActivityPicker
-                    key={`add-${i}`}
-                    submitLabel="Añadir"
-                    onConfirm={handleConfirm}
-                  />
-                </div>
-              )}
-
+        {/* Empty free day */}
+        {entries.length === 0 && !isAddOpen && (
+          <div className="flex items-center gap-3 px-1 py-1">
+            <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+              <Sun size={15} className="text-ink/20" />
             </div>
-          );
-        })}
+            <span className="text-sm text-ink/30">Día libre — pulsa Añadir</span>
+          </div>
+        )}
+
+        {/* Add picker */}
+        {isAddOpen && (
+          <ActivityPicker key={`add-${sel}`} submitLabel="Añadir" onConfirm={handleConfirm} />
+        )}
       </div>
 
       {hasAny && (
@@ -664,86 +638,123 @@ function ProgramCard({ name, currentWeek, totalWeeks }: {
   );
 }
 
-// ── Template read view ─────────────────────────────────────────────────────
+// ── Template day strip (shared by read + edit) ────────────────────────────
 
-function TemplateReadView({ onEdit }: { onEdit: () => void }) {
+function TemplateDayStrip({
+  selectedIdx,
+  onSelect,
+}: {
+  selectedIdx: number;
+  onSelect: (i: number) => void;
+}) {
   const template = usePlanStore((s) => s.template);
-  const hasAny   = Object.values(template).some((arr) => arr.length > 0);
+  return (
+    <div className="grid grid-cols-7 gap-1">
+      {DAY_LETTERS.map((letter, i) => {
+        const entries    = template[i] ?? [];
+        const isSelected = i === selectedIdx;
+        return (
+          <button
+            key={i} type="button" onClick={() => onSelect(i)}
+            className={`flex flex-col items-center gap-1 py-2.5 rounded-2xl transition-all duration-150 ${
+              isSelected ? 'bg-ink' : 'hover:bg-canvas'
+            }`}
+          >
+            <span className={`text-[9px] font-semibold uppercase tracking-wider ${
+              isSelected ? 'text-white/50' : 'text-ink/30'
+            }`}>{letter}</span>
+            <div className="flex gap-0.5 items-center h-2">
+              {entries.length === 0 ? (
+                <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/20' : 'bg-ink/10'}`} />
+              ) : (
+                entries.slice(0, 3).map((e, j) => (
+                  <div key={j} className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/60' : DOT_COLOR[e.type]}`} />
+                ))
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-  if (!hasAny) {
+// ── Template entry rows (shared read/edit display) ────────────────────────
+
+function TemplateEntryList({
+  entries,
+  actions,
+}: {
+  entries: PlanEntry[];
+  actions?: (entry: PlanEntry, idx: number) => React.ReactNode;
+}) {
+  if (entries.length === 0) {
     return (
-      <button type="button" onClick={onEdit}
-        className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors">
-        <Pencil size={20} className="text-ink/20" />
-        <p className="text-sm text-ink/40">Sin semana base configurada</p>
-        <p className="text-xs text-ink/30 font-medium">Pulsa para definir tu rutina semanal</p>
-      </button>
+      <div className="flex items-center gap-3 px-1 py-1">
+        <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+          <Sun size={15} className="text-ink/20" />
+        </div>
+        <span className="text-sm text-ink/30">Día libre</span>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {DAY_NAMES.map((dayName, i) => {
-        const entries = template[i] ?? [];
-
-        if (entries.length === 0) {
-          return (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-2xl">
-              <span className="text-[10px] font-bold text-ink/20 uppercase w-4 flex-shrink-0">{DAY_LETTERS[i]}</span>
-              <span className="text-xs text-ink/20">Libre</span>
-            </div>
-          );
-        }
-
+    <div className="space-y-1.5">
+      {entries.map((entry, i) => {
+        const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
         return (
-          <div key={i} className="rounded-3xl bg-white shadow-card overflow-hidden">
-            {/* Day header */}
-            <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-              <div className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center flex-shrink-0">
-                <span className="text-[11px] font-bold text-white uppercase">{DAY_LETTERS[i]}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-semibold text-ink">{dayName}</span>
-              </div>
-              <span className="text-[10px] font-medium text-ink/25 bg-canvas rounded-xl px-2.5 py-1">
-                {entries.length} {entries.length === 1 ? 'actividad' : 'actividades'}
+          <div key={i} className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Icon size={15} className="text-moss" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm text-ink leading-snug">{entry.label}</span>
+              {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                <div className="flex gap-1 mt-0.5 flex-wrap">
+                  {entry.muscleGroups.map((m) => (
+                    <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5 leading-none">
+                      {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {entry.time && (
+              <span className="text-xs text-ink/35 tabular-nums flex items-center gap-1 flex-shrink-0 mt-1">
+                <Clock size={10} className="text-ink/25" />{entry.time}
               </span>
-            </div>
-
-            {/* Activities */}
-            <div className="px-4 pb-4 space-y-2">
-              {entries.map((entry, j) => {
-                const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
-                return (
-                  <div key={j} className="flex items-start gap-3 bg-canvas rounded-2xl px-3.5 py-3">
-                    <div className="h-8 w-8 rounded-xl bg-white shadow-card flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Icon size={14} className="text-moss" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-ink leading-snug">{entry.label}</span>
-                      {entry.muscleGroups && entry.muscleGroups.length > 0 && (
-                        <div className="flex gap-1 mt-1.5 flex-wrap">
-                          {entry.muscleGroups.map((m) => (
-                            <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-2 py-0.5 leading-none">
-                              {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {entry.time && (
-                      <div className="flex items-center gap-1 flex-shrink-0 bg-white shadow-card rounded-xl px-2.5 py-1.5 mt-0.5">
-                        <Clock size={10} className="text-ink/30" />
-                        <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            )}
+            {actions?.(entry, i)}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Template read view ─────────────────────────────────────────────────────
+
+function TemplateReadView({ onEdit }: { onEdit: () => void }) {
+  const template    = usePlanStore((s) => s.template);
+  const [sel, setSel] = useState(0);
+  const entries     = template[sel] ?? [];
+
+  return (
+    <div className="rounded-4xl bg-white shadow-card p-4 space-y-3">
+      <TemplateDayStrip selectedIdx={sel} onSelect={setSel} />
+
+      <div className="space-y-3">
+        <div className="h-px bg-ink/5" />
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-ink/40 px-1">{DAY_NAMES[sel]}</p>
+          <button type="button" onClick={onEdit}
+            className="h-7 px-3 rounded-xl bg-canvas flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
+            <Pencil size={11} />Editar
+          </button>
+        </div>
+        <TemplateEntryList entries={entries} />
+      </div>
     </div>
   );
 }
@@ -902,13 +913,7 @@ export function PlanScreen() {
 
         {/* ── 4. Semana base ───────────────────────────── */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Semana base</p>
-            <button type="button" onClick={() => setShowEditTemplate(true)}
-              className="text-xs font-medium text-ink/40 hover:text-ink transition-colors flex items-center gap-1">
-              <Pencil size={11} />Editar
-            </button>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">Semana base</p>
           <TemplateReadView onEdit={() => setShowEditTemplate(true)} />
         </div>
 
