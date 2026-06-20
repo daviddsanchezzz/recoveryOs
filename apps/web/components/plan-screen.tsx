@@ -228,11 +228,10 @@ function ActivityPicker({
 function AddPlanEntrySheet({ isOpen, dateStr, onClose }: {
   isOpen: boolean; dateStr: string; onClose: () => void;
 }) {
-  const addPlanEntry = usePlanStore((s) => s.addPlanEntry);
   return (
     <Sheet isOpen={isOpen} onClose={onClose}
       title="Añadir actividad" subtitle={cap(dayFullLabel(dateStr))}>
-      <ActivityPicker onConfirm={(entry) => { addPlanEntry(dateStr, entry); onClose(); }} />
+      <ActivityPicker onConfirm={(entry) => { PlanService.addPlanEntry(dateStr, entry); onClose(); }} />
     </Sheet>
   );
 }
@@ -340,7 +339,7 @@ type TemplatePicker =
 function EditTemplateSheet({ isOpen, onClose }: {
   isOpen: boolean; onClose: () => void;
 }) {
-  const { template, addTemplateEntry, removeTemplateEntry, updateTemplateEntry } = usePlanStore();
+  const template = usePlanStore((s) => s.template);
   const [sel,    setSel]    = useState(0);
   const [picker, setPicker] = useState<TemplatePicker | null>(null);
 
@@ -363,8 +362,8 @@ function EditTemplateSheet({ isOpen, onClose }: {
 
   function handleConfirm(entry: PlanEntry) {
     if (!picker) return;
-    if (picker.mode === 'add') addTemplateEntry(picker.dayIndex, entry);
-    else updateTemplateEntry(picker.dayIndex, picker.entryIndex, entry);
+    if (picker.mode === 'add') PlanService.addTemplateEntry(picker.dayIndex, entry);
+    else PlanService.updateTemplateEntry(picker.dayIndex, picker.entryIndex, entry);
     setPicker(null);
   }
 
@@ -436,8 +435,8 @@ function EditTemplateSheet({ isOpen, onClose }: {
                     </div>
                     <div
                       role="button" tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); removeTemplateEntry(sel, j); if (isEditing) setPicker(null); }}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.stopPropagation(), removeTemplateEntry(sel, j))}
+                      onClick={(e) => { e.stopPropagation(); PlanService.removeTemplateEntry(sel, j); if (isEditing) setPicker(null); }}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.stopPropagation(), PlanService.removeTemplateEntry(sel, j))}
                       className="h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors"
                     >
                       <X size={11} />
@@ -840,12 +839,14 @@ export function PlanScreen() {
   const [showAssignTemplate, setShowAssignTemplate] = useState(false);
 
   const user = useSessionStore((s) => s.user);
-  const { goals, program, weekPlan, removePlanEntry, template, addPlanEntry } = usePlanStore();
+  const { goals, program, weekPlan, template } = usePlanStore();
 
   useEffect(() => {
     if (!user) return;
     void PlanService.loadGoals(user.id);
     void PlanService.loadProgram(user.id);
+    void PlanService.loadWeekPlan(user.id);
+    void PlanService.loadTemplate(user.id);
   }, [user?.id]);
 
   const days         = getDaysForOffset(weekOffset);
@@ -866,7 +867,7 @@ export function PlanScreen() {
       (template[i] ?? []).forEach((entry) => {
         const already = weekPlan[dateStr] ?? [];
         const exists  = already.some((e) => e.label === entry.label && e.type === entry.type);
-        if (!exists) addPlanEntry(dateStr, entry);
+        if (!exists) PlanService.addPlanEntry(dateStr, entry);
       });
     });
   }
@@ -927,7 +928,7 @@ export function PlanScreen() {
               dateStr={selectedDate}
               entries={dayEntries}
               onAdd={() => setShowAddEntry(true)}
-              onRemove={(i) => removePlanEntry(selectedDate, i)}
+              onRemove={(i) => PlanService.removePlanEntry(selectedDate, i)}
             />
           </div>
         </div>

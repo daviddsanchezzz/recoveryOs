@@ -31,7 +31,9 @@ type PlanState = {
   goalsLoaded: boolean;
   programLoaded: boolean;
   weekPlan: Record<string, PlanEntry[]>;    // YYYY-MM-DD → entries for that day
+  weekPlanLoaded: boolean;
   template: Record<number, PlanEntry[]>;    // 0=Mon … 6=Sun → recurring entries
+  templateLoaded: boolean;
 
   setGoals: (goals: Goal[]) => void;
   addGoal: (goal: Goal) => void;
@@ -39,9 +41,11 @@ type PlanState = {
   removeGoal: (id: string) => void;
   setProgram: (program: ActiveProgram | null) => void;
 
+  setWeekPlan: (data: Record<string, PlanEntry[]>) => void;
   addPlanEntry: (date: string, entry: PlanEntry) => void;
   removePlanEntry: (date: string, index: number) => void;
 
+  setTemplate: (data: Record<number, PlanEntry[]>) => void;
   addTemplateEntry: (dayIndex: number, entry: PlanEntry) => void;
   removeTemplateEntry: (dayIndex: number, index: number) => void;
   updateTemplateEntry: (dayIndex: number, index: number, entry: PlanEntry) => void;
@@ -55,7 +59,9 @@ export const usePlanStore = create<PlanState>()(
       goalsLoaded: false,
       programLoaded: false,
       weekPlan: {},
+      weekPlanLoaded: false,
       template: {},
+      templateLoaded: false,
 
       setGoals: (goals) => set({ goals, goalsLoaded: true }),
       addGoal: (goal) => set((s) => ({ goals: [...s.goals, goal] })),
@@ -64,6 +70,7 @@ export const usePlanStore = create<PlanState>()(
       removeGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
       setProgram: (program) => set({ program, programLoaded: true }),
 
+      setWeekPlan: (data) => set({ weekPlan: data, weekPlanLoaded: true }),
       addPlanEntry: (date, entry) =>
         set((s) => ({
           weekPlan: { ...s.weekPlan, [date]: [...(s.weekPlan[date] ?? []), entry] },
@@ -73,6 +80,7 @@ export const usePlanStore = create<PlanState>()(
           weekPlan: { ...s.weekPlan, [date]: (s.weekPlan[date] ?? []).filter((_, i) => i !== index) },
         })),
 
+      setTemplate: (data) => set({ template: data, templateLoaded: true }),
       addTemplateEntry: (dayIndex, entry) =>
         set((s) => ({
           template: { ...s.template, [dayIndex]: [...(s.template[dayIndex] ?? []), entry] },

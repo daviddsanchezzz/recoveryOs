@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { GoalEntity } from '../domain/goal.entity';
 import { ProgramEntity } from '../domain/program.entity';
-import { PlanRepositoryPort } from '../domain/plan-repository.port';
+import { PlanEntryJson, PlanRepositoryPort } from '../domain/plan-repository.port';
 
 function toGoalEntity(r: {
   id: string;
@@ -120,5 +120,43 @@ export class PrismaPlanRepository implements PlanRepositoryPort {
   async deleteProgram(id: string, userId: string): Promise<boolean> {
     const { count } = await this.prisma.program.deleteMany({ where: { id, userId } });
     return count > 0;
+  }
+
+  async findWeekPlanDays(userId: string): Promise<Array<{ date: string; entries: PlanEntryJson[] }>> {
+    const rows = await this.prisma.weekPlanDay.findMany({ where: { userId }, orderBy: { date: 'asc' } });
+    return rows.map((r) => ({ date: r.date, entries: r.entries as PlanEntryJson[] }));
+  }
+
+  async upsertWeekPlanDay(
+    userId: string,
+    date: string,
+    entries: PlanEntryJson[],
+  ): Promise<{ date: string; entries: PlanEntryJson[] }> {
+    await this.ensureUser(userId);
+    const r = await this.prisma.weekPlanDay.upsert({
+      where: { userId_date: { userId, date } },
+      update: { entries: entries as object[] },
+      create: { userId, date, entries: entries as object[] },
+    });
+    return { date: r.date, entries: r.entries as PlanEntryJson[] };
+  }
+
+  async findTemplateDays(userId: string): Promise<Array<{ dayIndex: number; entries: PlanEntryJson[] }>> {
+    const rows = await this.prisma.weekTemplateDay.findMany({ where: { userId }, orderBy: { dayIndex: 'asc' } });
+    return rows.map((r) => ({ dayIndex: r.dayIndex, entries: r.entries as PlanEntryJson[] }));
+  }
+
+  async upsertTemplateDay(
+    userId: string,
+    dayIndex: number,
+    entries: PlanEntryJson[],
+  ): Promise<{ dayIndex: number; entries: PlanEntryJson[] }> {
+    await this.ensureUser(userId);
+    const r = await this.prisma.weekTemplateDay.upsert({
+      where: { userId_dayIndex: { userId, dayIndex } },
+      update: { entries: entries as object[] },
+      create: { userId, dayIndex, entries: entries as object[] },
+    });
+    return { dayIndex: r.dayIndex, entries: r.entries as PlanEntryJson[] };
   }
 }

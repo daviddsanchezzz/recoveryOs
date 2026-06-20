@@ -1,6 +1,6 @@
 import {
   Body, Controller, Delete, ForbiddenException, Get, HttpCode,
-  Inject, Param, Patch, Post, Req,
+  Inject, Param, Patch, Post, Put, Req,
 } from '@nestjs/common';
 import { CreateGoalDto } from '../application/dto/create-goal.dto';
 import { UpdateGoalDto } from '../application/dto/update-goal.dto';
@@ -11,7 +11,12 @@ import { UpdateGoalUseCase } from '../application/use-cases/update-goal.use-case
 import { DeleteGoalUseCase } from '../application/use-cases/delete-goal.use-case';
 import { CreateProgramUseCase } from '../application/use-cases/create-program.use-case';
 import { GetProgramUseCase } from '../application/use-cases/get-program.use-case';
+import { GetWeekPlanUseCase } from '../application/use-cases/get-week-plan.use-case';
+import { UpsertWeekPlanDayUseCase } from '../application/use-cases/upsert-week-plan-day.use-case';
+import { GetTemplateUseCase } from '../application/use-cases/get-template.use-case';
+import { UpsertTemplateDayUseCase } from '../application/use-cases/upsert-template-day.use-case';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
+import { PlanEntryJson } from '../domain/plan-repository.port';
 
 @Controller('plan')
 export class PlanController {
@@ -22,6 +27,10 @@ export class PlanController {
     private readonly deleteGoalUseCase: DeleteGoalUseCase,
     private readonly createProgramUseCase: CreateProgramUseCase,
     private readonly getProgramUseCase: GetProgramUseCase,
+    private readonly getWeekPlanUseCase: GetWeekPlanUseCase,
+    private readonly upsertWeekPlanDayUseCase: UpsertWeekPlanDayUseCase,
+    private readonly getTemplateUseCase: GetTemplateUseCase,
+    private readonly upsertTemplateDayUseCase: UpsertTemplateDayUseCase,
     @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
   ) {}
 
@@ -70,5 +79,45 @@ export class PlanController {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
     return this.createProgramUseCase.execute({ ...body, userId: session.user.id });
+  }
+
+  // ── Week Plan ──────────────────────────────────────────────────────────
+
+  @Get(':userId/week-plan')
+  async getWeekPlan(@Param('userId') userId: string, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session || session.user.id !== userId) throw new ForbiddenException();
+    return this.getWeekPlanUseCase.execute(userId);
+  }
+
+  @Put('week-plan/:date')
+  async upsertWeekPlanDay(
+    @Param('date') date: string,
+    @Body() body: { entries: PlanEntryJson[] },
+    @Req() req: any,
+  ) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new ForbiddenException();
+    return this.upsertWeekPlanDayUseCase.execute(session.user.id, date, body.entries ?? []);
+  }
+
+  // ── Template ───────────────────────────────────────────────────────────
+
+  @Get(':userId/template')
+  async getTemplate(@Param('userId') userId: string, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session || session.user.id !== userId) throw new ForbiddenException();
+    return this.getTemplateUseCase.execute(userId);
+  }
+
+  @Put('template/:dayIndex')
+  async upsertTemplateDay(
+    @Param('dayIndex') dayIndex: string,
+    @Body() body: { entries: PlanEntryJson[] },
+    @Req() req: any,
+  ) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new ForbiddenException();
+    return this.upsertTemplateDayUseCase.execute(session.user.id, parseInt(dayIndex, 10), body.entries ?? []);
   }
 }
