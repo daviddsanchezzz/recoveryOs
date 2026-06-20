@@ -10,6 +10,7 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { RecoveryService } from '../lib/services';
 import { AddActivitySheet } from './add-activity-sheet';
+import { StravaConnectCard } from './strava-connect-card';
 import type { ActivityType, ActivityEntry } from '../stores/recovery-store';
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
@@ -285,6 +286,9 @@ export function ActividadesScreen() {
             <span className="text-xs font-semibold text-white">Añadir</span>
           </button>
         </div>
+
+        {/* Strava */}
+        <StravaConnectCard onSynced={() => setLoadingMore(false)} />
 
         {/* Filter chips */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>

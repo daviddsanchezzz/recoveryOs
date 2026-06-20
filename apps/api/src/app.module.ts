@@ -8,6 +8,7 @@ import { InjuryModule } from './modules/injury/injury.module';
 import { NutritionModule } from './modules/nutrition/nutrition.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { SleepModule } from './modules/sleep/sleep.module';
+import { StravaModule } from './modules/strava/strava.module';
 import { WeeklySummaryModule } from './modules/weekly-summary/weekly-summary.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
@@ -26,6 +27,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     AiChatModule,
     WeeklySummaryModule,
     PlanModule,
+    StravaModule,
   ],
 })
 export class AppModule {}
