@@ -200,6 +200,15 @@ model WeeklySummary {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model OAuthState {
+  state     String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model StravaToken {
   id              String    @id @default(cuid())
   userId          String    @unique

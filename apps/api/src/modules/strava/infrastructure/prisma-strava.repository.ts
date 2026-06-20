@@ -61,4 +61,18 @@ export class PrismaStravaRepository implements StravaRepositoryPort {
   async deleteToken(userId: string): Promise<void> {
     await this.prisma.stravaToken.deleteMany({ where: { userId } });
   }
+
+  async createOAuthState(state: string, userId: string): Promise<void> {
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min TTL
+    await this.prisma.oAuthState.create({ data: { state, userId, expiresAt } });
+  }
+
+  async consumeOAuthState(state: string): Promise<string | null> {
+    const record = await this.prisma.oAuthState.findUnique({ where: { state } });
+    if (!record) return null;
+    // Delete immediately (one-time use)
+    await this.prisma.oAuthState.delete({ where: { state } });
+    if (record.expiresAt < new Date()) return null;
+    return record.userId;
+  }
 }
