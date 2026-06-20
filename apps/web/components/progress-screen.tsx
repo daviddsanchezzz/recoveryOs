@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, Zap, Activity } from 'lucide-react';
+import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, HeartPulse, RefreshCw, Timer } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
 import { LesionesScreen } from './lesiones-screen';
@@ -164,11 +164,11 @@ const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.Element
   { id: 'all',       label: 'Todo',      Icon: LayoutGrid },
   { id: 'gym',       label: 'Gym',       Icon: Dumbbell   },
   { id: 'bike',      label: 'Bici',      Icon: Bike       },
-  { id: 'run',       label: 'Correr',    Icon: Activity   },
+  { id: 'run',       label: 'Correr',    Icon: Timer      },
   { id: 'walk',      label: 'Caminar',   Icon: Footprints },
   { id: 'swim',      label: 'Natación',  Icon: Waves      },
-  { id: 'rehab',     label: 'Rehab',     Icon: Zap        },
-  { id: 'movilidad', label: 'Movilidad', Icon: Zap        },
+  { id: 'rehab',     label: 'Rehab',     Icon: HeartPulse },
+  { id: 'movilidad', label: 'Movilidad', Icon: RefreshCw  },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Activity, Bike, Dumbbell, Footprints, Waves, Zap, LayoutGrid,
+  Timer, Bike, Dumbbell, Footprints, Waves, HeartPulse, RefreshCw, LayoutGrid, Activity,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
   MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react';
@@ -17,10 +17,10 @@ const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
   bike:     Bike,
   walk:     Footprints,
   swim:     Waves,
-  run:      Activity,
-  mobility: Zap,
-  rehab:    Zap,
-  other:    Activity,
+  run:      Timer,
+  mobility: RefreshCw,
+  rehab:    HeartPulse,
+  other:    MoreHorizontal,
 };
 
 const ACTIVITY_LABELS: Record<ActivityType, string> = {
@@ -45,10 +45,10 @@ const FILTERS: { id: Filter; label: string; Icon: React.ElementType }[] = [
   { id: 'all',  label: 'Todo',     Icon: LayoutGrid },
   { id: 'gym',  label: 'Gym',      Icon: Dumbbell   },
   { id: 'bike', label: 'Bici',     Icon: Bike       },
-  { id: 'run',  label: 'Correr',   Icon: Activity   },
+  { id: 'run',  label: 'Correr',   Icon: Timer      },
   { id: 'walk', label: 'Caminar',  Icon: Footprints },
   { id: 'swim', label: 'Natación', Icon: Waves      },
-  { id: 'rehab',label: 'Rehab',    Icon: Zap        },
+  { id: 'rehab',label: 'Rehab',    Icon: HeartPulse },
 ];
 
 function relativeDate(dateStr: string): string {
