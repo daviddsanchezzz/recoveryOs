@@ -6,6 +6,7 @@ import {
   Scale, Zap, Moon, Dumbbell,
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
+  Bike, Waves, HeartPulse, RefreshCw, SportShoe, Target, Clock,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -18,10 +19,27 @@ import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard }     from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { usePlanStore }     from '../stores/plan-store';
 import { RecoveryService }  from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
-import type { ActivityEntry } from '../stores/recovery-store';
+import type { ActivityEntry, ActivityType } from '../stores/recovery-store';
+
+const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
+  gym:      Dumbbell,
+  bike:     Bike,
+  run:      SportShoe,
+  walk:     Footprints,
+  swim:     Waves,
+  mobility: RefreshCw,
+  rehab:    HeartPulse,
+  other:    Target,
+};
+
+const MUSCLE_LABELS: Record<string, string> = {
+  pecho: 'Pecho', espalda: 'Espalda', biceps: 'Bíceps', triceps: 'Tríceps',
+  hombro: 'Hombro', core: 'Core', pierna: 'Pierna', gluteo: 'Glúteo',
+};
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -151,6 +169,9 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     checkIns, weightEntries, activities, injuryLogs, injuries, sleepEntries,
   } = useRecoveryStore();
 
+  const weekPlan   = usePlanStore((s) => s.weekPlan);
+  const planEntries = weekPlan[selectedDate] ?? [];
+
   const today   = todayIso();
   const isToday = sameDay(selectedDate, today);
 
@@ -256,6 +277,83 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             <p className="text-[10px] text-ink/30 mt-0.5">/ 100</p>
           </div>
         </div>
+
+        {/* ── Plan del día ──────────────────────────────────── */}
+        {planEntries.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Plan del día
+            </p>
+            <div className="rounded-4xl bg-white shadow-card overflow-hidden">
+              {planEntries.map((entry, i) => {
+                const Icon = PLAN_ICONS[entry.type] ?? Target;
+                const isDone = activities.some(
+                  (a) => sameDay(a.date, selectedDate) && (a as any).activityType === entry.type,
+                );
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 px-5 py-4 ${
+                      i < planEntries.length - 1 ? 'border-b border-ink/5' : ''
+                    }`}
+                  >
+                    {/* Done indicator */}
+                    <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                      isDone ? 'bg-moss' : 'border-[1.5px] border-ink/15'
+                    }`}>
+                      {isDone
+                        ? <Check size={11} strokeWidth={2.5} className="text-white" />
+                        : <div className="w-1.5 h-1.5 rounded-full bg-ink/15" />
+                      }
+                    </div>
+
+                    {/* Icon */}
+                    <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+                      <Icon size={15} className={isDone ? 'text-moss' : 'text-ink/40'} />
+                    </div>
+
+                    {/* Label + muscle chips */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium leading-snug ${isDone ? 'text-ink/40 line-through' : 'text-ink'}`}>
+                        {entry.label}
+                      </p>
+                      {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {entry.muscleGroups.map((m) => (
+                            <span key={m} className={`text-[9px] font-bold rounded-full px-1.5 py-0.5 leading-none ${
+                              isDone ? 'text-ink/30 bg-ink/5' : 'text-moss bg-moss/10'
+                            }`}>
+                              {MUSCLE_LABELS[m] ?? m}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Time */}
+                    {entry.time && (
+                      <div className="flex items-center gap-1 bg-canvas rounded-xl px-2.5 py-1.5 flex-shrink-0">
+                        <Clock size={10} className="text-ink/30" />
+                        <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
+                      </div>
+                    )}
+
+                    {/* Log button */}
+                    {!isDone && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddActivity(true)}
+                        className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink hover:bg-ink/5 transition-colors flex-shrink-0"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Registros del día ─────────────────────────────── */}
         <div className="space-y-2">
