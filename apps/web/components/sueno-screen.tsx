@@ -146,6 +146,7 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
                       type="button"
                       onClick={() => handleDelete(entry.id)}
                       className="h-8 w-8 flex items-center justify-center rounded-xl bg-red-50"
+                      aria-label="Eliminar"
                     >
                       <Trash2 size={12} className="text-red-400" />
                     </button>

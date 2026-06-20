@@ -1,9 +1,9 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsDate, IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class CreateInjuryDto {
   @IsOptional()
-  @IsString()
+  @IsUUID('4')
   id?: string;
 
   @IsString()
