@@ -1,5 +1,6 @@
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
+import { toast } from '../stores/toast-store';
 import type { ActivityEntry, Injury, InjuryLog, InjuryStatus, SleepEntry, WeightEntry } from '../stores/recovery-store';
 import { deleteJson, getJson, patchJson, postJson } from './api';
 import { sameDay, todayIso } from './date';
@@ -126,7 +127,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().saveWeight(kg, date);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      postJson('/weights', { userId, date, weightKg: kg }).catch(() => {});
+      postJson('/weights', { userId, date, weightKg: kg })
+        .catch(() => toast.error('No se pudo guardar el peso. Inténtalo de nuevo.'));
     }
   },
 
@@ -134,7 +136,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().removeWeightEntry(id);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      deleteJson(`/weights/${id}`).catch(() => {});
+      deleteJson(`/weights/${id}`)
+        .catch(() => toast.error('No se pudo eliminar el peso.'));
     }
   },
 
@@ -149,29 +152,29 @@ export const RecoveryService = {
       postJson('/activities', {
         id,
         userId,
-        type:           data.type,
-        source:         data.stravaId ? 'strava' : 'manual',
-        performedAt:    resolvedDate + 'T12:00:00.000Z',
-        durationMin:    data.durationMinutes,
-        calories:       data.kcal,
-        avgHeartRate:   data.avgHeartRateBpm,
-        maxHeartRate:   data.maxHeartRateBpm,
-        notes:          data.notes,
-        distanceKm:     data.distanceKm,
-        elevationGainM: data.elevationGainM,
-        avgPaceSecPerKm:data.avgPaceSecPerKm,
-        avgCadenceSpm:  data.avgCadenceSpm,
-        avgSpeedKmh:    data.avgSpeedKmh,
-        avgPowerW:      data.avgPowerW,
-        avgCadenceRpm:  data.avgCadenceRpm,
-        kilojoules:     data.kilojoules,
-        distanceM:      data.distanceM,
-        avgPace100mSec: data.avgPacePer100mSec,
-        muscleGroups:   data.muscleGroups,
-        totalVolumeKg:  data.totalVolumeKg,
-        stravaId:       data.stravaId ? String(data.stravaId) : undefined,
-        stravaName:     data.stravaName,
-      }).catch(() => {});
+        type:            data.type,
+        source:          data.stravaId ? 'strava' : 'manual',
+        performedAt:     resolvedDate + 'T12:00:00.000Z',
+        durationMin:     data.durationMinutes,
+        calories:        data.kcal,
+        avgHeartRate:    data.avgHeartRateBpm,
+        maxHeartRate:    data.maxHeartRateBpm,
+        notes:           data.notes,
+        distanceKm:      data.distanceKm,
+        elevationGainM:  data.elevationGainM,
+        avgPaceSecPerKm: data.avgPaceSecPerKm,
+        avgCadenceSpm:   data.avgCadenceSpm,
+        avgSpeedKmh:     data.avgSpeedKmh,
+        avgPowerW:       data.avgPowerW,
+        avgCadenceRpm:   data.avgCadenceRpm,
+        kilojoules:      data.kilojoules,
+        distanceM:       data.distanceM,
+        avgPace100mSec:  data.avgPacePer100mSec,
+        muscleGroups:    data.muscleGroups,
+        totalVolumeKg:   data.totalVolumeKg,
+        stravaId:        data.stravaId ? String(data.stravaId) : undefined,
+        stravaName:      data.stravaName,
+      }).catch(() => toast.error('No se pudo guardar la actividad. Inténtalo de nuevo.'));
     }
   },
 
@@ -179,7 +182,9 @@ export const RecoveryService = {
     useRecoveryStore.getState().removeActivity(id);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' })
+        .then((r) => { if (!r.ok) toast.error('No se pudo eliminar la actividad.'); })
+        .catch(() => toast.error('No se pudo eliminar la actividad.'));
     }
   },
 
@@ -189,7 +194,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().addInjury({ ...data, status });
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      postJson<ServerInjury>('/injuries', { userId, ...data, startDate: data.startDate, status }).catch(() => {});
+      postJson<ServerInjury>('/injuries', { userId, ...data, startDate: data.startDate, status })
+        .catch(() => toast.error('No se pudo guardar la lesión.'));
     }
   },
 
@@ -197,7 +203,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().updateInjury(id, { status });
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      patchJson(`/injuries/${id}`, { status }).catch(() => {});
+      patchJson(`/injuries/${id}`, { status })
+        .catch(() => toast.error('No se pudo actualizar el estado de la lesión.'));
     }
   },
 
@@ -205,7 +212,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().removeInjury(id);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      deleteJson(`/injuries/${id}`).catch(() => {});
+      deleteJson(`/injuries/${id}`)
+        .catch(() => toast.error('No se pudo eliminar la lesión.'));
     }
   },
 
@@ -230,7 +238,7 @@ export const RecoveryService = {
         painLevel: data.painLevel,
         didRehab: data.didRehab,
         notes: data.notes,
-      }).catch(() => {});
+      }).catch(() => toast.error('No se pudo guardar el registro de dolor.'));
     }
   },
 
@@ -238,7 +246,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().removeInjuryLog(id);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      deleteJson(`/injuries/logs/${id}`).catch(() => {});
+      deleteJson(`/injuries/logs/${id}`)
+        .catch(() => toast.error('No se pudo eliminar el registro.'));
     }
   },
 
@@ -256,7 +265,8 @@ export const RecoveryService = {
 
     useRecoveryStore.getState().saveSleep({ ...data, id, date: resolvedDate });
     if (userId) {
-      postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality }).catch(() => {});
+      postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality })
+        .catch(() => toast.error('No se pudo guardar el sueño. Inténtalo de nuevo.'));
     }
   },
 
@@ -264,7 +274,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().updateSleepEntry(id, data);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      patchJson(`/sleep/${id}`, data).catch(() => {});
+      patchJson(`/sleep/${id}`, data)
+        .catch(() => toast.error('No se pudo actualizar el sueño.'));
     }
   },
 
@@ -272,7 +283,8 @@ export const RecoveryService = {
     useRecoveryStore.getState().removeSleepEntry(id);
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
-      deleteJson(`/sleep/${id}`).catch(() => {});
+      deleteJson(`/sleep/${id}`)
+        .catch(() => toast.error('No se pudo eliminar el registro de sueño.'));
     }
   },
 
@@ -305,20 +317,28 @@ export const RecoveryService = {
         }));
         store.seedWeightFromServer(entries);
       }
+    } else {
+      toast.error('No se pudieron cargar los datos de peso.');
     }
 
     if (todayResult.status === 'fulfilled') {
       store.seedTodayActivities(todayResult.value.map(mapServerActivity));
+    } else {
+      toast.error('No se pudieron cargar las actividades de hoy.');
     }
 
     if (injuriesResult.status === 'fulfilled') {
       const injuries = injuriesResult.value.map(mapServerInjury);
       const logs = injuriesResult.value.flatMap((i) => (i.logs ?? []).map(mapServerInjuryLog));
       store.seedInjuriesFromServer(injuries, logs);
+    } else {
+      toast.error('No se pudieron cargar los datos de lesiones.');
     }
 
     if (sleepResult.status === 'fulfilled') {
       store.seedSleepFromServer(sleepResult.value.map(mapServerSleep));
+    } else {
+      toast.error('No se pudieron cargar los registros de sueño.');
     }
   },
 
@@ -332,7 +352,7 @@ export const RecoveryService = {
       const res = await getJson<{ items: ServerActivity[]; hasMore: boolean; nextCursor: string | null }>(url);
       store.appendActivities(res.items.map(mapServerActivity), res.hasMore, res.nextCursor, !beforeId);
     } catch {
-      // keep existing data on error
+      toast.error('No se pudieron cargar las actividades.');
     }
   },
 

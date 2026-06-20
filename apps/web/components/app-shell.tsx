@@ -9,6 +9,7 @@ import { PlanScreen }         from './plan-screen';
 import { ActividadesScreen }  from './actividades-screen';
 import { ProgressScreen }     from './progress-screen';
 import { ChatPanel }          from './chat-panel';
+import { ToastContainer }     from './toast-container';
 import { useSessionStore }    from '../stores/session-store';
 import { getJson }            from '../lib/api';
 import { RecoveryService }    from '../lib/services';
@@ -120,6 +121,7 @@ export function AppShell() {
       </main>
 
       <BottomNav activeTab={activeTab} onTabChange={switchTab} />
+      <ToastContainer />
     </div>
   );
 }
