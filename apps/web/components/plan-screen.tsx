@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Dumbbell, Bike, Footprints, Waves, HeartPulse, RefreshCw, SportShoe,
   Target, Layers, Sun, Clock, Plus, X, ChevronRight, ChevronLeft, Pencil,
+  Check, CalendarDays,
 } from 'lucide-react';
 import { weekDates, todayIso } from '../lib/date';
 import { usePlanStore } from '../stores/plan-store';
@@ -338,13 +339,12 @@ type TemplatePicker =
   | { mode: 'add';  dayIndex: number }
   | { mode: 'edit'; dayIndex: number; entryIndex: number };
 
-function EditTemplateSheet({ isOpen, onClose, onApply }: {
-  isOpen: boolean; onClose: () => void; onApply: () => void;
+function EditTemplateSheet({ isOpen, onClose }: {
+  isOpen: boolean; onClose: () => void;
 }) {
   const { template, addTemplateEntry, removeTemplateEntry, updateTemplateEntry } = usePlanStore();
   const [sel,    setSel]    = useState(0);
   const [picker, setPicker] = useState<TemplatePicker | null>(null);
-  const hasAny = Object.values(template).some((arr) => arr.length > 0);
 
   const entries    = template[sel] ?? [];
   const isAddOpen  = picker?.mode === 'add'  && picker.dayIndex === sel;
@@ -478,12 +478,6 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
         )}
       </div>
 
-      {hasAny && (
-        <button type="button" onClick={() => { onApply(); onClose(); }}
-          className="w-full bg-moss text-white rounded-2xl py-3.5 text-sm font-semibold">
-          Aplicar a esta semana
-        </button>
-      )}
     </Sheet>
   );
 }
@@ -733,10 +727,74 @@ function TemplateEntryList({
   );
 }
 
+// ── Assign template sheet ──────────────────────────────────────────────────
+
+const ASSIGN_OFFSETS = [-1, 0, 1, 2, 3, 4];
+
+function AssignTemplateSheet({ isOpen, onClose, onAssign }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onAssign: (offset: number) => void;
+}) {
+  const [sel, setSel] = useState(0);
+  useEffect(() => { if (!isOpen) setSel(0); }, [isOpen]);
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title="Asignar semana base">
+      <p className="text-sm text-ink/40 -mt-2">
+        Elige la semana a la que quieres copiar tu semana base.
+      </p>
+
+      <div className="space-y-2">
+        {ASSIGN_OFFSETS.map((offset) => {
+          const days      = getDaysForOffset(offset);
+          const isSelected = sel === offset;
+          return (
+            <button
+              key={offset} type="button" onClick={() => setSel(offset)}
+              className={`w-full flex items-center gap-4 rounded-3xl px-4 py-3.5 text-left transition-all ${
+                isSelected ? 'bg-ink' : 'bg-canvas hover:bg-ink/5'
+              }`}
+            >
+              <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                isSelected ? 'bg-white/15' : 'bg-white shadow-card'
+              }`}>
+                <CalendarDays size={16} className={isSelected ? 'text-white' : 'text-ink/40'} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-ink'}`}>
+                  {weekOffsetLabel(offset)}
+                </p>
+                <p className={`text-xs mt-0.5 ${isSelected ? 'text-white/50' : 'text-ink/35'}`}>
+                  {weekRangeLabel(days)}
+                </p>
+              </div>
+              {isSelected && (
+                <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Check size={13} className="text-white" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => { onAssign(sel); onClose(); }}
+        className="w-full bg-ink text-white rounded-2xl py-3.5 text-sm font-semibold"
+      >
+        Asignar a {weekOffsetLabel(sel).toLowerCase()}
+      </button>
+    </Sheet>
+  );
+}
+
 // ── Template read view ─────────────────────────────────────────────────────
 
-function TemplateReadView({ onEdit }: { onEdit: () => void }) {
+function TemplateReadView({ onEdit, onAssign }: { onEdit: () => void; onAssign: () => void }) {
   const template    = usePlanStore((s) => s.template);
+  const hasAny      = Object.values(template).some((arr) => arr.length > 0);
   const [sel, setSel] = useState(0);
   const entries     = template[sel] ?? [];
 
@@ -748,10 +806,18 @@ function TemplateReadView({ onEdit }: { onEdit: () => void }) {
         <div className="h-px bg-ink/5" />
         <div className="flex items-center justify-between">
           <p className="text-[11px] font-semibold text-ink/40 px-1">{DAY_NAMES[sel]}</p>
-          <button type="button" onClick={onEdit}
-            className="h-7 px-3 rounded-xl bg-canvas flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
-            <Pencil size={11} />Editar
-          </button>
+          <div className="flex items-center gap-1.5">
+            {hasAny && (
+              <button type="button" onClick={onAssign}
+                className="h-7 px-3 rounded-xl bg-canvas flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
+                <CalendarDays size={11} />Asignar
+              </button>
+            )}
+            <button type="button" onClick={onEdit}
+              className="h-7 px-3 rounded-xl bg-canvas flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
+              <Pencil size={11} />Editar
+            </button>
+          </div>
         </div>
         <TemplateEntryList entries={entries} />
       </div>
@@ -769,10 +835,11 @@ export function PlanScreen() {
     const current = getDaysForOffset(0);
     return Math.max(0, current.indexOf(today));
   });
-  const [showAddEntry,      setShowAddEntry]      = useState(false);
-  const [showAddGoal,       setShowAddGoal]       = useState(false);
-  const [showAddProgram,    setShowAddProgram]    = useState(false);
-  const [showEditTemplate,  setShowEditTemplate]  = useState(false);
+  const [showAddEntry,       setShowAddEntry]       = useState(false);
+  const [showAddGoal,        setShowAddGoal]        = useState(false);
+  const [showAddProgram,     setShowAddProgram]     = useState(false);
+  const [showEditTemplate,   setShowEditTemplate]   = useState(false);
+  const [showAssignTemplate, setShowAssignTemplate] = useState(false);
 
   const user = useSessionStore((s) => s.user);
   const { goals, program, weekPlan, removePlanEntry, template, addPlanEntry } = usePlanStore();
@@ -795,8 +862,9 @@ export function PlanScreen() {
     setSelectedIdx(Math.max(0, current.indexOf(today)));
   }
 
-  function applyTemplateToWeek() {
-    days.forEach((dateStr, i) => {
+  function applyTemplateToWeek(targetOffset: number) {
+    const targetDays = getDaysForOffset(targetOffset);
+    targetDays.forEach((dateStr, i) => {
       (template[i] ?? []).forEach((entry) => {
         const already = weekPlan[dateStr] ?? [];
         const exists  = already.some((e) => e.label === entry.label && e.type === entry.type);
@@ -914,7 +982,10 @@ export function PlanScreen() {
         {/* ── 4. Semana base ───────────────────────────── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">Semana base</p>
-          <TemplateReadView onEdit={() => setShowEditTemplate(true)} />
+          <TemplateReadView
+            onEdit={() => setShowEditTemplate(true)}
+            onAssign={() => setShowAssignTemplate(true)}
+          />
         </div>
 
       </div>
@@ -926,8 +997,12 @@ export function PlanScreen() {
 
       <EditTemplateSheet
         isOpen={showEditTemplate}
-        onClose={() => setShowEditTemplate(false)}
-        onApply={applyTemplateToWeek} />
+        onClose={() => setShowEditTemplate(false)} />
+
+      <AssignTemplateSheet
+        isOpen={showAssignTemplate}
+        onClose={() => setShowAssignTemplate(false)}
+        onAssign={applyTemplateToWeek} />
 
       {user && (
         <>
