@@ -151,7 +151,7 @@ export function NutricionMockup() {
                   tick={{ fontSize: 10, fill: 'rgba(19,32,26,0.35)' }}
                 />
                 <Tooltip
-                  formatter={(v: number) => [metric.fmt(v), '']}
+                  formatter={(v) => [typeof v === 'number' ? metric.fmt(v) : v, '']}
                   contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,.10)', fontSize: 12 }}
                   cursor={{ fill: 'rgba(19,32,26,0.04)' }}
                 />
