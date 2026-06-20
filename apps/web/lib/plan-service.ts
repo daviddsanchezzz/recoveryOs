@@ -14,7 +14,7 @@ export const PlanService = {
         rows.map((r) => ({ id: r.id, label: r.label, progressPct: r.progressPct, sortOrder: r.sortOrder })),
       );
     } catch {
-      // silent — keep existing state (mock or empty)
+      usePlanStore.getState().setGoals([]); // mark as loaded even on error
     }
   },
 
@@ -27,7 +27,7 @@ export const PlanService = {
           : null,
       );
     } catch {
-      // silent
+      usePlanStore.getState().setProgram(null); // mark as loaded even on error
     }
   },
 

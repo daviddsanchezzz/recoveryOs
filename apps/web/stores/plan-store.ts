@@ -29,16 +29,20 @@ type PlanState = {
   program: ActiveProgram | null;
   goalsLoaded: boolean;
   programLoaded: boolean;
-  // weekPlan: date string (YYYY-MM-DD) → planned activities for that day
-  weekPlan: Record<string, PlanEntry[]>;
+  weekPlan: Record<string, PlanEntry[]>;    // YYYY-MM-DD → entries for that day
+  template: Record<number, PlanEntry[]>;    // 0=Mon … 6=Sun → recurring entries
 
   setGoals: (goals: Goal[]) => void;
   addGoal: (goal: Goal) => void;
   updateGoal: (id: string, data: Partial<Omit<Goal, 'id'>>) => void;
   removeGoal: (id: string) => void;
   setProgram: (program: ActiveProgram | null) => void;
+
   addPlanEntry: (date: string, entry: PlanEntry) => void;
   removePlanEntry: (date: string, index: number) => void;
+
+  addTemplateEntry: (dayIndex: number, entry: PlanEntry) => void;
+  removeTemplateEntry: (dayIndex: number, index: number) => void;
 };
 
 export const usePlanStore = create<PlanState>()(
@@ -49,6 +53,7 @@ export const usePlanStore = create<PlanState>()(
       goalsLoaded: false,
       programLoaded: false,
       weekPlan: {},
+      template: {},
 
       setGoals: (goals) => set({ goals, goalsLoaded: true }),
       addGoal: (goal) => set((s) => ({ goals: [...s.goals, goal] })),
@@ -59,24 +64,28 @@ export const usePlanStore = create<PlanState>()(
 
       addPlanEntry: (date, entry) =>
         set((s) => ({
-          weekPlan: {
-            ...s.weekPlan,
-            [date]: [...(s.weekPlan[date] ?? []), entry],
-          },
+          weekPlan: { ...s.weekPlan, [date]: [...(s.weekPlan[date] ?? []), entry] },
         })),
       removePlanEntry: (date, index) =>
         set((s) => ({
-          weekPlan: {
-            ...s.weekPlan,
-            [date]: (s.weekPlan[date] ?? []).filter((_, i) => i !== index),
+          weekPlan: { ...s.weekPlan, [date]: (s.weekPlan[date] ?? []).filter((_, i) => i !== index) },
+        })),
+
+      addTemplateEntry: (dayIndex, entry) =>
+        set((s) => ({
+          template: { ...s.template, [dayIndex]: [...(s.template[dayIndex] ?? []), entry] },
+        })),
+      removeTemplateEntry: (dayIndex, index) =>
+        set((s) => ({
+          template: {
+            ...s.template,
+            [dayIndex]: (s.template[dayIndex] ?? []).filter((_, i) => i !== index),
           },
         })),
     }),
     {
       name: 'recoveryos-plan-v1',
-      partialize: (state) => ({
-        weekPlan: state.weekPlan,
-      }),
+      partialize: (state) => ({ weekPlan: state.weekPlan, template: state.template }),
     },
   ),
 );
