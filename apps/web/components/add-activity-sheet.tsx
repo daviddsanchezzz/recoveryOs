@@ -73,10 +73,12 @@ export function AddActivitySheet({
   isOpen,
   onClose,
   editActivity,
+  prefill,
 }: {
   isOpen: boolean;
   onClose: () => void;
   editActivity?: ActivityEntry;
+  prefill?: { type: ActivityType; muscleGroups?: MuscleGroup[] };
 }) {
   const isEditing = !!editActivity;
 
@@ -103,7 +105,7 @@ export function AddActivitySheet({
 
   const totalDurationMin = parseInt(durH || '0') * 60 + parseInt(durM || '0');
 
-  // Prefill when editing
+  // Prefill when editing or when a plan entry is passed
   useEffect(() => {
     if (!isOpen) return;
     if (editActivity) {
@@ -131,6 +133,10 @@ export function AddActivitySheet({
       setVolumeKg(editActivity.totalVolumeKg ? String(editActivity.totalVolumeKg) : '');
     } else {
       reset();
+      if (prefill) {
+        setType(prefill.type);
+        setMuscles(prefill.muscleGroups ?? []);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editActivity?.id]);

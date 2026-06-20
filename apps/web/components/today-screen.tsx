@@ -23,7 +23,7 @@ import { usePlanStore }     from '../stores/plan-store';
 import { RecoveryService }  from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
-import type { ActivityEntry, ActivityType } from '../stores/recovery-store';
+import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 
 const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
   gym:      Dumbbell,
@@ -163,6 +163,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
   const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
+  const [prefillActivity,    setPrefillActivity]    = useState<{ type: ActivityType; muscleGroups?: MuscleGroup[] } | undefined>(undefined);
 
   const {
     selectedDate, setSelectedDate,
@@ -342,7 +343,14 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                     {!isDone && (
                       <button
                         type="button"
-                        onClick={() => setShowAddActivity(true)}
+                        onClick={() => {
+                          if (entry.type === 'rehab') {
+                            setShowDolorSheet(true);
+                          } else {
+                            setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
+                            setShowAddActivity(true);
+                          }
+                        }}
                         className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink hover:bg-ink/5 transition-colors flex-shrink-0"
                       >
                         <Plus size={14} />
@@ -578,8 +586,9 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
       />
       <AddActivitySheet
         isOpen={showAddActivity}
-        onClose={() => { setShowAddActivity(false); setEditActivity(undefined); }}
+        onClose={() => { setShowAddActivity(false); setEditActivity(undefined); setPrefillActivity(undefined); }}
         editActivity={editActivity}
+        prefill={prefillActivity}
       />
       <WeightSheet
         isOpen={showWeightSheet}
