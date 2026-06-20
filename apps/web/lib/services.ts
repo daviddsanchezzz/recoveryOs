@@ -125,6 +125,7 @@ export const RecoveryService = {
   // ─── Weight ───────────────────────────────────────────────
   logWeight(kg: number, date = todayIso()) {
     useRecoveryStore.getState().saveWeight(kg, date);
+    toast.success('Peso guardado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       postJson('/weights', { userId, date, weightKg: kg })
@@ -132,8 +133,9 @@ export const RecoveryService = {
     }
   },
 
-  deleteWeight(id: string) {
+  deleteWeight(id: string, silent = false) {
     useRecoveryStore.getState().removeWeightEntry(id);
+    if (!silent) toast.success('Peso eliminado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       deleteJson(`/weights/${id}`)
@@ -146,6 +148,7 @@ export const RecoveryService = {
     const resolvedDate = data.date ?? todayIso();
     const id = crypto.randomUUID();
     useRecoveryStore.getState().addActivity({ ...data, id, date: resolvedDate });
+    toast.success('Actividad guardada');
 
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
@@ -178,8 +181,9 @@ export const RecoveryService = {
     }
   },
 
-  deleteActivity(id: string): void {
+  deleteActivity(id: string, silent = false): void {
     useRecoveryStore.getState().removeActivity(id);
+    if (!silent) toast.success('Actividad eliminada');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       fetch(`/api/activities/${id}`, { method: 'DELETE', credentials: 'include' })
@@ -192,6 +196,7 @@ export const RecoveryService = {
   createInjury(data: { name: string; bodyPart?: string; description?: string; startDate: string; status?: InjuryStatus }) {
     const status = data.status ?? 'active';
     useRecoveryStore.getState().addInjury({ ...data, status });
+    toast.success('Lesión registrada');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       postJson<ServerInjury>('/injuries', { userId, ...data, startDate: data.startDate, status })
@@ -201,6 +206,7 @@ export const RecoveryService = {
 
   updateInjuryStatus(id: string, status: InjuryStatus) {
     useRecoveryStore.getState().updateInjury(id, { status });
+    toast.success('Estado actualizado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       patchJson(`/injuries/${id}`, { status })
@@ -210,6 +216,7 @@ export const RecoveryService = {
 
   deleteInjury(id: string) {
     useRecoveryStore.getState().removeInjury(id);
+    toast.success('Lesión eliminada');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       deleteJson(`/injuries/${id}`)
@@ -229,6 +236,7 @@ export const RecoveryService = {
       notes: data.notes,
       date: resolvedDate,
     } as InjuryLog);
+    toast.success('Dolor registrado');
 
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
@@ -264,6 +272,7 @@ export const RecoveryService = {
     }
 
     useRecoveryStore.getState().saveSleep({ ...data, id, date: resolvedDate });
+    toast.success('Sueño registrado');
     if (userId) {
       postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality })
         .catch(() => toast.error('No se pudo guardar el sueño. Inténtalo de nuevo.'));
@@ -272,6 +281,7 @@ export const RecoveryService = {
 
   updateSleep(id: string, data: { durationH?: number; quality?: 1 | 2 | 3 | 4 | 5; date?: string }) {
     useRecoveryStore.getState().updateSleepEntry(id, data);
+    toast.success('Sueño actualizado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       patchJson(`/sleep/${id}`, data)
@@ -281,6 +291,7 @@ export const RecoveryService = {
 
   deleteSleep(id: string) {
     useRecoveryStore.getState().removeSleepEntry(id);
+    toast.success('Registro eliminado');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
       deleteJson(`/sleep/${id}`)

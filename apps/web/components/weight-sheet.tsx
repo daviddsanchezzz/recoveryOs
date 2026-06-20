@@ -11,9 +11,10 @@ interface WeightSheetProps {
   onClose: () => void;
   defaultDate: string;
   defaultKg?: number;
+  editId?: string;
 }
 
-export function WeightSheet({ isOpen, onClose, defaultDate, defaultKg }: WeightSheetProps) {
+export function WeightSheet({ isOpen, onClose, defaultDate, defaultKg, editId }: WeightSheetProps) {
   const [kg, setKg] = useState('');
   const [date, setDate] = useState(defaultDate);
   const [saved, setSaved] = useState(false);
@@ -29,6 +30,7 @@ export function WeightSheet({ isOpen, onClose, defaultDate, defaultKg }: WeightS
   function handleSave() {
     const value = parseFloat(kg.replace(',', '.'));
     if (isNaN(value) || value <= 0) return;
+    if (editId) RecoveryService.deleteWeight(editId, true);
     RecoveryService.logWeight(value, date);
     setSaved(true);
     setTimeout(onClose, 700);

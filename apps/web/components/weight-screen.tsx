@@ -175,6 +175,7 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
         onClose={() => setShowSheet(false)}
         defaultDate={editEntry?.date ?? new Date().toISOString().slice(0, 10)}
         defaultKg={editEntry?.weightKg}
+        editId={editEntry?.id}
       />
     </Portal>
   );
