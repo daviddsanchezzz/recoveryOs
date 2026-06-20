@@ -33,13 +33,14 @@ export class StravaApiClient {
   private get clientSecret() { return process.env.STRAVA_CLIENT_SECRET!; }
   private get redirectUri() { return process.env.STRAVA_REDIRECT_URI!; }
 
-  getAuthUrl(): string {
+  getAuthUrl(state: string): string {
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
       redirect_uri: this.redirectUri,
       scope: 'activity:read_all',
       approval_prompt: 'auto',
+      state,
     });
     return `${STRAVA_BASE}/oauth/authorize?${params}`;
   }

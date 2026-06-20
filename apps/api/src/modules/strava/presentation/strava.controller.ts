@@ -2,12 +2,34 @@ import {
   Controller, Delete, ForbiddenException, Get, HttpCode,
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
 import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
 import { SyncStravaUseCase } from '../application/use-cases/sync-strava.use-case';
 import { DisconnectStravaUseCase } from '../application/use-cases/disconnect-strava.use-case';
 import { StravaApiClient } from '../infrastructure/strava-api.client';
+
+const STATE_COOKIE = 'strava_oauth_state';
+
+function parseCookies(header: string): Record<string, string> {
+  return Object.fromEntries(
+    (header ?? '')
+      .split(';')
+      .map((c) => c.trim().split('='))
+      .filter(([k]) => k)
+      .map(([k, ...v]) => [k.trim(), v.join('=')]),
+  );
+}
+
+function safeEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
 
 @Controller('strava')
 export class StravaController {
@@ -22,16 +44,37 @@ export class StravaController {
     @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
   ) {}
 
-  // Redirect browser to Strava OAuth page
+  // Generate state, store in HttpOnly cookie, redirect to Strava
   @Get('connect')
   connect(@Res() res: any) {
-    res.redirect(this.stravaApi.getAuthUrl());
+    const state = randomBytes(32).toString('base64url');
+    res.cookie(STATE_COOKIE, state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 300_000, // 5 minutes
+      path: '/',
+    });
+    res.redirect(this.stravaApi.getAuthUrl(state));
   }
 
-  // Strava redirects here after user approves
+  // Strava redirects here — verify state before processing code
   @Get('callback')
-  async callback(@Query('code') code: string, @Req() req: any, @Res() res: any) {
+  async callback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
     try {
+      // CSRF: verify state matches cookie (constant-time comparison)
+      const cookies = parseCookies(req.headers.cookie ?? '');
+      const storedState = cookies[STATE_COOKIE] ?? '';
+      if (!state || !storedState || !safeEquals(state, storedState)) {
+        return res.redirect(`${this.frontendUrl}/actividades?strava=error&reason=state`);
+      }
+      res.clearCookie(STATE_COOKIE, { path: '/' });
+
       const session = await this.authService.getSession({ headers: new Headers(req.headers) });
       if (!session) {
         return res.redirect(`${this.frontendUrl}/actividades?strava=error&reason=auth`);
