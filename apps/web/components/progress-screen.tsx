@@ -30,14 +30,18 @@ import { ProgressChart }         from './progress-chart';
 import { ProgressCalendar }      from './progress-calendar';
 import { ProgressStreaks }        from './progress-streaks';
 import { ProgressTrends }        from './progress-trends';
+import { NutricionMockup }       from './nutricion-mockup';
 
 // ── Static config ────────────────────────────────────────────────────────────
 
-const TABS: { id: ProgressTab; label: string }[] = [
-  { id: 'actividad', label: 'Actividad' },
-  { id: 'peso',      label: 'Peso'      },
-  { id: 'lesion',    label: 'Lesión'    },
-  { id: 'sueno',     label: 'Sueño'     },
+type AnyTab = ProgressTab | 'nutricion';
+
+const TABS: { id: AnyTab; label: string }[] = [
+  { id: 'actividad', label: 'Actividad'  },
+  { id: 'peso',      label: 'Peso'       },
+  { id: 'lesion',    label: 'Lesión'     },
+  { id: 'sueno',     label: 'Sueño'      },
+  { id: 'nutricion', label: 'Nutrición ✦' },
 ];
 
 const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.ElementType }[] = [
@@ -54,7 +58,7 @@ const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.Element
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: () => void } = {}) {
-  const [activeTab,        setActiveTab]        = useState<ProgressTab>('actividad');
+  const [activeTab,        setActiveTab]        = useState<AnyTab>('actividad');
   const [activityFilter,   setActivityFilter]   = useState<ActivityFilter>('all');
   const [chartMetric,      setChartMetric]      = useState<ChartMetric>('tiempo');
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
@@ -73,29 +77,31 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
     [activities, weightEntries, injuryLogs, checkIns, sleepEntries],
   );
 
-  function handleTabChange(tab: ProgressTab) {
+  function handleTabChange(tab: AnyTab) {
     setActiveTab(tab);
-    setChartMetric(DEFAULT_CHART_METRIC[tab]);
+    if (tab !== 'nutricion') setChartMetric(DEFAULT_CHART_METRIC[tab]);
   }
 
-  const summary   = useMemo(() => getWeeklySummary(activeTab, activityFilter, storeData),       [activeTab, activityFilter, storeData]);
+  const progressTab = activeTab !== 'nutricion' ? activeTab : 'actividad';
+
+  const summary   = useMemo(() => getWeeklySummary(progressTab, activityFilter, storeData),       [progressTab, activityFilter, storeData]);
   const chartData = useMemo(
-    () => activeTab === 'peso'
+    () => progressTab === 'peso'
       ? getLast12WeightChartData(storeData)
-      : get12WeekChartData(activeTab, activityFilter, chartMetric, storeData),
-    [activeTab, activityFilter, chartMetric, storeData],
+      : get12WeekChartData(progressTab, activityFilter, chartMetric, storeData),
+    [progressTab, activityFilter, chartMetric, storeData],
   );
   const streaks   = useMemo(() => getStreaks(storeData),   [storeData]);
   const trends    = useMemo(() => getTrends(storeData),    [storeData]);
 
   const getDots = useCallback(
-    (y: number, m: number) => getCalendarDots(activeTab, activityFilter, y, m, storeData),
-    [activeTab, activityFilter, storeData],
+    (y: number, m: number) => getCalendarDots(progressTab, activityFilter, y, m, storeData),
+    [progressTab, activityFilter, storeData],
   );
 
-  const metricOptions      = CHART_METRIC_OPTIONS[activeTab];
+  const metricOptions      = CHART_METRIC_OPTIONS[progressTab];
   const activeMetricOption = metricOptions.find((o) => o.key === chartMetric) ?? metricOptions[0];
-  const chartColor         = TAB_CHART_COLOR[activeTab];
+  const chartColor         = TAB_CHART_COLOR[progressTab];
 
   return (
     <div className="pb-4 animate-fade-in">
@@ -147,73 +153,75 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
       </div>
 
       {/* ── Content ── */}
-      <div className="px-4 space-y-5 pt-1">
+      {activeTab === 'nutricion' ? (
+        <NutricionMockup />
+      ) : (
+        <div className="px-4 space-y-5 pt-1">
 
-        {/* 1 — Weekly summary */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Esta semana</p>
-          <ProgressWeeklySummary
-            summary={summary}
-            onWeightPress={() => setShowWeightScreen(true)}
-            onDolorPress={() => setShowLesionesScreen(true)}
-            onSuenoPress={() => setShowSuenoScreen(true)}
-            onWeightAdd={() => setShowWeightSheet(true)}
-            onDolorAdd={() => setShowDolorSheet(true)}
-            onSuenoAdd={() => setShowSleepSheet(true)}
-            onActividadPress={onNavToActividades}
-            onActividadAdd={() => setShowActivitySheet(true)}
-          />
-        </div>
-
-        {/* 2 — Chart */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">
-            {activeTab === 'peso' ? 'Últimos 12 registros' : 'Evolución · 12 semanas'}
-          </p>
-          <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3 space-y-1">
-          <ProgressChart
-            data={chartData}
-            type={activeMetricOption.chartType}
-            color={chartColor}
-            formatValue={activeMetricOption.formatValue}
-          />
-
-          {/* Metric selector (only when multiple options) */}
-          {metricOptions.length > 1 && (
-            <div className="flex gap-1 pt-1">
-              {metricOptions.map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setChartMetric(opt.key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                    chartMetric === opt.key ? 'bg-ink text-white' : 'text-ink/40 hover:text-ink/70'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* 1 — Weekly summary */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Esta semana</p>
+            <ProgressWeeklySummary
+              summary={summary}
+              onWeightPress={() => setShowWeightScreen(true)}
+              onDolorPress={() => setShowLesionesScreen(true)}
+              onSuenoPress={() => setShowSuenoScreen(true)}
+              onWeightAdd={() => setShowWeightSheet(true)}
+              onDolorAdd={() => setShowDolorSheet(true)}
+              onSuenoAdd={() => setShowSleepSheet(true)}
+              onActividadPress={onNavToActividades}
+              onActividadAdd={() => setShowActivitySheet(true)}
+            />
           </div>
+
+          {/* 2 — Chart */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">
+              {progressTab === 'peso' ? 'Últimos 12 registros' : 'Evolución · 12 semanas'}
+            </p>
+            <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3 space-y-1">
+              <ProgressChart
+                data={chartData}
+                type={activeMetricOption.chartType}
+                color={chartColor}
+                formatValue={activeMetricOption.formatValue}
+              />
+              {metricOptions.length > 1 && (
+                <div className="flex gap-1 pt-1">
+                  {metricOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setChartMetric(opt.key)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                        chartMetric === opt.key ? 'bg-ink text-white' : 'text-ink/40 hover:text-ink/70'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 3 — Inline monthly calendar */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
+            <ProgressCalendar
+              getDots={getDots}
+              selectedDate={selectedDate}
+              onSelect={setSelectedDate}
+            />
+          </div>
+
+          {/* 4 — Streaks */}
+          <ProgressStreaks streaks={streaks} />
+
+          {/* 5 — Trends */}
+          <ProgressTrends trends={trends} />
         </div>
-
-        {/* 3 — Inline monthly calendar */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
-          <ProgressCalendar
-            getDots={getDots}
-            selectedDate={selectedDate}
-            onSelect={setSelectedDate}
-          />
-        </div>
-
-        {/* 4 — Streaks */}
-        <ProgressStreaks streaks={streaks} />
-
-        {/* 5 — Trends */}
-        <ProgressTrends trends={trends} />
-      </div>
+      )}
 
       {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
       {showLesionesScreen && <LesionesScreen  onClose={() => setShowLesionesScreen(false)} />}
