@@ -147,7 +147,7 @@ type RecoveryState = {
   sleepEntries: SleepEntry[];
   selectedDate: string;
   setSelectedDate: (date: string) => void;
-  saveSleep: (input: Omit<SleepEntry, 'id'>) => void;
+  saveSleep: (input: Omit<SleepEntry, 'id'> & { id?: string }) => void;
   updateSleepEntry: (id: string, data: Partial<Omit<SleepEntry, 'id'>>) => void;
   removeSleepEntry: (id: string) => void;
   saveDailyCheckIn: (input: CheckInInput) => void;
@@ -320,7 +320,7 @@ export const useRecoveryStore = create<RecoveryState>()(
         set((state) => ({
           sleepEntries: [
             ...state.sleepEntries.filter((e) => !sameDay(e.date, input.date)),
-            { ...input, id: createId('sleep') },
+            { ...input, id: input.id ?? createId('sleep') },
           ],
         })),
       updateSleepEntry: (id, data) =>

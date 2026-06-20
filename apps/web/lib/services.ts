@@ -2,7 +2,7 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import type { ActivityEntry, Injury, InjuryLog, InjuryStatus, SleepEntry, WeightEntry } from '../stores/recovery-store';
 import { deleteJson, getJson, patchJson, postJson } from './api';
-import { todayIso } from './date';
+import { sameDay, todayIso } from './date';
 
 type ServerActivity = {
   id: string;
@@ -245,10 +245,18 @@ export const RecoveryService = {
   // ─── Sleep ────────────────────────────────────────────────
   logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; date?: string }) {
     const resolvedDate = data.date ?? todayIso();
-    useRecoveryStore.getState().saveSleep({ ...data, date: resolvedDate });
+    const id = crypto.randomUUID();
     const userId = useSessionStore.getState().user?.id;
+
+    // If replacing an existing entry for this date, delete it from the server first
+    const existing = useRecoveryStore.getState().sleepEntries.find((e) => sameDay(e.date, resolvedDate));
+    if (existing && userId) {
+      deleteJson(`/sleep/${existing.id}`).catch(() => {});
+    }
+
+    useRecoveryStore.getState().saveSleep({ ...data, id, date: resolvedDate });
     if (userId) {
-      postJson('/sleep', { userId, date: resolvedDate, durationH: data.durationH, quality: data.quality }).catch(() => {});
+      postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality }).catch(() => {});
     }
   },
 
