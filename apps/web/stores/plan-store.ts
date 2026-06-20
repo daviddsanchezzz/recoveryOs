@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ActivityType } from './recovery-store';
+import type { ActivityType, MuscleGroup } from './recovery-store';
 
 export type Goal = {
   id: string;
@@ -22,6 +22,7 @@ export type PlanEntry = {
   type: ActivityType;
   label: string;
   time?: string;
+  muscleGroups?: MuscleGroup[];
 };
 
 type PlanState = {

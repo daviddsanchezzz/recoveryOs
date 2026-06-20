@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Dumbbell, Bike, Footprints, Waves, HeartPulse, RefreshCw, SportShoe,
-  Target, Layers, Sun, Clock, Plus, X, ChevronRight, Pencil,
+  Target, Layers, Sun, Clock, Plus, X, ChevronRight, ChevronLeft, Pencil,
 } from 'lucide-react';
 import { weekDates, todayIso } from '../lib/date';
 import { usePlanStore } from '../stores/plan-store';
 import { PlanService } from '../lib/plan-service';
 import { useSessionStore } from '../stores/session-store';
 import { Portal } from './portal';
-import type { ActivityType } from '../stores/recovery-store';
+import type { ActivityType, MuscleGroup } from '../stores/recovery-store';
 import type { PlanEntry } from '../stores/plan-store';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -44,6 +44,17 @@ const DOT_COLOR: Record<ActivityType, string> = {
   other:    'bg-ink/20',
 };
 
+const MUSCLE_GROUPS: { id: MuscleGroup; label: string }[] = [
+  { id: 'pecho',   label: 'Pecho'   },
+  { id: 'espalda', label: 'Espalda' },
+  { id: 'biceps',  label: 'Bíceps'  },
+  { id: 'triceps', label: 'Tríceps' },
+  { id: 'hombro',  label: 'Hombro'  },
+  { id: 'core',    label: 'Core'    },
+  { id: 'pierna',  label: 'Pierna'  },
+  { id: 'gluteo',  label: 'Glúteo'  },
+];
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -51,11 +62,17 @@ function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function weekRangeLabel(days: string[]): string {
   const first = new Date(days[0] + 'T12:00:00');
   const last  = new Date(days[6] + 'T12:00:00');
-  const sameMonth = first.getMonth() === last.getMonth();
   const month = (d: Date) => d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
-  return sameMonth
+  return first.getMonth() === last.getMonth()
     ? `${first.getDate()}–${last.getDate()} ${month(last)}`
     : `${first.getDate()} ${month(first)} – ${last.getDate()} ${month(last)}`;
+}
+
+function weekOffsetLabel(offset: number): string {
+  if (offset === 0)  return 'Esta semana';
+  if (offset === -1) return 'Semana pasada';
+  if (offset === 1)  return 'Próxima semana';
+  return offset < 0 ? `Hace ${Math.abs(offset)} semanas` : `En ${offset} semanas`;
 }
 
 function dayFullLabel(dateStr: string): string {
@@ -64,49 +81,79 @@ function dayFullLabel(dateStr: string): string {
   });
 }
 
+function getDaysForOffset(offset: number): string[] {
+  const base = new Date();
+  base.setDate(base.getDate() + offset * 7);
+  return weekDates(base);
+}
+
 // ── Shared sheet wrapper ───────────────────────────────────────────────────
 
 function Sheet({ isOpen, onClose, title, subtitle, children }: {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
+  isOpen: boolean; onClose: () => void;
+  title: string; subtitle?: string; children: React.ReactNode;
 }) {
   if (!isOpen) return null;
   return (
     <Portal>
       <div className="fixed inset-0 z-40 bg-ink/20 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[2rem] shadow-card-lg animate-slide-up max-h-[90vh] overflow-y-auto">
-        <div className="px-6 pt-6 pb-2 space-y-1 sticky top-0 bg-white">
+        <div className="px-6 pt-6 pb-2 sticky top-0 bg-white">
           <div className="w-10 h-1 rounded-full bg-ink/10 mx-auto mb-4" />
           <h2 className="text-lg font-bold text-ink">{title}</h2>
-          {subtitle && <p className="text-sm text-ink/40">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-ink/40 mt-0.5">{subtitle}</p>}
         </div>
-        <div className="px-6 pb-8 space-y-5 pt-3">{children}</div>
+        <div className="px-6 pb-8 pt-4 space-y-5">{children}</div>
       </div>
     </Portal>
   );
 }
 
-// ── Inline type + label picker (shared by plan entry + template) ───────────
+// ── Activity picker (shared by plan entry + template) ─────────────────────
+
+function gymLabel(muscles: MuscleGroup[]): string {
+  if (muscles.length === 0) return 'Gym';
+  return `Gym ${muscles.map((m) => MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m).join(', ')}`;
+}
 
 function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
-  const [type,  setType]  = useState<ActivityType>('gym');
-  const [label, setLabel] = useState('Gym');
-  const [time,  setTime]  = useState('');
+  const [type,         setType]         = useState<ActivityType>('gym');
+  const [label,        setLabel]        = useState('Gym');
+  const [time,         setTime]         = useState('');
+  const [muscles,      setMuscles]      = useState<MuscleGroup[]>([]);
+  const [labelEdited,  setLabelEdited]  = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
 
   function handleTypeSelect(id: ActivityType, defaultLabel: string) {
     setType(id);
+    setMuscles([]);
     setLabel(defaultLabel);
+    setLabelEdited(false);
     labelRef.current?.focus();
+  }
+
+  function toggleMuscle(id: MuscleGroup) {
+    setMuscles((prev) => {
+      const next = prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id];
+      if (!labelEdited) setLabel(gymLabel(next));
+      return next;
+    });
+  }
+
+  function handleLabelChange(val: string) {
+    setLabel(val);
+    setLabelEdited(true);
   }
 
   function handleAdd() {
     if (!label.trim()) return;
-    onAdd({ type, label: label.trim(), time: time || undefined });
-    setType('gym'); setLabel('Gym'); setTime('');
+    onAdd({
+      type,
+      label: label.trim(),
+      time: time || undefined,
+      muscleGroups: type === 'gym' && muscles.length > 0 ? muscles : undefined,
+    });
+    setType('gym'); setLabel('Gym'); setTime(''); setMuscles([]); setLabelEdited(false);
   }
 
   return (
@@ -115,9 +162,7 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
       <div className="grid grid-cols-4 gap-2">
         {ACTIVITY_OPTIONS.map(({ id, label: lbl, Icon }) => (
           <button
-            key={id}
-            type="button"
-            onClick={() => handleTypeSelect(id, lbl)}
+            key={id} type="button" onClick={() => handleTypeSelect(id, lbl)}
             className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all ${
               type === id ? 'bg-ink' : 'bg-white shadow-card'
             }`}
@@ -130,30 +175,44 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
         ))}
       </div>
 
+      {/* Muscle groups — only for gym */}
+      {type === 'gym' && (
+        <div>
+          <p className="text-[11px] font-semibold text-ink/40 mb-2.5 uppercase tracking-widest">Zona muscular</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {MUSCLE_GROUPS.map(({ id, label: lbl }) => (
+              <button
+                key={id} type="button" onClick={() => toggleMuscle(id)}
+                className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  muscles.includes(id) ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/50'
+                }`}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Label */}
       <input
         ref={labelRef}
         type="text"
         value={label}
-        onChange={(e) => setLabel(e.target.value)}
+        onChange={(e) => handleLabelChange(e.target.value)}
         placeholder="Descripción…"
         className="w-full bg-white rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none shadow-card"
         onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
       />
 
-      {/* Time (only shown when adding to week plan, not template) */}
-      <div className="flex items-center gap-3">
+      {/* Time + confirm */}
+      <div className="flex gap-2">
         <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="bg-white rounded-2xl px-4 py-3 text-sm text-ink outline-none shadow-card flex-1"
-          placeholder="Hora (opcional)"
+          type="time" value={time} onChange={(e) => setTime(e.target.value)}
+          className="bg-white rounded-2xl px-4 py-3 text-sm text-ink outline-none shadow-card w-[120px] flex-shrink-0"
         />
         <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!label.trim()}
+          type="button" onClick={handleAdd} disabled={!label.trim()}
           className="flex-1 bg-ink text-white rounded-2xl py-3 text-sm font-semibold disabled:opacity-30"
         >
           Añadir
@@ -166,21 +225,13 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
 // ── Add plan entry sheet ───────────────────────────────────────────────────
 
 function AddPlanEntrySheet({ isOpen, dateStr, onClose }: {
-  isOpen: boolean;
-  dateStr: string;
-  onClose: () => void;
+  isOpen: boolean; dateStr: string; onClose: () => void;
 }) {
   const addPlanEntry = usePlanStore((s) => s.addPlanEntry);
   return (
-    <Sheet
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Añadir actividad"
-      subtitle={cap(dayFullLabel(dateStr))}
-    >
-      <ActivityPicker
-        onAdd={(entry) => { addPlanEntry(dateStr, entry); onClose(); }}
-      />
+    <Sheet isOpen={isOpen} onClose={onClose}
+      title="Añadir actividad" subtitle={cap(dayFullLabel(dateStr))}>
+      <ActivityPicker onAdd={(entry) => { addPlanEntry(dateStr, entry); onClose(); }} />
     </Sheet>
   );
 }
@@ -208,33 +259,23 @@ function AddGoalSheet({ isOpen, onClose, userId }: {
     <Sheet isOpen={isOpen} onClose={onClose} title="Nuevo objetivo">
       <div>
         <p className="text-[11px] font-semibold text-ink/40 mb-2.5 uppercase tracking-widest">Objetivo</p>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
+        <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} autoFocus
           placeholder="Ej: Recuperar tobillo, Correr 10 km…"
-          autoFocus
-          className="w-full bg-canvas rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none"
-        />
+          className="w-full bg-canvas rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none" />
       </div>
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-semibold text-ink/40 uppercase tracking-widest">Progreso inicial</p>
           <span className="text-sm font-bold text-ink">{progress}%</span>
         </div>
-        <input
-          type="range" min="0" max="100" value={progress}
-          onChange={(e) => setProgress(Number(e.target.value))}
-          className="w-full accent-moss"
-        />
+        <input type="range" min="0" max="100" value={progress}
+          onChange={(e) => setProgress(Number(e.target.value))} className="w-full accent-moss" />
         <div className="h-1.5 rounded-full bg-canvas overflow-hidden mt-2">
           <div className="h-full rounded-full bg-moss transition-all duration-150" style={{ width: `${progress}%` }} />
         </div>
       </div>
-      <button
-        type="button" onClick={handleAdd} disabled={!label.trim() || loading}
-        className="w-full bg-ink text-white rounded-2xl py-3.5 text-sm font-semibold disabled:opacity-30"
-      >
+      <button type="button" onClick={handleAdd} disabled={!label.trim() || loading}
+        className="w-full bg-ink text-white rounded-2xl py-3.5 text-sm font-semibold disabled:opacity-30">
         {loading ? 'Guardando…' : 'Añadir objetivo'}
       </button>
     </Sheet>
@@ -264,31 +305,25 @@ function AddProgramSheet({ isOpen, onClose, userId }: {
     <Sheet isOpen={isOpen} onClose={onClose} title="Nuevo programa">
       <div>
         <p className="text-[11px] font-semibold text-ink/40 mb-2.5 uppercase tracking-widest">Nombre</p>
-        <input
-          type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus
           placeholder="Ej: Recuperación tibial posterior…"
-          className="w-full bg-canvas rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none"
-        />
+          className="w-full bg-canvas rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none" />
       </div>
       <div>
         <p className="text-[11px] font-semibold text-ink/40 mb-2.5 uppercase tracking-widest">Duración</p>
         <div className="grid grid-cols-3 gap-2">
           {WEEK_OPTIONS.map((w) => (
-            <button
-              key={w} type="button" onClick={() => setTotalWeeks(w)}
+            <button key={w} type="button" onClick={() => setTotalWeeks(w)}
               className={`py-3 rounded-2xl text-sm font-semibold transition-all ${
                 totalWeeks === w ? 'bg-ink text-white' : 'bg-canvas text-ink/60'
-              }`}
-            >
+              }`}>
               {w} semanas
             </button>
           ))}
         </div>
       </div>
-      <button
-        type="button" onClick={handleCreate} disabled={!name.trim() || loading}
-        className="w-full bg-ink text-white rounded-2xl py-3.5 text-sm font-semibold disabled:opacity-30"
-      >
+      <button type="button" onClick={handleCreate} disabled={!name.trim() || loading}
+        className="w-full bg-ink text-white rounded-2xl py-3.5 text-sm font-semibold disabled:opacity-30">
         {loading ? 'Creando…' : 'Crear programa'}
       </button>
     </Sheet>
@@ -298,18 +333,10 @@ function AddProgramSheet({ isOpen, onClose, userId }: {
 // ── Edit template sheet ────────────────────────────────────────────────────
 
 function EditTemplateSheet({ isOpen, onClose, onApply }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onApply: () => void;
+  isOpen: boolean; onClose: () => void; onApply: () => void;
 }) {
   const { template, addTemplateEntry, removeTemplateEntry } = usePlanStore();
   const [addingDay, setAddingDay] = useState<number | null>(null);
-
-  function handleAdd(dayIndex: number, entry: PlanEntry) {
-    addTemplateEntry(dayIndex, entry);
-    setAddingDay(null);
-  }
-
   const hasAny = Object.values(template).some((arr) => arr.length > 0);
 
   return (
@@ -320,27 +347,21 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
 
       <div className="space-y-1">
         {DAY_NAMES.map((dayName, i) => {
-          const entries = template[i] ?? [];
+          const entries  = template[i] ?? [];
           const isAdding = addingDay === i;
-
           return (
             <div key={i} className="rounded-3xl bg-canvas overflow-hidden">
-              {/* Day header */}
               <div className="flex items-center gap-3 px-4 py-3">
                 <span className="text-[11px] font-bold text-ink/40 w-5 uppercase">{DAY_LETTERS[i]}</span>
                 <span className="text-sm font-medium text-ink flex-1">{dayName}</span>
-                <button
-                  type="button"
-                  onClick={() => setAddingDay(isAdding ? null : i)}
+                <button type="button" onClick={() => setAddingDay(isAdding ? null : i)}
                   className={`h-7 w-7 rounded-xl flex items-center justify-center transition-colors ${
                     isAdding ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/40 hover:text-ink'
-                  }`}
-                >
+                  }`}>
                   {isAdding ? <X size={13} /> : <Plus size={13} />}
                 </button>
               </div>
 
-              {/* Entries */}
               {entries.length > 0 && (
                 <div className="px-4 pb-3 space-y-2">
                   {entries.map((entry, j) => {
@@ -350,12 +371,20 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
                         <div className="h-7 w-7 rounded-xl bg-white shadow-card flex items-center justify-center flex-shrink-0">
                           <Icon size={13} className="text-moss" />
                         </div>
-                        <span className="text-sm text-ink flex-1">{entry.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeTemplateEntry(i, j)}
-                          className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                        >
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-ink">{entry.label}</span>
+                          {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                            <div className="flex gap-1 mt-0.5 flex-wrap">
+                              {entry.muscleGroups.map((m) => (
+                                <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5">
+                                  {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <button type="button" onClick={() => removeTemplateEntry(i, j)}
+                          className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
                           <X size={11} />
                         </button>
                       </div>
@@ -364,10 +393,9 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
                 </div>
               )}
 
-              {/* Inline picker */}
               {isAdding && (
                 <div className="px-4 pb-4">
-                  <ActivityPicker onAdd={(entry) => handleAdd(i, entry)} />
+                  <ActivityPicker onAdd={(entry) => { addTemplateEntry(i, entry); setAddingDay(null); }} />
                 </div>
               )}
             </div>
@@ -376,11 +404,8 @@ function EditTemplateSheet({ isOpen, onClose, onApply }: {
       </div>
 
       {hasAny && (
-        <button
-          type="button"
-          onClick={() => { onApply(); onClose(); }}
-          className="w-full bg-moss text-white rounded-2xl py-3.5 text-sm font-semibold"
-        >
+        <button type="button" onClick={() => { onApply(); onClose(); }}
+          className="w-full bg-moss text-white rounded-2xl py-3.5 text-sm font-semibold">
           Aplicar a esta semana
         </button>
       )}
@@ -396,12 +421,10 @@ function DayCell({ dateStr, letter, isSelected, isToday, entries, onClick }: {
 }) {
   const dayNum = parseInt(dateStr.split('-')[2], 10);
   return (
-    <button
-      type="button" onClick={onClick}
+    <button type="button" onClick={onClick}
       className={`flex flex-col items-center gap-1 py-2.5 rounded-2xl transition-all duration-150 ${
         isSelected ? 'bg-ink' : 'hover:bg-canvas'
-      }`}
-    >
+      }`}>
       <span className={`text-[9px] font-semibold uppercase tracking-wider ${isSelected ? 'text-white/50' : 'text-ink/30'}`}>
         {letter}
       </span>
@@ -432,10 +455,8 @@ function DayDetail({ dateStr, entries, onAdd, onRemove }: {
       <div className="h-px bg-ink/5" />
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold text-ink/40 px-1">{cap(dayFullLabel(dateStr))}</p>
-        <button
-          type="button" onClick={onAdd}
-          className="h-7 w-7 rounded-xl bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors"
-        >
+        <button type="button" onClick={onAdd}
+          className="h-7 w-7 rounded-xl bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
           <Plus size={14} />
         </button>
       </div>
@@ -452,20 +473,29 @@ function DayDetail({ dateStr, entries, onAdd, onRemove }: {
           {entries.map((entry, i) => {
             const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
             return (
-              <div key={i} className="flex items-center gap-3 group">
-                <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+              <div key={i} className="flex items-start gap-3 group">
+                <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Icon size={15} className="text-moss" />
                 </div>
-                <span className="text-sm text-ink flex-1 leading-snug">{entry.label}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-ink leading-snug">{entry.label}</span>
+                  {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      {entry.muscleGroups.map((m) => (
+                        <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5 leading-none">
+                          {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {entry.time && (
-                  <span className="text-xs text-ink/35 tabular-nums flex items-center gap-1 flex-shrink-0">
+                  <span className="text-xs text-ink/35 tabular-nums flex items-center gap-1 flex-shrink-0 mt-1">
                     <Clock size={10} className="text-ink/25" />{entry.time}
                   </span>
                 )}
-                <button
-                  type="button" onClick={() => onRemove(i)}
-                  className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                >
+                <button type="button" onClick={() => onRemove(i)}
+                  className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 mt-1.5">
                   <X size={12} />
                 </button>
               </div>
@@ -494,10 +524,8 @@ function GoalRow({ id, label, progressPct, onDelete }: {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-xs font-bold text-ink/40 tabular-nums">{progressPct}%</span>
-          <button
-            type="button" onClick={onDelete}
-            className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-          >
+          <button type="button" onClick={onDelete}
+            className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
             <X size={12} />
           </button>
         </div>
@@ -543,10 +571,8 @@ function TemplateReadView({ onEdit }: { onEdit: () => void }) {
 
   if (!hasAny) {
     return (
-      <button
-        type="button" onClick={onEdit}
-        className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors"
-      >
+      <button type="button" onClick={onEdit}
+        className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors">
         <Pencil size={20} className="text-ink/20" />
         <p className="text-sm text-ink/40">Sin semana base configurada</p>
         <p className="text-xs text-ink/30 font-medium">Pulsa para definir tu rutina semanal</p>
@@ -559,17 +585,25 @@ function TemplateReadView({ onEdit }: { onEdit: () => void }) {
       {DAY_LETTERS.map((letter, i) => {
         const entries = template[i] ?? [];
         return (
-          <div
-            key={i}
-            className={`flex items-start gap-3 px-5 py-3.5 ${i < 6 ? 'border-b border-ink/5' : ''}`}
-          >
+          <div key={i} className={`flex items-start gap-3 px-5 py-3.5 ${i < 6 ? 'border-b border-ink/5' : ''}`}>
             <span className="text-[11px] font-bold text-ink/30 w-5 flex-shrink-0 uppercase mt-0.5">{letter}</span>
             {entries.length === 0 ? (
               <span className="text-sm text-ink/20">Libre</span>
             ) : (
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-1">
                 {entries.map((e, j) => (
-                  <span key={j} className="text-sm text-ink">{e.label}</span>
+                  <div key={j}>
+                    <span className="text-sm text-ink">{e.label}</span>
+                    {e.muscleGroups && e.muscleGroups.length > 0 && (
+                      <div className="flex gap-1 mt-0.5 flex-wrap">
+                        {e.muscleGroups.map((m) => (
+                          <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5">
+                            {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -583,11 +617,13 @@ function TemplateReadView({ onEdit }: { onEdit: () => void }) {
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export function PlanScreen() {
-  const days       = weekDates();
-  const today      = todayIso();
-  const initialIdx = Math.max(0, days.indexOf(today));
+  const today = todayIso();
 
-  const [selectedIdx,       setSelectedIdx]       = useState(initialIdx);
+  const [weekOffset,        setWeekOffset]        = useState(0);
+  const [selectedIdx,       setSelectedIdx]       = useState(() => {
+    const current = getDaysForOffset(0);
+    return Math.max(0, current.indexOf(today));
+  });
   const [showAddEntry,      setShowAddEntry]      = useState(false);
   const [showAddGoal,       setShowAddGoal]       = useState(false);
   const [showAddProgram,    setShowAddProgram]    = useState(false);
@@ -602,8 +638,17 @@ export function PlanScreen() {
     void PlanService.loadProgram(user.id);
   }, [user?.id]);
 
+  const days         = getDaysForOffset(weekOffset);
   const selectedDate = days[selectedIdx];
   const dayEntries   = weekPlan[selectedDate] ?? [];
+
+  function goToPrevWeek() { setWeekOffset((o) => o - 1); }
+  function goToNextWeek() { setWeekOffset((o) => o + 1); }
+  function goToThisWeek() {
+    setWeekOffset(0);
+    const current = getDaysForOffset(0);
+    setSelectedIdx(Math.max(0, current.indexOf(today)));
+  }
 
   function applyTemplateToWeek() {
     days.forEach((dateStr, i) => {
@@ -629,6 +674,30 @@ export function PlanScreen() {
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">Esta semana</p>
           <div className="rounded-4xl bg-white shadow-card p-4 space-y-3">
+
+            {/* Week navigation */}
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={goToPrevWeek}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors flex-shrink-0">
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="text-center flex-1 mx-2">
+                <button type="button" onClick={weekOffset !== 0 ? goToThisWeek : undefined}
+                  className={`text-xs font-semibold transition-colors ${
+                    weekOffset !== 0 ? 'text-moss hover:text-moss/70' : 'text-ink'
+                  }`}>
+                  {weekOffsetLabel(weekOffset)}
+                </button>
+              </div>
+
+              <button type="button" onClick={goToNextWeek}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors flex-shrink-0">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Day strip */}
             <div className="grid grid-cols-7 gap-1">
               {days.map((dateStr, i) => (
                 <DayCell
@@ -642,6 +711,7 @@ export function PlanScreen() {
                 />
               ))}
             </div>
+
             <DayDetail
               dateStr={selectedDate}
               entries={dayEntries}
@@ -655,19 +725,15 @@ export function PlanScreen() {
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Objetivos activos</p>
-            <button
-              type="button" onClick={() => setShowAddGoal(true)}
-              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors"
-            >
+            <button type="button" onClick={() => setShowAddGoal(true)}
+              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center text-ink/40 hover:text-ink hover:bg-ink/5 transition-colors">
               <Plus size={13} />
             </button>
           </div>
 
           {goals.length === 0 ? (
-            <button
-              type="button" onClick={() => setShowAddGoal(true)}
-              className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors"
-            >
+            <button type="button" onClick={() => setShowAddGoal(true)}
+              className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors">
               <Target size={22} className="text-ink/20" />
               <p className="text-sm text-ink/40">Sin objetivos activos</p>
               <p className="text-xs text-ink/30 font-medium">Pulsa para añadir tu primer objetivo</p>
@@ -676,10 +742,8 @@ export function PlanScreen() {
             <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
               {goals.map((g, i) => (
                 <div key={g.id}>
-                  <GoalRow
-                    id={g.id} label={g.label} progressPct={g.progressPct}
-                    onDelete={() => user && PlanService.deleteGoal(g.id)}
-                  />
+                  <GoalRow id={g.id} label={g.label} progressPct={g.progressPct}
+                    onDelete={() => user && PlanService.deleteGoal(g.id)} />
                   {i < goals.length - 1 && <div className="h-px bg-ink/5 mt-4" />}
                 </div>
               ))}
@@ -693,10 +757,8 @@ export function PlanScreen() {
           {program ? (
             <ProgramCard name={program.name} currentWeek={program.currentWeek} totalWeeks={program.totalWeeks} />
           ) : (
-            <button
-              type="button" onClick={() => setShowAddProgram(true)}
-              className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors"
-            >
+            <button type="button" onClick={() => setShowAddProgram(true)}
+              className="w-full rounded-4xl bg-canvas-light border border-sand/40 p-6 flex flex-col items-center gap-2 text-center hover:bg-canvas transition-colors">
               <Layers size={22} className="text-ink/20" />
               <p className="text-sm text-ink/40">Sin programa activo</p>
               <p className="text-xs text-ink/30 font-medium">Pulsa para crear tu programa de recuperación</p>
@@ -708,12 +770,9 @@ export function PlanScreen() {
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Semana base</p>
-            <button
-              type="button" onClick={() => setShowEditTemplate(true)}
-              className="text-xs font-medium text-ink/40 hover:text-ink transition-colors flex items-center gap-1"
-            >
-              <Pencil size={11} />
-              Editar
+            <button type="button" onClick={() => setShowEditTemplate(true)}
+              className="text-xs font-medium text-ink/40 hover:text-ink transition-colors flex items-center gap-1">
+              <Pencil size={11} />Editar
             </button>
           </div>
           <TemplateReadView onEdit={() => setShowEditTemplate(true)} />
@@ -723,29 +782,18 @@ export function PlanScreen() {
 
       {/* ── Sheets ──────────────────────────────────────── */}
       <AddPlanEntrySheet
-        isOpen={showAddEntry}
-        dateStr={selectedDate}
-        onClose={() => setShowAddEntry(false)}
-      />
+        isOpen={showAddEntry} dateStr={selectedDate}
+        onClose={() => setShowAddEntry(false)} />
 
       <EditTemplateSheet
         isOpen={showEditTemplate}
         onClose={() => setShowEditTemplate(false)}
-        onApply={applyTemplateToWeek}
-      />
+        onApply={applyTemplateToWeek} />
 
       {user && (
         <>
-          <AddGoalSheet
-            isOpen={showAddGoal}
-            onClose={() => setShowAddGoal(false)}
-            userId={user.id}
-          />
-          <AddProgramSheet
-            isOpen={showAddProgram}
-            onClose={() => setShowAddProgram(false)}
-            userId={user.id}
-          />
+          <AddGoalSheet isOpen={showAddGoal} onClose={() => setShowAddGoal(false)} userId={user.id} />
+          <AddProgramSheet isOpen={showAddProgram} onClose={() => setShowAddProgram(false)} userId={user.id} />
         </>
       )}
     </>
