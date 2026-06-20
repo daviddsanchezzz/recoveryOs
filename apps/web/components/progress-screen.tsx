@@ -20,6 +20,7 @@ import {
   get12WeekChartData,
   getLast12WeightChartData,
   getCalendarDots,
+  getResumenCalendarDots,
   getStreaks,
   getTrends,
   CHART_METRIC_OPTIONS,
@@ -31,6 +32,7 @@ import { ProgressChart }         from './progress-chart';
 import { ProgressCalendar }      from './progress-calendar';
 import { ProgressStreaks }        from './progress-streaks';
 import { ProgressTrends }        from './progress-trends';
+import { ProgressDaySummary }    from './progress-day-summary';
 import { NutricionMockup }       from './nutricion-mockup';
 
 // ── Calendar day detail ───────────────────────────────────────────────────────
@@ -147,9 +149,10 @@ function CalendarDayDetail({ tab, date, data }: {
 
 // ── Static config ────────────────────────────────────────────────────────────
 
-type AnyTab = ProgressTab | 'nutricion';
+type AnyTab = ProgressTab | 'resumen' | 'nutricion';
 
 const TABS: { id: AnyTab; label: string }[] = [
+  { id: 'resumen',   label: 'Resumen'    },
   { id: 'actividad', label: 'Actividad'  },
   { id: 'peso',      label: 'Peso'       },
   { id: 'lesion',    label: 'Lesión'     },
@@ -171,7 +174,7 @@ const ACTIVITY_FILTERS: { id: ActivityFilter; label: string; Icon: React.Element
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: () => void } = {}) {
-  const [activeTab,        setActiveTab]        = useState<AnyTab>('actividad');
+  const [activeTab,        setActiveTab]        = useState<AnyTab>('resumen');
   const [activityFilter,   setActivityFilter]   = useState<ActivityFilter>('all');
   const [chartMetric,      setChartMetric]      = useState<ChartMetric>('tiempo');
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
@@ -192,10 +195,10 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
 
   function handleTabChange(tab: AnyTab) {
     setActiveTab(tab);
-    if (tab !== 'nutricion') setChartMetric(DEFAULT_CHART_METRIC[tab]);
+    if (tab !== 'nutricion' && tab !== 'resumen') setChartMetric(DEFAULT_CHART_METRIC[tab]);
   }
 
-  const progressTab = activeTab !== 'nutricion' ? activeTab : 'actividad';
+  const progressTab = (activeTab !== 'nutricion' && activeTab !== 'resumen') ? activeTab : 'actividad';
 
   const summary   = useMemo(() => getWeeklySummary(progressTab, activityFilter, storeData),       [progressTab, activityFilter, storeData]);
   const chartData = useMemo(
@@ -210,6 +213,11 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   const getDots = useCallback(
     (y: number, m: number) => getCalendarDots(progressTab, activityFilter, y, m, storeData),
     [progressTab, activityFilter, storeData],
+  );
+
+  const getResumenDots = useCallback(
+    (y: number, m: number) => getResumenCalendarDots(y, m, storeData),
+    [storeData],
   );
 
   const metricOptions      = CHART_METRIC_OPTIONS[progressTab];
@@ -268,6 +276,23 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
       {/* ── Content ── */}
       {activeTab === 'nutricion' ? (
         <NutricionMockup />
+      ) : activeTab === 'resumen' ? (
+        <div className="px-4 space-y-5 pt-1">
+          {/* Calendar + day summary */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
+            <ProgressCalendar
+              getDots={getResumenDots}
+              selectedDate={selectedDate}
+              onSelect={setSelectedDate}
+            />
+            <ProgressDaySummary date={selectedDate} data={storeData} />
+          </div>
+          {/* Rachas */}
+          <ProgressStreaks streaks={streaks} />
+          {/* Insights */}
+          <ProgressTrends trends={trends} />
+        </div>
       ) : (
         <div className="px-4 space-y-5 pt-1">
 

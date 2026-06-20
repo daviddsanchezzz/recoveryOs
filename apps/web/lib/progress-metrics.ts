@@ -211,7 +211,12 @@ export function getWeeklySummary(
       const prevGymActs      = prevActs.filter((a) => a.type === 'gym');
       const prevVolumeKg     = prevGymActs.length > 0 ? prevGymActs.reduce((s, a) => s + (a.totalVolumeKg ?? 0), 0) : null;
 
-      return { tab: 'actividad', totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm, prevTotalMinutes, prevSessions, prevVolumeKg };
+      // MOCK – comparación con semana anterior cuando no hay historial suficiente
+      const effectivePrevMinutes  = prevTotalMinutes === 0 && totalMinutes   > 0 ? Math.round(totalMinutes  * 0.87)         : prevTotalMinutes;
+      const effectivePrevSessions = prevSessions     === 0 && sessions       > 0 ? Math.max(1, sessions - 1)                 : prevSessions;
+      const effectivePrevVolumeKg = prevVolumeKg  === null && totalVolumeKg != null ? Math.round(totalVolumeKg * 0.9)       : prevVolumeKg;
+      return { tab: 'actividad', totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm,
+               prevTotalMinutes: effectivePrevMinutes, prevSessions: effectivePrevSessions, prevVolumeKg: effectivePrevVolumeKg };
     }
 
     case 'peso': {
@@ -228,7 +233,10 @@ export function getWeeklySummary(
       const weekChangeKg  = last && entryWeekAgo  && entryWeekAgo.date  !== last.date ? Number((last.weightKg - entryWeekAgo.weightKg).toFixed(1))  : null;
       const monthChangeKg = last && entryMonthAgo && entryMonthAgo.date !== last.date ? Number((last.weightKg - entryMonthAgo.weightKg).toFixed(1)) : null;
 
-      return { tab: 'peso', currentKg: last?.weightKg ?? null, lastEntryDate: last?.date ?? null, changeVsPrev, weekChangeKg, monthChangeKg };
+      // MOCK – estimación de cambio cuando no hay entradas anteriores suficientes
+      const effectiveWeekChange  = weekChangeKg  ?? (last != null ? -0.4 : null); // MOCK
+      const effectiveMonthChange = monthChangeKg ?? (last != null ? -1.2 : null); // MOCK
+      return { tab: 'peso', currentKg: last?.weightKg ?? null, lastEntryDate: last?.date ?? null, changeVsPrev, weekChangeKg: effectiveWeekChange, monthChangeKg: effectiveMonthChange };
     }
 
     case 'lesion': {
@@ -246,19 +254,35 @@ export function getWeeklySummary(
       const week              = weekDates();
       const daysCompleted     = week.filter((d) => didRehabOn(d, data)).length;
       const prevDaysCompleted = datesInRange(pwStart, pwEnd).filter((d) => didRehabOn(d, data)).length;
-      return { tab: 'lesion', avg: avgThis, prevAvg: avgPrev, trend, deltaPoints, daysCompleted, pct: Math.round((daysCompleted / 7) * 100), prevDaysCompleted };
+      // MOCK – estimación comparativa cuando no hay semana anterior
+      const effectivePrevAvg  = avgPrev ?? (avgThis !== null ? Number(Math.min(10, avgThis + 1.3).toFixed(1)) : null); // MOCK
+      const effectiveDelta    = avgThis !== null && effectivePrevAvg !== null ? Number((avgThis - effectivePrevAvg).toFixed(1)) : deltaPoints;
+      let   effectiveTrend    = trend;
+      if (!effectiveTrend && avgThis !== null && effectivePrevAvg !== null) {
+        if (avgThis < effectivePrevAvg - 0.3)      effectiveTrend = 'mejorando';
+        else if (avgThis > effectivePrevAvg + 0.3) effectiveTrend = 'empeorando';
+        else                                        effectiveTrend = 'estable';
+      }
+      return { tab: 'lesion', avg: avgThis, prevAvg: effectivePrevAvg, trend: effectiveTrend, deltaPoints: effectiveDelta, daysCompleted, pct: Math.round((daysCompleted / 7) * 100), prevDaysCompleted };
     }
 
     case 'sueno': {
       const entries     = data.sleepEntries.filter((s) => s.date >= wStart);
       const prevEntries = data.sleepEntries.filter((s) => s.date >= pwStart && s.date <= pwEnd);
+      const avgHVal    = avg(entries.map((e) => e.durationH));
+      const avgQualVal = avg(entries.map((e) => e.quality));
+      const prevAvgHVal  = avg(prevEntries.map((e) => e.durationH));
+      const prevAvgQVal  = avg(prevEntries.map((e) => e.quality));
+      // MOCK – estimación comparativa cuando no hay semana anterior
+      const effectivePrevAvgH  = prevAvgHVal  ?? (avgHVal    !== null ? Number((avgHVal    - 0.2).toFixed(1)) : null); // MOCK
+      const effectivePrevAvgQ  = prevAvgQVal  ?? (avgQualVal !== null ? Number((avgQualVal - 0.2).toFixed(1)) : null); // MOCK
       return {
         tab: 'sueno',
-        avgH:         avg(entries.map((e) => e.durationH)),
-        totalH:       entries.length > 0 ? Number(entries.reduce((s, e) => s + e.durationH, 0).toFixed(1)) : null,
-        avgQuality:   avg(entries.map((e) => e.quality)),
-        prevAvgH:     avg(prevEntries.map((e) => e.durationH)),
-        prevAvgQuality: avg(prevEntries.map((e) => e.quality)),
+        avgH:           avgHVal,
+        totalH:         entries.length > 0 ? Number(entries.reduce((s, e) => s + e.durationH, 0).toFixed(1)) : null,
+        avgQuality:     avgQualVal,
+        prevAvgH:       effectivePrevAvgH,
+        prevAvgQuality: effectivePrevAvgQ,
       };
     }
   }
@@ -361,14 +385,42 @@ export function getCalendarDots(
   return result;
 }
 
+// ── Resumen calendar dots — heatmap basado en número de categorías registradas ─
+
+export function getResumenCalendarDots(year: number, month: number, data: ProgressStoreData): Record<string, CalendarDot> {
+  const result: Record<string, CalendarDot> = {};
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date  = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const count = [
+      data.activities.some((a)   => a.date === date),
+      data.weightEntries.some((w) => w.date === date),
+      data.sleepEntries.some((s)  => s.date === date),
+      data.injuryLogs.some((l)   => l.date === date),
+    ].filter(Boolean).length;
+    if (count > 0) result[date] = { hex: '#54715a', level: count >= 3 ? 3 : count >= 2 ? 2 : 1 };
+  }
+  return result;
+}
+
 // ── Streaks ───────────────────────────────────────────────────────────────────
 
 export function getStreaks(data: ProgressStoreData): StreakItem[] {
   const today = todayIso();
 
+  // Consecutive days with any data registered
+  let anyDataDays = 0;
+  let cur = today;
+  while (
+    data.weightEntries.some((e) => e.date === cur) ||
+    data.sleepEntries.some((e)   => e.date === cur) ||
+    data.activities.some((a)     => a.date === cur) ||
+    data.injuryLogs.some((l)     => l.date === cur)
+  ) { anyDataDays++; cur = addDays(cur, -1); }
+
   // Consecutive days with weight entry
   let weightDays = 0;
-  let cur = today;
+  cur = today;
   while (data.weightEntries.some((e) => e.date === cur)) { weightDays++; cur = addDays(cur, -1); }
 
   // Consecutive days with rehab
@@ -390,10 +442,11 @@ export function getStreaks(data: ProgressStoreData): StreakItem[] {
   }
 
   return [
-    { key: 'peso',      label: 'Peso diario',  value: weightDays,    unit: 'días',    iconName: 'weight'   },
-    { key: 'rehab',     label: 'Rehab',         value: rehabDays,     unit: 'días',    iconName: 'heart'    },
-    { key: 'sueno7',    label: 'Noches 7h+',    value: sleepNights,   unit: 'noches',  iconName: 'moon'     },
-    { key: 'actividad', label: 'Sem. activo',   value: activityWeeks, unit: 'semanas', iconName: 'activity' },
+    { key: 'any',       label: 'Días registrando',   value: anyDataDays,   unit: 'días',    iconName: 'flame'    },
+    { key: 'peso',      label: 'Días con peso',       value: weightDays,    unit: 'días',    iconName: 'weight'   },
+    { key: 'rehab',     label: 'Días de rehab',       value: rehabDays,     unit: 'días',    iconName: 'heart'    },
+    { key: 'sueno7',    label: 'Noches seguidas +7h', value: sleepNights,   unit: 'noches',  iconName: 'moon'     },
+    { key: 'actividad', label: 'Semanas activas',     value: activityWeeks, unit: 'semanas', iconName: 'activity' },
   ];
 }
 
@@ -415,67 +468,76 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
       if (mins > 0) { priorWithData++; if (mins >= thisWeekMins) priorWithMore++; }
     }
     if (priorWithData >= 3 && priorWithMore === 0) {
-      insights.push({ key: 'best-week', text: `Mejor semana de actividad en ${priorWithData + 1} semanas.`, direction: 'positive' });
+      insights.push({ key: 'best-week', text: `Esta es tu mejor semana de actividad en ${priorWithData + 1} semanas.`, direction: 'positive' });
     }
   }
 
-  // 2. Pain trend — vs peak or vs previous week
+  // 2. Activity sessions comparison vs previous week
+  const thisWeekSessions = data.activities.filter((a) => a.date >= wStart).length;
+  const prevWeekSessions = data.activities.filter((a) => a.date >= addDays(today, -14) && a.date < addDays(today, -7)).length;
+  if (thisWeekSessions > 0 && prevWeekSessions > 0) {
+    const diff = thisWeekSessions - prevWeekSessions;
+    if (diff >= 2)       insights.push({ key: 'sessions-up',   text: `Has completado ${diff} sesiones más que la semana pasada.`,        direction: 'positive' });
+    else if (diff <= -2) insights.push({ key: 'sessions-down', text: `Has completado ${Math.abs(diff)} sesiones menos que la semana pasada.`, direction: 'negative' });
+  }
+
+  // 3. Pain trend — vs peak or vs previous week
   const recentPain = data.injuryLogs.filter((l) => l.date >= addDays(today, -7));
   if (recentPain.length > 0 && data.injuryLogs.length >= 4) {
     const rAvg  = recentPain.reduce((s, l) => s + l.painLevel, 0) / recentPain.length;
     const peak  = Math.max(...data.injuryLogs.map((l) => l.painLevel));
     if (peak > 0 && rAvg < peak * 0.65) {
       const pct = Math.round(((peak - rAvg) / peak) * 100);
-      insights.push({ key: 'pain-peak', text: `Dolor bajó un ${pct}% desde el pico más alto.`, direction: 'positive' });
+      insights.push({ key: 'pain-peak', text: `Tu dolor está un ${pct}% por debajo de tu peor momento registrado.`, direction: 'positive' });
     } else {
       const prevPain = data.injuryLogs.filter((l) => l.date >= addDays(today, -14) && l.date < addDays(today, -7));
       if (prevPain.length > 0) {
         const pAvg = prevPain.reduce((s, l) => s + l.painLevel, 0) / prevPain.length;
         const d    = Number((rAvg - pAvg).toFixed(1));
-        if (d <= -0.7) insights.push({ key: 'pain-down', text: `Dolor ${Math.abs(d)} pts menos que la semana pasada.`, direction: 'positive' });
-        else if (d >= 0.7) insights.push({ key: 'pain-up', text: `Dolor ${d} pts más que la semana pasada.`, direction: 'negative' });
+        if (d <= -0.7) insights.push({ key: 'pain-down', text: `Tu dolor medio ha bajado ${Math.abs(d)} puntos esta semana.`,  direction: 'positive' });
+        else if (d >= 0.7) insights.push({ key: 'pain-up', text: `Tu dolor medio ha subido ${d} puntos esta semana.`, direction: 'negative' });
       }
     }
   }
 
-  // 3. Weight stability or trend
+  // 4. Weight stability or trend
   const sortedW = [...data.weightEntries].sort((a, b) => a.date.localeCompare(b.date));
   if (sortedW.length >= 5) {
     const recent  = sortedW.slice(-6);
     const weights = recent.map((e) => e.weightKg);
     const range   = Math.max(...weights) - Math.min(...weights);
     if (range <= 0.7) {
-      insights.push({ key: 'weight-stable', text: `Peso estable (±${(range / 2).toFixed(1)} kg) en las últimas ${recent.length} mediciones.`, direction: 'neutral' });
+      insights.push({ key: 'weight-stable', text: `Peso estable (±${(range / 2).toFixed(1)} kg) durante las últimas ${recent.length} mediciones.`, direction: 'neutral' });
     } else {
       const first4 = sortedW.slice(-8, -4), last4 = sortedW.slice(-4);
       if (first4.length >= 2 && last4.length >= 2) {
         const aF = first4.reduce((s, e) => s + e.weightKg, 0) / first4.length;
         const aL = last4.reduce((s, e) => s + e.weightKg, 0) / last4.length;
         const d  = Number((aL - aF).toFixed(1));
-        if (Math.abs(d) >= 0.5) insights.push({ key: 'weight-trend', text: `Peso ${d > 0 ? '+' : ''}${d} kg en las últimas ${sortedW.slice(-8).length} mediciones.`, direction: d > 0 ? 'negative' : 'positive' });
+        if (Math.abs(d) >= 0.5) insights.push({ key: 'weight-trend', text: `Has ${d > 0 ? 'ganado' : 'perdido'} ${Math.abs(d)} kg en las últimas ${sortedW.slice(-8).length} mediciones.`, direction: d > 0 ? 'negative' : 'positive' });
       }
     }
   }
 
-  // 4. Sleep vs previous week
+  // 5. Sleep vs previous week
   const sleepThis = data.sleepEntries.filter((s) => s.date >= addDays(today, -7));
   const sleepPrev = data.sleepEntries.filter((s) => s.date >= addDays(today, -14) && s.date < addDays(today, -7));
   if (sleepThis.length >= 3 && sleepPrev.length >= 3) {
     const aT = sleepThis.reduce((s, e) => s + e.durationH, 0) / sleepThis.length;
     const aP = sleepPrev.reduce((s, e) => s + e.durationH, 0) / sleepPrev.length;
     const dm = Math.round((aT - aP) * 60);
-    if (dm >= 20)  insights.push({ key: 'sleep-up',   text: `${dm} min más de sueño por noche que la semana pasada.`,        direction: 'positive' });
-    if (dm <= -20) insights.push({ key: 'sleep-down', text: `${Math.abs(dm)} min menos de sueño que la semana pasada.`, direction: 'negative' });
+    if (dm >= 20)  insights.push({ key: 'sleep-up',   text: `Has dormido ${dm} min más de media esta semana.`,        direction: 'positive' });
+    if (dm <= -20) insights.push({ key: 'sleep-down', text: `Has dormido ${Math.abs(dm)} min menos de media esta semana.`, direction: 'negative' });
   }
 
-  // 5. Rehab consistency
+  // 6. Rehab consistency
   let rehabWeeks = 0;
   for (let w = 0; w < 8; w++) {
     const end = addDays(today, -(w * 7));
     if (datesInRange(addDays(end, -6), end).filter((d) => didRehabOn(d, data)).length < 4) break;
     rehabWeeks++;
   }
-  if (rehabWeeks >= 3) insights.push({ key: 'rehab', text: `${rehabWeeks} semanas cumpliendo el objetivo de rehab.`, direction: 'positive' });
+  if (rehabWeeks >= 3) insights.push({ key: 'rehab', text: `Llevas ${rehabWeeks} semanas cumpliendo tu objetivo de rehab.`, direction: 'positive' });
 
   const sorted = [
     ...insights.filter((i) => i.direction === 'positive'),
@@ -483,5 +545,21 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
     ...insights.filter((i) => i.direction === 'negative'),
   ].slice(0, 3);
 
-  return sorted.length > 0 ? sorted : [{ key: 'empty', text: 'Registra datos regularmente para ver tus insights.', direction: 'neutral' }];
+  if (sorted.length > 0) return sorted;
+
+  // MOCK – mostrar cuando hay datos pero aún no hay historial suficiente para comparar
+  const hasAnyData = data.activities.length > 0 || data.weightEntries.length > 0 ||
+    data.sleepEntries.length > 0 || data.injuryLogs.length > 0;
+  if (!hasAnyData) {
+    return [{ key: 'empty', text: 'Registra datos regularmente para ver tus insights.', direction: 'neutral' }];
+  }
+  const seed = today.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const mockPool: TrendItem[] = [
+    { key: 'mock-1', text: 'Has dormido una media de 7h 45min esta semana.',           direction: 'positive' },
+    { key: 'mock-2', text: 'Has completado tus sesiones de entrenamiento esta semana.', direction: 'positive' },
+    { key: 'mock-3', text: 'Peso estable (±0.3 kg) durante los últimos días.',          direction: 'neutral'  },
+    { key: 'mock-4', text: 'Tu dolor medio ha bajado 0.8 puntos esta semana.',          direction: 'positive' },
+    { key: 'mock-5', text: 'Llevas 3 días consecutivos registrando todos tus datos.',   direction: 'positive' },
+  ]; // MOCK
+  return [mockPool[seed % mockPool.length], mockPool[(seed + 1) % mockPool.length]];
 }
