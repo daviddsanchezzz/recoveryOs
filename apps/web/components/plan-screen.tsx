@@ -116,12 +116,20 @@ function gymLabel(muscles: MuscleGroup[]): string {
   return `Gym ${muscles.map((m) => MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m).join(', ')}`;
 }
 
-function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
-  const [type,         setType]         = useState<ActivityType>('gym');
-  const [label,        setLabel]        = useState('Gym');
-  const [time,         setTime]         = useState('');
-  const [muscles,      setMuscles]      = useState<MuscleGroup[]>([]);
-  const [labelEdited,  setLabelEdited]  = useState(false);
+function ActivityPicker({
+  onConfirm,
+  initial,
+  submitLabel = 'Añadir',
+}: {
+  onConfirm: (entry: PlanEntry) => void;
+  initial?: PlanEntry;
+  submitLabel?: string;
+}) {
+  const [type,        setType]        = useState<ActivityType>(initial?.type ?? 'gym');
+  const [label,       setLabel]       = useState(initial?.label ?? 'Gym');
+  const [time,        setTime]        = useState(initial?.time ?? '');
+  const [muscles,     setMuscles]     = useState<MuscleGroup[]>(initial?.muscleGroups ?? []);
+  const [labelEdited, setLabelEdited] = useState(!!initial);
   const labelRef = useRef<HTMLInputElement>(null);
 
   function handleTypeSelect(id: ActivityType, defaultLabel: string) {
@@ -140,20 +148,14 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
     });
   }
 
-  function handleLabelChange(val: string) {
-    setLabel(val);
-    setLabelEdited(true);
-  }
-
-  function handleAdd() {
+  function handleConfirm() {
     if (!label.trim()) return;
-    onAdd({
+    onConfirm({
       type,
       label: label.trim(),
       time: time || undefined,
       muscleGroups: type === 'gym' && muscles.length > 0 ? muscles : undefined,
     });
-    setType('gym'); setLabel('Gym'); setTime(''); setMuscles([]); setLabelEdited(false);
   }
 
   return (
@@ -199,10 +201,10 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
         ref={labelRef}
         type="text"
         value={label}
-        onChange={(e) => handleLabelChange(e.target.value)}
+        onChange={(e) => { setLabel(e.target.value); setLabelEdited(true); }}
         placeholder="Descripción…"
         className="w-full bg-white rounded-2xl px-4 py-3 text-sm text-ink placeholder-ink/30 outline-none shadow-card"
-        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+        onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
       />
 
       {/* Time + confirm */}
@@ -212,10 +214,10 @@ function ActivityPicker({ onAdd }: { onAdd: (entry: PlanEntry) => void }) {
           className="bg-white rounded-2xl px-4 py-3 text-sm text-ink outline-none shadow-card w-[120px] flex-shrink-0"
         />
         <button
-          type="button" onClick={handleAdd} disabled={!label.trim()}
+          type="button" onClick={handleConfirm} disabled={!label.trim()}
           className="flex-1 bg-ink text-white rounded-2xl py-3 text-sm font-semibold disabled:opacity-30"
         >
-          Añadir
+          {submitLabel}
         </button>
       </div>
     </div>
@@ -231,7 +233,7 @@ function AddPlanEntrySheet({ isOpen, dateStr, onClose }: {
   return (
     <Sheet isOpen={isOpen} onClose={onClose}
       title="Añadir actividad" subtitle={cap(dayFullLabel(dateStr))}>
-      <ActivityPicker onAdd={(entry) => { addPlanEntry(dateStr, entry); onClose(); }} />
+      <ActivityPicker onConfirm={(entry) => { addPlanEntry(dateStr, entry); onClose(); }} />
     </Sheet>
   );
 }
@@ -332,72 +334,171 @@ function AddProgramSheet({ isOpen, onClose, userId }: {
 
 // ── Edit template sheet ────────────────────────────────────────────────────
 
+type TemplatePicker =
+  | { mode: 'add';  dayIndex: number }
+  | { mode: 'edit'; dayIndex: number; entryIndex: number };
+
 function EditTemplateSheet({ isOpen, onClose, onApply }: {
   isOpen: boolean; onClose: () => void; onApply: () => void;
 }) {
-  const { template, addTemplateEntry, removeTemplateEntry } = usePlanStore();
-  const [addingDay, setAddingDay] = useState<number | null>(null);
+  const { template, addTemplateEntry, removeTemplateEntry, updateTemplateEntry } = usePlanStore();
+  const [picker, setPicker] = useState<TemplatePicker | null>(null);
   const hasAny = Object.values(template).some((arr) => arr.length > 0);
 
+  function toggleAdd(dayIndex: number) {
+    setPicker((p) =>
+      p?.mode === 'add' && p.dayIndex === dayIndex ? null : { mode: 'add', dayIndex },
+    );
+  }
+
+  function toggleEdit(dayIndex: number, entryIndex: number) {
+    setPicker((p) =>
+      p?.mode === 'edit' && p.dayIndex === dayIndex && p.entryIndex === entryIndex
+        ? null
+        : { mode: 'edit', dayIndex, entryIndex },
+    );
+  }
+
+  function handleConfirm(entry: PlanEntry) {
+    if (!picker) return;
+    if (picker.mode === 'add') {
+      addTemplateEntry(picker.dayIndex, entry);
+    } else {
+      updateTemplateEntry(picker.dayIndex, picker.entryIndex, entry);
+    }
+    setPicker(null);
+  }
+
+  // Close picker when sheet closes
+  useEffect(() => { if (!isOpen) setPicker(null); }, [isOpen]);
+
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Semana base">
+    <Sheet isOpen={isOpen} onClose={onClose} title="Editar semana base">
       <p className="text-sm text-ink/40 -mt-2">
-        Define tus actividades habituales por día. Puedes aplicarlas a cualquier semana como punto de partida.
+        Define tus actividades habituales. Toca una actividad para editarla.
       </p>
 
-      <div className="space-y-1">
+      <div className="space-y-3">
         {DAY_NAMES.map((dayName, i) => {
-          const entries  = template[i] ?? [];
-          const isAdding = addingDay === i;
+          const entries    = template[i] ?? [];
+          const isAddOpen  = picker?.mode === 'add'  && picker.dayIndex === i;
+
           return (
-            <div key={i} className="rounded-3xl bg-canvas overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="text-[11px] font-bold text-ink/40 w-5 uppercase">{DAY_LETTERS[i]}</span>
-                <span className="text-sm font-medium text-ink flex-1">{dayName}</span>
-                <button type="button" onClick={() => setAddingDay(isAdding ? null : i)}
-                  className={`h-7 w-7 rounded-xl flex items-center justify-center transition-colors ${
-                    isAdding ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/40 hover:text-ink'
-                  }`}>
-                  {isAdding ? <X size={13} /> : <Plus size={13} />}
+            <div key={i} className="rounded-3xl bg-white shadow-card overflow-hidden">
+
+              {/* Day header */}
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  entries.length > 0 ? 'bg-ink' : 'bg-canvas'
+                }`}>
+                  <span className={`text-[11px] font-bold uppercase ${entries.length > 0 ? 'text-white' : 'text-ink/30'}`}>
+                    {DAY_LETTERS[i]}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-ink">{dayName}</span>
+                  {entries.length > 0 && (
+                    <p className="text-[10px] text-ink/30 mt-0.5">
+                      {entries.length} actividad{entries.length !== 1 ? 'es' : ''}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleAdd(i)}
+                  className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all ${
+                    isAddOpen ? 'bg-ink text-white' : 'bg-canvas text-ink/40 hover:text-ink'
+                  }`}
+                >
+                  {isAddOpen ? <X size={14} /> : <Plus size={14} />}
                 </button>
               </div>
 
+              {/* Existing entries */}
               {entries.length > 0 && (
-                <div className="px-4 pb-3 space-y-2">
+                <div className="px-3 pb-3 space-y-1.5">
                   {entries.map((entry, j) => {
-                    const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
+                    const Icon     = ACTIVITY_ICONS[entry.type] ?? Target;
+                    const isEditing = picker?.mode === 'edit' && picker.dayIndex === i && picker.entryIndex === j;
                     return (
-                      <div key={j} className="flex items-center gap-2.5 group">
-                        <div className="h-7 w-7 rounded-xl bg-white shadow-card flex items-center justify-center flex-shrink-0">
-                          <Icon size={13} className="text-moss" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm text-ink">{entry.label}</span>
-                          {entry.muscleGroups && entry.muscleGroups.length > 0 && (
-                            <div className="flex gap-1 mt-0.5 flex-wrap">
-                              {entry.muscleGroups.map((m) => (
-                                <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5">
-                                  {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
-                                </span>
-                              ))}
+                      <div key={j}>
+                        {/* Entry row */}
+                        <button
+                          type="button"
+                          onClick={() => toggleEdit(i, j)}
+                          className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all text-left ${
+                            isEditing ? 'bg-ink/8 ring-1 ring-ink/10' : 'bg-canvas hover:bg-ink/5'
+                          }`}
+                        >
+                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isEditing ? 'bg-ink' : 'bg-white shadow-card'
+                          }`}>
+                            <Icon size={14} className={isEditing ? 'text-white' : 'text-moss'} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-ink">{entry.label}</span>
+                            {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                {entry.muscleGroups.map((m) => (
+                                  <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5 leading-none">
+                                    {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {entry.time && (
+                            <div className="flex items-center gap-1 bg-white shadow-card rounded-xl px-2.5 py-1.5 flex-shrink-0">
+                              <Clock size={10} className="text-ink/30" />
+                              <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
                             </div>
                           )}
-                        </div>
-                        <button type="button" onClick={() => removeTemplateEntry(i, j)}
-                          className="h-6 w-6 rounded-lg flex items-center justify-center text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
-                          <X size={11} />
+                          {/* Edit indicator */}
+                          <div className={`h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isEditing ? 'bg-ink/10 text-ink' : 'text-ink/25'
+                          }`}>
+                            <Pencil size={11} />
+                          </div>
+                          {/* Delete — stop propagation so it doesn't open edit */}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); removeTemplateEntry(i, j); if (isEditing) setPicker(null); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeTemplateEntry(i, j); if (isEditing) setPicker(null); }}}
+                            className="h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-colors"
+                          >
+                            <X size={11} />
+                          </div>
                         </button>
+
+                        {/* Inline edit picker */}
+                        {isEditing && (
+                          <div className="mt-2 px-1">
+                            <ActivityPicker
+                              key={`edit-${i}-${j}`}
+                              initial={entry}
+                              submitLabel="Guardar"
+                              onConfirm={handleConfirm}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {isAdding && (
-                <div className="px-4 pb-4">
-                  <ActivityPicker onAdd={(entry) => { addTemplateEntry(i, entry); setAddingDay(null); }} />
+              {/* Add picker */}
+              {isAddOpen && (
+                <div className="px-3 pb-3">
+                  <ActivityPicker
+                    key={`add-${i}`}
+                    submitLabel="Añadir"
+                    onConfirm={handleConfirm}
+                  />
                 </div>
               )}
+
             </div>
           );
         })}

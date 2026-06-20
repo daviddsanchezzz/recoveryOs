@@ -44,6 +44,7 @@ type PlanState = {
 
   addTemplateEntry: (dayIndex: number, entry: PlanEntry) => void;
   removeTemplateEntry: (dayIndex: number, index: number) => void;
+  updateTemplateEntry: (dayIndex: number, index: number, entry: PlanEntry) => void;
 };
 
 export const usePlanStore = create<PlanState>()(
@@ -81,6 +82,13 @@ export const usePlanStore = create<PlanState>()(
           template: {
             ...s.template,
             [dayIndex]: (s.template[dayIndex] ?? []).filter((_, i) => i !== index),
+          },
+        })),
+      updateTemplateEntry: (dayIndex, index, entry) =>
+        set((s) => ({
+          template: {
+            ...s.template,
+            [dayIndex]: (s.template[dayIndex] ?? []).map((e, i) => (i === index ? entry : e)),
           },
         })),
     }),
