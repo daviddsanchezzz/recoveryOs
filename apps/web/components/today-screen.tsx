@@ -5,6 +5,7 @@ import {
   Calendar as CalendarIcon,
   Scale, Zap, Moon, Dumbbell,
   Sparkles, Plus, ChevronRight, Check,
+  Footprints, Flame, TrendingDown, TrendingUp,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -41,6 +42,34 @@ function fmtMins(v: number): string {
   if (h === 0) return `${m}min`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}min`;
+}
+
+// MOCK – sustituir por Apple Health
+function getMockMovement(dateStr: string): { steps: number; kcal: number; goal: number } {
+  const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const steps = 3500 + ((seed * 2654435761) >>> 0) % 7501;
+  return { steps, kcal: Math.round(steps * 0.04), goal: 10000 };
+}
+
+function daysSince(isoDate?: string): number {
+  if (!isoDate) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(isoDate + 'T12:00:00').getTime()) / 86400000));
+}
+
+function sinceLabel(days: number): string {
+  if (days < 7)   return `${days} día${days === 1 ? '' : 's'}`;
+  if (days < 30)  return `${Math.floor(days / 7)} semana${Math.floor(days / 7) === 1 ? '' : 's'}`;
+  if (days < 365) return `${Math.floor(days / 30)} mes${Math.floor(days / 30) === 1 ? '' : 'es'}`;
+  return `${Math.floor(days / 365)} año${Math.floor(days / 365) === 1 ? '' : 's'}`;
+}
+
+function calcDayScore(hasSleep: boolean, hasActivity: boolean, hasWeight: boolean, avgPain: number | null): number {
+  let score = 25;
+  if (hasSleep)    score += 20;
+  if (hasActivity) score += 25;
+  if (hasWeight)   score += 10;
+  score += avgPain === null ? 10 : Math.round(Math.max(0, (10 - avgPain) / 10 * 20));
+  return score;
 }
 
 // ── Reusable daily-log row ────────────────────────────────────────────────────
@@ -154,6 +183,23 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     ? `${avgPainToday ?? '--'}/10 · ${hasRehab ? '✓' : '✗'}`
     : null;
 
+  // ── Day score ────────────────────────────────────────────────────────────
+  const dayScore = calcDayScore(
+    !!todaySleep,
+    dayActivities.length > 0,
+    !!todayWeight,
+    avgPainToday ? parseFloat(avgPainToday) : null,
+  );
+  const scoreConfig =
+    dayScore >= 85 ? { label: 'Excelente',    color: 'text-moss' }
+    : dayScore >= 65 ? { label: 'Buen estado',  color: 'text-moss' }
+    : dayScore >= 45 ? { label: 'Progresando',  color: 'text-ember' }
+    :                  { label: 'Día tranquilo', color: 'text-ink/40' };
+
+  // MOCK – sustituir por Apple Health
+  const mockMovement = getMockMovement(selectedDate);
+  const movPct       = Math.min(100, Math.round((mockMovement.steps / mockMovement.goal) * 100));
+
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
     activeInjuries: injuries, injuryLogs, checkIns, weights: weightEntries,
@@ -196,6 +242,18 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             {isToday ? 'Hoy' : formatShortDate(selectedDate)}
           </p>
           <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
+        </div>
+
+        {/* ── Estado de hoy ─────────────────────────────────── */}
+        <div className="rounded-4xl bg-white shadow-card px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Estado de hoy</p>
+            <p className={`text-base font-bold mt-0.5 ${scoreConfig.color}`}>{scoreConfig.label}</p>
+          </div>
+          <div className="text-right">
+            <p className={`text-3xl font-bold leading-none ${scoreConfig.color}`}>{dayScore}</p>
+            <p className="text-[10px] text-ink/30 mt-0.5">/ 100</p>
+          </div>
         </div>
 
         {/* ── Registros del día ─────────────────────────────── */}
@@ -268,6 +326,36 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
           </div>
         )}
 
+        {/* ── Movimiento de hoy (MOCK — sustituir por Apple Health) ── */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Movimiento de hoy
+          </p>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <Footprints size={14} className="text-ink/40" />
+                  <span className="text-sm font-bold text-ink">{mockMovement.steps.toLocaleString('es-ES')}</span>
+                  <span className="text-xs text-ink/35">pasos</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Flame size={14} className="text-ember" />
+                  <span className="text-sm font-bold text-ink">{mockMovement.kcal}</span>
+                  <span className="text-xs text-ink/35">kcal</span>
+                </div>
+              </div>
+              <span className="text-sm font-bold text-ink">{movPct}%</span>
+            </div>
+            <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+              <div className="bg-moss h-1.5 rounded-full" style={{ width: `${movPct}%` }} />
+            </div>
+            <p className="text-[10px] text-ink/25">
+              Objetivo: {mockMovement.goal.toLocaleString('es-ES')} pasos
+            </p>
+          </div>
+        </div>
+
         {/* ── Active injury status ──────────────────────────── */}
         {activeInjuries.length > 0 && (
           <div className="space-y-2">
@@ -285,26 +373,62 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                 : avgPain <= 3  ? 'text-moss'
                 : avgPain <= 6  ? 'text-ember'
                 : 'text-red-500';
-              let trend: 'mejorando' | 'empeorando' | 'estable' | null = null;
-              if (recent.length >= 4) {
+
+              // Week-over-week pain diff
+              const weekMs   = 7 * 86400000;
+              const nowMs    = Date.now();
+              const thisWeek = logs.filter((l) => nowMs - new Date(l.date + 'T12:00:00').getTime() < weekMs);
+              const lastWeek = logs.filter((l) => {
+                const ms = nowMs - new Date(l.date + 'T12:00:00').getTime();
+                return ms >= weekMs && ms < 2 * weekMs;
+              });
+              const thisAvg  = thisWeek.length ? thisWeek.reduce((s, l) => s + l.painLevel, 0) / thisWeek.length : null;
+              const prevAvg  = lastWeek.length ? lastWeek.reduce((s, l) => s + l.painLevel, 0) / lastWeek.length : null;
+              const painDiff = thisAvg !== null && prevAvg !== null ? +(thisAvg - prevAvg).toFixed(1) : null;
+
+              // Trend fallback when no week-over-week data
+              let trend: 'mejorando' | 'empeorando' | null = null;
+              if (painDiff === null && recent.length >= 4) {
                 const half  = Math.floor(recent.length / 2);
                 const newer = recent.slice(0, half).reduce((s, l) => s + l.painLevel, 0) / half;
                 const older = recent.slice(half).reduce((s, l) => s + l.painLevel, 0) / half;
                 if (newer < older - 0.5)      trend = 'mejorando';
                 else if (newer > older + 0.5) trend = 'empeorando';
-                else                          trend = 'estable';
               }
+
+              const ageDays = daysSince(injury.startDate);
+
               return (
                 <div key={injury.id} className="rounded-3xl bg-white shadow-card p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-ink">{injury.name}</p>
                       {injury.bodyPart && <p className="text-xs text-ink/40 capitalize mt-0.5">{injury.bodyPart}</p>}
-                      {trend && (
-                        <p className={`text-xs mt-1 font-medium ${trend === 'mejorando' ? 'text-moss' : trend === 'empeorando' ? 'text-ember' : 'text-ink/40'}`}>
-                          Tendencia: {trend}
-                        </p>
-                      )}
+                      <p className="text-[10px] text-ink/30 mt-1.5">Activa desde hace {sinceLabel(ageDays)}</p>
+                      {painDiff !== null ? (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {painDiff < 0
+                            ? <TrendingDown size={10} className="text-moss flex-shrink-0" />
+                            : <TrendingUp   size={10} className="text-ember flex-shrink-0" />
+                          }
+                          <p className={`text-[10px] font-medium ${painDiff < 0 ? 'text-moss' : 'text-ember'}`}>
+                            {painDiff < 0
+                              ? `↓ ${Math.abs(painDiff)} pts vs sem. pasada`
+                              : `↑ +${painDiff} pts vs sem. pasada`
+                            }
+                          </p>
+                        </div>
+                      ) : trend ? (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {trend === 'mejorando'
+                            ? <TrendingDown size={10} className="text-moss flex-shrink-0" />
+                            : <TrendingUp   size={10} className="text-ember flex-shrink-0" />
+                          }
+                          <p className={`text-[10px] font-medium ${trend === 'mejorando' ? 'text-moss' : 'text-ember'}`}>
+                            {trend === 'mejorando' ? '↓ Mejorando esta semana' : '↑ Empeorando'}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-2xl font-bold leading-none ${painColor}`}>
