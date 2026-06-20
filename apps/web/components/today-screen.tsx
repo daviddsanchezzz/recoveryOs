@@ -45,10 +45,10 @@ function fmtMins(v: number): string {
 }
 
 // MOCK – sustituir por Apple Health
-function getMockMovement(dateStr: string): { steps: number; kcal: number; goal: number } {
+function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsGoal: number; kcalGoal: number } {
   const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const steps = 3500 + ((seed * 2654435761) >>> 0) % 7501;
-  return { steps, kcal: Math.round(steps * 0.04), goal: 10000 };
+  return { steps, kcal: Math.round(steps * 0.04), stepsGoal: 10000, kcalGoal: 500 };
 }
 
 function daysSince(isoDate?: string): number {
@@ -197,8 +197,9 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     :                  { label: 'Día tranquilo', color: 'text-ink/40' };
 
   // MOCK – sustituir por Apple Health
-  const mockMovement = getMockMovement(selectedDate);
-  const movPct       = Math.min(100, Math.round((mockMovement.steps / mockMovement.goal) * 100));
+  const mockMovement  = getMockMovement(selectedDate);
+  const stepsPct      = Math.min(100, Math.round((mockMovement.steps / mockMovement.stepsGoal) * 100));
+  const kcalPct       = Math.min(100, Math.round((mockMovement.kcal  / mockMovement.kcalGoal)  * 100));
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -331,28 +332,39 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
             Movimiento de hoy
           </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-4">
+            {/* Pasos */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Footprints size={14} className="text-ink/40" />
-                  <span className="text-sm font-bold text-ink">{mockMovement.steps.toLocaleString('es-ES')}</span>
-                  <span className="text-xs text-ink/35">pasos</span>
+                  <Footprints size={13} className="text-ink/40" />
+                  <span className="text-xs text-ink/50">Pasos</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Flame size={14} className="text-ember" />
-                  <span className="text-sm font-bold text-ink">{mockMovement.kcal}</span>
-                  <span className="text-xs text-ink/35">kcal</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-ink">{mockMovement.steps.toLocaleString('es-ES')}</span>
+                  <span className="text-[10px] text-ink/30">/ {mockMovement.stepsGoal.toLocaleString('es-ES')}</span>
                 </div>
               </div>
-              <span className="text-sm font-bold text-ink">{movPct}%</span>
+              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
+              </div>
             </div>
-            <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-              <div className="bg-moss h-1.5 rounded-full" style={{ width: `${movPct}%` }} />
+            {/* Calorías */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Flame size={13} className="text-ember" />
+                  <span className="text-xs text-ink/50">Calorías</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-ink">{mockMovement.kcal}</span>
+                  <span className="text-[10px] text-ink/30">/ {mockMovement.kcalGoal} kcal</span>
+                </div>
+              </div>
+              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                <div className="bg-ember h-1.5 rounded-full" style={{ width: `${kcalPct}%` }} />
+              </div>
             </div>
-            <p className="text-[10px] text-ink/25">
-              Objetivo: {mockMovement.goal.toLocaleString('es-ES')} pasos
-            </p>
           </div>
         </div>
 
