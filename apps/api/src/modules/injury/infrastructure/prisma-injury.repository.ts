@@ -65,13 +65,16 @@ export class PrismaInjuryRepository implements InjuryRepositoryPort {
     return rows.map((r) => Object.assign(toEntity(r), { logs: r.logs.map(toLogEntity) }));
   }
 
-  async updateInjury(id: string, data: Partial<{ name: string; bodyPart: string; description: string; startDate: Date; status: InjuryStatus }>): Promise<InjuryEntity> {
-    const r = await this.prisma.injury.update({ where: { id }, data });
-    return toEntity(r);
+  async updateInjury(id: string, userId: string, data: Partial<{ name: string; bodyPart: string; description: string; startDate: Date; status: InjuryStatus }>): Promise<InjuryEntity | null> {
+    const { count } = await this.prisma.injury.updateMany({ where: { id, userId }, data });
+    if (count === 0) return null;
+    const r = await this.prisma.injury.findUnique({ where: { id } });
+    return r ? toEntity(r) : null;
   }
 
-  async deleteInjury(id: string): Promise<void> {
-    await this.prisma.injury.delete({ where: { id } });
+  async deleteInjury(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.injury.deleteMany({ where: { id, userId } });
+    return count > 0;
   }
 
   async createLog(log: InjuryLogEntity): Promise<InjuryLogEntity> {
@@ -106,7 +109,8 @@ export class PrismaInjuryRepository implements InjuryRepositoryPort {
     return rows.map(toLogEntity);
   }
 
-  async deleteLog(id: string): Promise<void> {
-    await this.prisma.injuryLog.delete({ where: { id } });
+  async deleteLog(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.injuryLog.deleteMany({ where: { id, userId } });
+    return count > 0;
   }
 }

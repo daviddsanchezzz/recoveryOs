@@ -41,12 +41,15 @@ export class PrismaSleepRepository implements SleepRepositoryPort {
     return rows.map(toEntity);
   }
 
-  async update(id: string, data: Partial<{ date: Date; durationH: number; quality: number }>): Promise<SleepEntryEntity> {
-    const r = await this.prisma.sleepEntry.update({ where: { id }, data });
-    return toEntity(r);
+  async update(id: string, userId: string, data: Partial<{ date: Date; durationH: number; quality: number }>): Promise<SleepEntryEntity | null> {
+    const { count } = await this.prisma.sleepEntry.updateMany({ where: { id, userId }, data });
+    if (count === 0) return null;
+    const r = await this.prisma.sleepEntry.findUnique({ where: { id } });
+    return r ? toEntity(r) : null;
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.sleepEntry.delete({ where: { id } });
+  async delete(id: string, userId: string): Promise<boolean> {
+    const { count } = await this.prisma.sleepEntry.deleteMany({ where: { id, userId } });
+    return count > 0;
   }
 }

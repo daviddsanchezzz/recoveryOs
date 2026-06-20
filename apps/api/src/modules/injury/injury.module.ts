@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { CreateInjuryUseCase } from './application/use-cases/create-injury.use-case';
 import { DeleteInjuryLogUseCase } from './application/use-cases/delete-injury-log.use-case';
 import { DeleteInjuryUseCase } from './application/use-cases/delete-injury.use-case';
@@ -10,6 +11,7 @@ import { PrismaInjuryRepository } from './infrastructure/prisma-injury.repositor
 import { InjuryController } from './presentation/injury.controller';
 
 @Module({
+  imports: [AuthModule],
   controllers: [InjuryController],
   providers: [
     CreateInjuryUseCase,

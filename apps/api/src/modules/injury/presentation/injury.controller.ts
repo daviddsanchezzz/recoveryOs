@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { CreateInjuryDto } from '../application/dto/create-injury.dto';
 import { LogPainDto } from '../application/dto/log-pain.dto';
 import { UpdateInjuryDto } from '../application/dto/update-injury.dto';
@@ -8,6 +8,7 @@ import { DeleteInjuryUseCase } from '../application/use-cases/delete-injury.use-
 import { GetUserInjuriesUseCase } from '../application/use-cases/get-user-injuries.use-case';
 import { LogPainUseCase } from '../application/use-cases/log-pain.use-case';
 import { UpdateInjuryUseCase } from '../application/use-cases/update-injury.use-case';
+import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 
 @Controller('injuries')
 export class InjuryController {
@@ -18,6 +19,7 @@ export class InjuryController {
     private readonly deleteInjury: DeleteInjuryUseCase,
     private readonly logPain: LogPainUseCase,
     private readonly deleteInjuryLog: DeleteInjuryLogUseCase,
+    @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
   ) {}
 
   @Post()
@@ -31,13 +33,18 @@ export class InjuryController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateInjuryDto) {
-    return this.updateInjury.execute(id, body);
+  async update(@Param('id') id: string, @Body() body: UpdateInjuryDto, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new UnauthorizedException();
+    return this.updateInjury.execute(id, session.user.id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.deleteInjury.execute(id);
+  @HttpCode(204)
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new UnauthorizedException();
+    return this.deleteInjury.execute(id, session.user.id);
   }
 
   @Post(':injuryId/logs')
@@ -46,7 +53,10 @@ export class InjuryController {
   }
 
   @Delete('logs/:logId')
-  removeLog(@Param('logId') logId: string) {
-    return this.deleteInjuryLog.execute(logId);
+  @HttpCode(204)
+  async removeLog(@Param('logId') logId: string, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new UnauthorizedException();
+    return this.deleteInjuryLog.execute(logId, session.user.id);
   }
 }

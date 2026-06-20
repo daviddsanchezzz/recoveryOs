@@ -8,6 +8,7 @@ export interface InjuryRepositoryPort {
   findInjuriesByUser(userId: string): Promise<(InjuryEntity & { logs: InjuryLogEntity[] })[]>;
   updateInjury(
     id: string,
+    userId: string,
     data: Partial<{
       name: string;
       bodyPart: string;
@@ -15,11 +16,11 @@ export interface InjuryRepositoryPort {
       startDate: Date;
       status: InjuryStatus;
     }>,
-  ): Promise<InjuryEntity>;
-  deleteInjury(id: string): Promise<void>;
+  ): Promise<InjuryEntity | null>;
+  deleteInjury(id: string, userId: string): Promise<boolean>;
 
   createLog(log: InjuryLogEntity): Promise<InjuryLogEntity>;
   findLogsByInjury(injuryId: string): Promise<InjuryLogEntity[]>;
   findLogsByUser(userId: string): Promise<InjuryLogEntity[]>;
-  deleteLog(id: string): Promise<void>;
+  deleteLog(id: string, userId: string): Promise<boolean>;
 }

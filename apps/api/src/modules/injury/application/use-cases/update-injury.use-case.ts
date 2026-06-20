@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { INJURY_REPOSITORY, InjuryRepositoryPort } from '../../domain/injury-repository.port';
 import { UpdateInjuryDto } from '../dto/update-injury.dto';
 
@@ -9,7 +9,9 @@ export class UpdateInjuryUseCase {
     private readonly repository: InjuryRepositoryPort,
   ) {}
 
-  execute(id: string, input: UpdateInjuryDto) {
-    return this.repository.updateInjury(id, input);
+  async execute(id: string, userId: string, input: UpdateInjuryDto) {
+    const result = await this.repository.updateInjury(id, userId, input);
+    if (!result) throw new NotFoundException('Injury not found');
+    return result;
   }
 }

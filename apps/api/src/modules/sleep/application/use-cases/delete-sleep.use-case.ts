@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SLEEP_REPOSITORY, SleepRepositoryPort } from '../../domain/sleep-repository.port';
 
 @Injectable()
@@ -8,7 +8,8 @@ export class DeleteSleepUseCase {
     private readonly repository: SleepRepositoryPort,
   ) {}
 
-  execute(id: string) {
-    return this.repository.delete(id);
+  async execute(id: string, userId: string): Promise<void> {
+    const deleted = await this.repository.delete(id, userId);
+    if (!deleted) throw new NotFoundException('Sleep entry not found');
   }
 }
