@@ -581,32 +581,65 @@ function TemplateReadView({ onEdit }: { onEdit: () => void }) {
   }
 
   return (
-    <div className="rounded-4xl bg-white shadow-card overflow-hidden">
-      {DAY_LETTERS.map((letter, i) => {
+    <div className="space-y-2">
+      {DAY_NAMES.map((dayName, i) => {
         const entries = template[i] ?? [];
+
+        if (entries.length === 0) {
+          return (
+            <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-2xl">
+              <span className="text-[10px] font-bold text-ink/20 uppercase w-4 flex-shrink-0">{DAY_LETTERS[i]}</span>
+              <span className="text-xs text-ink/20">Libre</span>
+            </div>
+          );
+        }
+
         return (
-          <div key={i} className={`flex items-start gap-3 px-5 py-3.5 ${i < 6 ? 'border-b border-ink/5' : ''}`}>
-            <span className="text-[11px] font-bold text-ink/30 w-5 flex-shrink-0 uppercase mt-0.5">{letter}</span>
-            {entries.length === 0 ? (
-              <span className="text-sm text-ink/20">Libre</span>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {entries.map((e, j) => (
-                  <div key={j}>
-                    <span className="text-sm text-ink">{e.label}</span>
-                    {e.muscleGroups && e.muscleGroups.length > 0 && (
-                      <div className="flex gap-1 mt-0.5 flex-wrap">
-                        {e.muscleGroups.map((m) => (
-                          <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-1.5 py-0.5">
-                            {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
-                          </span>
-                        ))}
+          <div key={i} className="rounded-3xl bg-white shadow-card overflow-hidden">
+            {/* Day header */}
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+              <div className="h-8 w-8 rounded-xl bg-ink flex items-center justify-center flex-shrink-0">
+                <span className="text-[11px] font-bold text-white uppercase">{DAY_LETTERS[i]}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold text-ink">{dayName}</span>
+              </div>
+              <span className="text-[10px] font-medium text-ink/25 bg-canvas rounded-xl px-2.5 py-1">
+                {entries.length} {entries.length === 1 ? 'actividad' : 'actividades'}
+              </span>
+            </div>
+
+            {/* Activities */}
+            <div className="px-4 pb-4 space-y-2">
+              {entries.map((entry, j) => {
+                const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
+                return (
+                  <div key={j} className="flex items-start gap-3 bg-canvas rounded-2xl px-3.5 py-3">
+                    <div className="h-8 w-8 rounded-xl bg-white shadow-card flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Icon size={14} className="text-moss" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-ink leading-snug">{entry.label}</span>
+                      {entry.muscleGroups && entry.muscleGroups.length > 0 && (
+                        <div className="flex gap-1 mt-1.5 flex-wrap">
+                          {entry.muscleGroups.map((m) => (
+                            <span key={m} className="text-[9px] font-bold text-moss bg-moss/10 rounded-full px-2 py-0.5 leading-none">
+                              {MUSCLE_GROUPS.find((mg) => mg.id === m)?.label ?? m}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {entry.time && (
+                      <div className="flex items-center gap-1 flex-shrink-0 bg-white shadow-card rounded-xl px-2.5 py-1.5 mt-0.5">
+                        <Clock size={10} className="text-ink/30" />
+                        <span className="text-[11px] font-semibold text-ink/50 tabular-nums">{entry.time}</span>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
         );
       })}
