@@ -308,25 +308,6 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
           </div>
         </div>
 
-        {/* ── Activities detail ─────────────────────────────── */}
-        {dayActivities.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Actividades
-            </p>
-            <div className="space-y-3">
-              {dayActivities.map((act) => (
-                <ActivityCard
-                  key={act.id}
-                  act={act}
-                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
-                  onDelete={(id) => RecoveryService.deleteActivity(id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Movimiento de hoy (MOCK — sustituir por Apple Health) ── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
@@ -367,6 +348,25 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             </div>
           </div>
         </div>
+
+        {/* ── Activities detail ─────────────────────────────── */}
+        {dayActivities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Actividades
+            </p>
+            <div className="space-y-3">
+              {dayActivities.map((act) => (
+                <ActivityCard
+                  key={act.id}
+                  act={act}
+                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
+                  onDelete={(id) => RecoveryService.deleteActivity(id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Active injury status ──────────────────────────── */}
         {activeInjuries.length > 0 && (
