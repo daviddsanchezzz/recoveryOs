@@ -242,6 +242,18 @@ export function ActivityDetailSheet({
   onEdit: (act: ActivityEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [menuOpen]);
+
   if (!act) return null;
 
   const Icon = ACTIVITY_ICONS[act.type] ?? Activity;
@@ -284,13 +296,47 @@ export function ActivityDetailSheet({
                 <p className="text-xs text-ink/40 mt-0.5">{relativeDate(act.date)}</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink/60 transition-colors"
-            >
-              <X size={14} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {/* 3-dot menu */}
+              <div ref={menuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink/60 transition-colors"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-9 z-20 bg-white rounded-2xl shadow-card-lg border border-ink/5 overflow-hidden min-w-[130px]">
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); onClose(); onEdit(act); }}
+                      className="flex items-center gap-2.5 w-full px-4 py-3 text-sm text-ink hover:bg-canvas transition-colors"
+                    >
+                      <Pencil size={13} className="text-ink/40" />
+                      Editar
+                    </button>
+                    <div className="h-px bg-ink/5 mx-3" />
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); onClose(); onDelete(act.id); }}
+                      className="flex items-center gap-2.5 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* Close */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink/60 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Strava name */}
@@ -373,25 +419,6 @@ export function ActivityDetailSheet({
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => { onClose(); onEdit(act); }}
-              className="flex-1 rounded-2xl bg-canvas py-3 text-sm font-medium text-ink flex items-center justify-center gap-2 active:bg-canvas-light transition-colors"
-            >
-              <Pencil size={14} />
-              Editar
-            </button>
-            <button
-              type="button"
-              onClick={() => { onClose(); onDelete(act.id); }}
-              className="flex-1 rounded-2xl bg-red-50 py-3 text-sm font-medium text-red-500 flex items-center justify-center gap-2 active:bg-red-100 transition-colors"
-            >
-              <Trash2 size={14} />
-              Eliminar
-            </button>
-          </div>
         </div>
       </div>
     </div>
