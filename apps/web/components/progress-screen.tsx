@@ -35,6 +35,7 @@ import { ProgressTrends }        from './progress-trends';
 import { ProgressDaySummary }    from './progress-day-summary';
 import { NutricionMockup }       from './nutricion-mockup';
 
+
 // ── Calendar day detail ───────────────────────────────────────────────────────
 
 const ACT_LABELS: Record<string, string> = {
