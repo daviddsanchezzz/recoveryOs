@@ -106,16 +106,19 @@ export class SyncStravaUseCase {
       page++;
     }
 
-    // Write debug log so raw Strava fields can be compared with mapped values
-    try {
-      const logsDir = path.join(process.cwd(), 'logs');
-      fs.mkdirSync(logsDir, { recursive: true });
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      fs.writeFileSync(
-        path.join(logsDir, `strava-debug-${timestamp}.json`),
-        JSON.stringify(debugEntries, null, 2),
-      );
-    } catch { /* non-fatal */ }
+    // Debug log: only when explicitly enabled in non-production environments
+    if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_STRAVA_SYNC === 'true') {
+      try {
+        const logsDir = path.join(process.cwd(), 'logs');
+        fs.mkdirSync(logsDir, { recursive: true });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        fs.writeFileSync(
+          path.join(logsDir, `strava-debug-${timestamp}.json`),
+          JSON.stringify(debugEntries, null, 2),
+          { mode: 0o600 },
+        );
+      } catch { /* non-fatal */ }
+    }
 
     await this.stravaRepo.updateLastSync(userId);
     return { synced };
