@@ -359,7 +359,7 @@ function relativeDate(dateStr: string): string {
   const weekday = d.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
   const month   = d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  return `${cap(weekday)}, ${d.getDate()} ${cap(month)}`;
+  return `${cap(weekday)}, ${d.getDate()} ${cap(month)} ${d.getFullYear()}`;
 }
 
 function fmtPace(secPerKm: number): string {
