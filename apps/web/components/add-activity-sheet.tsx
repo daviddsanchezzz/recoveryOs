@@ -84,6 +84,7 @@ export function AddActivitySheet({
   const [type, setType] = useState<ActivityType | null>(null);
   const [durH,       setDurH]       = useState('');
   const [durM,       setDurM]       = useState('');
+  const [durS,       setDurS]       = useState('');
   const [kcal,       setKcal]       = useState('');
   const [avgHr,      setAvgHr]      = useState('');
   const [notes,      setNotes]      = useState('');
@@ -102,16 +103,21 @@ export function AddActivitySheet({
   const [volumeKg,   setVolumeKg]   = useState('');
   const [saved,      setSaved]      = useState(false);
 
-  const totalDurationMin = parseInt(durH || '0') * 60 + parseInt(durM || '0');
+  const totalDurationMin =
+    parseInt(durH || '0') * 60 + parseInt(durM || '0') + parseInt(durS || '0') / 60;
 
   // Prefill when editing or when a plan entry is passed
   useEffect(() => {
     if (!isOpen) return;
     if (editActivity) {
       setType(editActivity.type);
-      const dm = editActivity.durationMinutes ?? 0;
-      setDurH(dm >= 60 ? String(Math.floor(dm / 60)) : '');
-      setDurM(dm % 60 ? String(dm % 60) : '');
+      const totalSec = Math.round((editActivity.durationMinutes ?? 0) * 60);
+      const dmH = Math.floor(totalSec / 3600);
+      const dmM = Math.floor((totalSec % 3600) / 60);
+      const dmS = totalSec % 60;
+      setDurH(dmH > 0 ? String(dmH) : '');
+      setDurM(dmM > 0 ? String(dmM) : '');
+      setDurS(dmS > 0 ? String(dmS) : '');
       setKcal(editActivity.kcal ? String(editActivity.kcal) : '');
       setAvgHr(editActivity.avgHeartRateBpm ? String(editActivity.avgHeartRateBpm) : '');
       setNotes(editActivity.notes ?? '');
@@ -142,7 +148,7 @@ export function AddActivitySheet({
 
   function reset() {
     setType(null);
-    setDurH(''); setDurM(''); setKcal(''); setAvgHr(''); setNotes(''); setDate(todayIso());
+    setDurH(''); setDurM(''); setDurS(''); setKcal(''); setAvgHr(''); setNotes(''); setDate(todayIso());
     setDistKm(''); setPaceMm(''); setPaceSs(''); setElevGain(''); setCadSpm('');
     setSpeedKmh(''); setPowerW(''); setCadRpm('');
     setDistM(''); setPace100('');
@@ -300,7 +306,7 @@ export function AddActivitySheet({
                 )}
 
                 <div className="flex gap-2">
-                  {/* Duration: h + min */}
+                  {/* Duration: h + min (+ sec for run/walk) */}
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-ink/40 mb-1">Duración</p>
                     <div className="flex items-center gap-1">
@@ -318,6 +324,17 @@ export function AddActivitySheet({
                         className="w-12 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
                       />
                       <span className="text-xs text-ink/35 font-semibold">min</span>
+                      {(type === 'run' || type === 'walk') && (
+                        <>
+                          <input
+                            type="number" inputMode="numeric" min={0} max={59}
+                            value={durS} onChange={(e) => setDurS(e.target.value)}
+                            placeholder="00"
+                            className="w-12 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                          />
+                          <span className="text-xs text-ink/35 font-semibold">s</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <Field label="Calorías" unit="kcal" value={kcal} onChange={setKcal} placeholder="400" />

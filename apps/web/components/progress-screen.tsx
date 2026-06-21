@@ -163,9 +163,13 @@ function fmtPace(secPerKm: number): string {
 }
 
 function fmtDuration(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h ${m}min`;
+  const totalSec = Math.round(min * 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0 && s === 0) return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  if (h > 0) return `${h}h ${m}min ${s}s`;
+  return s === 0 ? `${m}min` : `${m}min ${s}s`;
 }
 
 const PR_CATS = [
@@ -236,7 +240,7 @@ function RunningPRs({ activities, onSelect }: { activities: ActivityEntry[]; onS
   );
 }
 
-function CompletedRaces({ activities }: { activities: ActivityEntry[] }) {
+function CompletedRaces({ activities, onSelect }: { activities: ActivityEntry[]; onSelect: (a: ActivityEntry) => void }) {
   const races = useMemo(
     () =>
       activities
@@ -261,7 +265,8 @@ function CompletedRaces({ activities }: { activities: ActivityEntry[] }) {
       ) : (
         <div className="rounded-4xl bg-white shadow-card divide-y divide-ink/5 overflow-hidden">
           {races.map((race) => (
-            <div key={race.id} className="px-4 py-3.5 flex items-center justify-between">
+            <div key={race.id} onClick={() => onSelect(race)}
+              className="px-4 py-3.5 flex items-center justify-between cursor-pointer active:opacity-60 transition-opacity">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <Trophy size={14} className="text-amber-500" />
@@ -527,7 +532,7 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
           {progressTab === 'actividad' && activityFilter === 'run' && (
             <>
               <RunningPRs activities={allTimeActivities ?? []} onSelect={setDetailActivity} />
-              <CompletedRaces activities={allTimeActivities ?? []} />
+              <CompletedRaces activities={allTimeActivities ?? []} onSelect={setDetailActivity} />
             </>
           )}
         </div>

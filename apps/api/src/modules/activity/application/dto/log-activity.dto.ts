@@ -22,7 +22,7 @@ export class LogActivityDto {
   performedAt!: Date;
 
   // Common
-  @IsOptional() @IsInt() @Min(0)
+  @IsOptional() @IsNumber() @Min(0)
   durationMin?: number;
 
   @IsOptional() @IsInt() @Min(0)

@@ -375,10 +375,13 @@ function fmtPace100m(secPer100m: number): string {
 }
 
 function fmtDuration(min: number): string {
-  if (min < 60) return `${min}min`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  const totalSec = Math.round(min * 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0 && s === 0) return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  if (h > 0) return `${h}h ${m}min ${s}s`;
+  return s === 0 ? `${m}min` : `${m}min ${s}s`;
 }
 
 // ─── Stat row (used in card) ─────────────────────────────────────────────────
