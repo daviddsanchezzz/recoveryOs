@@ -59,6 +59,7 @@ function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityE
   });
 }
 
+
 @Injectable()
 export class SyncStravaUseCase {
   constructor(
