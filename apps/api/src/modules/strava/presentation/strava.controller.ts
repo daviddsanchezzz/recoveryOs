@@ -2,7 +2,7 @@ import {
   Body, Controller, Delete, ForbiddenException, Get, HttpCode,
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
-import { IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
@@ -18,29 +18,6 @@ class SyncBodyDto {
   since?: string;
 }
 
-class StravaWebhookEventDto {
-  @IsString()
-  aspect_type!: string;
-
-  @IsNumber()
-  event_time!: number;
-
-  @IsNumber()
-  object_id!: number;
-
-  @IsString()
-  object_type!: string;
-
-  @IsNumber()
-  owner_id!: number;
-
-  @IsNumber()
-  subscription_id!: number;
-
-  @IsObject()
-  @IsOptional()
-  updates?: Record<string, unknown>;
-}
 
 @Controller('strava')
 export class StravaController {
@@ -134,14 +111,19 @@ export class StravaController {
   // Strava sends activity events here
   @Post('webhook')
   @HttpCode(200)
-  async receiveWebhook(@Body() body: StravaWebhookEventDto) {
-    // Respond 200 immediately — Strava requires response within 2 seconds
+  async receiveWebhook(@Req() req: any) {
+    // Accept raw body — do NOT use StravaWebhookEventDto with global forbidNonWhitelisted
+    // because Strava may evolve their payload and extra fields would return 400
+    const body = req.body ?? {};
+    if (body.object_type !== 'activity' || body.aspect_type !== 'create') {
+      return { status: 'ignored' };
+    }
     void this.handleWebhook.execute({
       objectType: body.object_type,
       aspectType: body.aspect_type,
-      objectId: body.object_id,
-      ownerId: body.owner_id,
-    });
+      objectId: Number(body.object_id),
+      ownerId: Number(body.owner_id),
+    }).catch((err: unknown) => console.error('[StravaWebhook] Unhandled error:', err));
     return { status: 'ok' };
   }
 

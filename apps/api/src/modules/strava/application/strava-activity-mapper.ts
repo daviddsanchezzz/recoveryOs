@@ -29,7 +29,7 @@ export function toActivityEntity(
     type,
     source: 'strava',
     performedAt: new Date(act.start_date),
-    durationMin: Math.round(act.elapsed_time / 60) || null,
+    durationMin: act.elapsed_time ? act.elapsed_time / 60 : null,
     calories,
     avgHeartRate: act.average_heartrate != null && act.average_heartrate > 0 ? Math.round(act.average_heartrate) : null,
     maxHeartRate: act.max_heartrate != null && act.max_heartrate > 0 ? Math.round(act.max_heartrate) : null,
