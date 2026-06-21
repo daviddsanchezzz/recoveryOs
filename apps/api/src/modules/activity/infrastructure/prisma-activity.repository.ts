@@ -30,6 +30,7 @@ function toEntity(row: Activity): ActivityEntity {
     totalVolumeKg:   row.totalVolumeKg,
     stravaId:        row.stravaId,
     stravaName:      row.stravaName,
+    isRace:          row.isRace,
   });
 }
 
@@ -59,6 +60,7 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
             avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW, avgCadenceRpm: p.avgCadenceRpm,
             kilojoules: p.kilojoules, distanceM: p.distanceM, avgPace100mSec: p.avgPace100mSec,
             muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg, stravaName: p.stravaName,
+            isRace: p.isRace ?? false,
           },
           create: {
             id: p.id, userId: p.userId, type: p.type, source: p.source, performedAt: p.performedAt,
@@ -68,7 +70,7 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
             avgCadenceSpm: p.avgCadenceSpm, avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW,
             avgCadenceRpm: p.avgCadenceRpm, kilojoules: p.kilojoules, distanceM: p.distanceM,
             avgPace100mSec: p.avgPace100mSec, muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg,
-            stravaId: p.stravaId, stravaName: p.stravaName,
+            stravaId: p.stravaId, stravaName: p.stravaName, isRace: p.isRace ?? false,
           },
         })
       : await this.prisma.activity.create({
@@ -80,7 +82,7 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
             avgCadenceSpm: p.avgCadenceSpm, avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW,
             avgCadenceRpm: p.avgCadenceRpm, kilojoules: p.kilojoules, distanceM: p.distanceM,
             avgPace100mSec: p.avgPace100mSec, muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg,
-            stravaName: p.stravaName,
+            stravaName: p.stravaName, isRace: p.isRace ?? false,
           },
         });
 
@@ -118,6 +120,11 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
   async findByStravaId(stravaId: string): Promise<ActivityEntity | null> {
     const row = await this.prisma.activity.findUnique({ where: { stravaId } });
     return row ? toEntity(row) : null;
+  }
+
+  async setIsRace(id: string, userId: string, isRace: boolean): Promise<boolean> {
+    const { count } = await this.prisma.activity.updateMany({ where: { id, userId }, data: { isRace } });
+    return count > 0;
   }
 
   async findByUserFrom(userId: string, since: Date): Promise<ActivityEntity[]> {

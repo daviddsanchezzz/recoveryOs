@@ -5,6 +5,7 @@ import { GetActivitiesPaginatedUseCase } from './application/use-cases/get-activ
 import { GetActivitySummaryUseCase } from './application/use-cases/get-activity-summary.use-case';
 import { GetTodayActivitiesUseCase } from './application/use-cases/get-today-activities.use-case';
 import { LogActivityUseCase } from './application/use-cases/log-activity.use-case';
+import { SetIsRaceUseCase } from './application/use-cases/set-is-race.use-case';
 import { ACTIVITY_REPOSITORY } from './domain/activity-repository.port';
 import { PrismaActivityRepository } from './infrastructure/prisma-activity.repository';
 import { ActivityController } from './presentation/activity.controller';
@@ -18,6 +19,7 @@ import { ActivityController } from './presentation/activity.controller';
     GetActivitiesPaginatedUseCase,
     GetTodayActivitiesUseCase,
     DeleteActivityUseCase,
+    SetIsRaceUseCase,
     PrismaActivityRepository,
     {
       provide: ACTIVITY_REPOSITORY,

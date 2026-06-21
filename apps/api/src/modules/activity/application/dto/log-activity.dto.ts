@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import {
-  IsArray, IsDate, IsInt, IsNumber, IsOptional,
+  IsArray, IsBoolean, IsDate, IsInt, IsNumber, IsOptional,
   IsString, Min,
 } from 'class-validator';
 
@@ -84,4 +84,8 @@ export class LogActivityDto {
 
   @IsOptional() @IsString()
   stravaName?: string;
+
+  // Race flag
+  @IsOptional() @IsBoolean()
+  isRace?: boolean;
 }

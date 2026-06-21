@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe } from 'lucide-react';
+import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe, Trophy, Timer, Flag } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { RecoveryService } from '../lib/services';
@@ -149,6 +149,136 @@ function CalendarDayDetail({ tab, date, data }: {
     <div className="rounded-3xl bg-white shadow-card px-5 py-4 space-y-2 animate-fade-in">
       <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">{label}</p>
       {body}
+    </div>
+  );
+}
+
+// ── Running PRs ───────────────────────────────────────────────────────────────
+
+function fmtPace(secPerKm: number): string {
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return `${m}:${String(s).padStart(2, '0')}/km`;
+}
+
+function fmtDuration(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h ${m}min`;
+}
+
+const PR_CATS = [
+  { label: '5K',   min: 4.5,  max: 6.5  },
+  { label: '10K',  min: 9.5,  max: 12.0 },
+  { label: '21K',  min: 19.5, max: 23.0 },
+  { label: '42K',  min: 40.0, max: 44.0 },
+];
+
+function RunningPRs({ activities }: { activities: ActivityEntry[] }) {
+  const prs = useMemo(() => {
+    const runs = activities.filter(
+      (a) => a.type === 'run' && a.avgPaceSecPerKm && a.distanceKm,
+    );
+    return PR_CATS.map((cat) => {
+      const matching = runs.filter(
+        (a) => a.distanceKm! >= cat.min && a.distanceKm! <= cat.max,
+      );
+      if (matching.length === 0) return { ...cat, best: null };
+      const best = matching.reduce((a, b) =>
+        a.avgPaceSecPerKm! < b.avgPaceSecPerKm! ? a : b,
+      );
+      return { ...cat, best };
+    });
+  }, [activities]);
+
+  const hasPRs = prs.some((p) => p.best);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">
+        Mejores marcas
+      </p>
+      <div className="rounded-4xl bg-white shadow-card px-4 py-4 space-y-3">
+        {hasPRs ? prs.map((p) => (
+          <div key={p.label} className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-xl bg-canvas flex items-center justify-center">
+                <Timer size={13} className={p.best ? 'text-moss' : 'text-ink/20'} />
+              </div>
+              <span className="text-sm font-semibold text-ink">{p.label}</span>
+            </div>
+            {p.best ? (
+              <div className="text-right">
+                <p className="text-sm font-bold text-ink tabular-nums">
+                  {fmtPace(p.best.avgPaceSecPerKm!)}
+                </p>
+                <p className="text-[10px] text-ink/35">
+                  {p.best.distanceKm!.toFixed(1)} km
+                  {p.best.durationMinutes ? ` · ${fmtDuration(p.best.durationMinutes)}` : ''}
+                </p>
+              </div>
+            ) : (
+              <span className="text-sm text-ink/20">—</span>
+            )}
+          </div>
+        )) : (
+          <p className="text-sm text-ink/30 text-center py-2">
+            Registra carreras con distancia y ritmo para ver tus marcas
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CompletedRaces({ activities }: { activities: ActivityEntry[] }) {
+  const races = useMemo(
+    () =>
+      activities
+        .filter((a) => a.type === 'run' && a.isRace)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [activities],
+  );
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">
+        Carreras completadas
+      </p>
+      {races.length === 0 ? (
+        <div className="rounded-4xl bg-white shadow-card px-4 py-5 flex flex-col items-center gap-1.5 text-center">
+          <Flag size={20} className="text-ink/15" />
+          <p className="text-sm text-ink/30">Sin carreras registradas</p>
+          <p className="text-xs text-ink/20">
+            Marca una actividad de correr como carrera desde el detalle de la actividad
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-4xl bg-white shadow-card divide-y divide-ink/5 overflow-hidden">
+          {races.map((race) => (
+            <div key={race.id} className="px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <Trophy size={14} className="text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-ink leading-snug">
+                    {race.stravaName ?? new Date(race.date + 'T12:00:00').toLocaleDateString('es-ES', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </p>
+                  <p className="text-[11px] text-ink/35">
+                    {race.distanceKm ? `${race.distanceKm.toFixed(1)} km` : ''}
+                    {race.distanceKm && race.durationMinutes ? ' · ' : ''}
+                    {race.durationMinutes ? fmtDuration(race.durationMinutes) : ''}
+                    {race.avgPaceSecPerKm ? ` · ${fmtPace(race.avgPaceSecPerKm)}` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -376,6 +506,14 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
 
           {/* 5 — Trends */}
           <ProgressTrends trends={trends} />
+
+          {/* 6 — Running PRs + Races (only when run filter is active) */}
+          {progressTab === 'actividad' && activityFilter === 'run' && (
+            <>
+              <RunningPRs activities={storeData.activities} />
+              <CompletedRaces activities={storeData.activities} />
+            </>
+          )}
         </div>
       )}
 

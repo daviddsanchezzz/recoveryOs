@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   SportShoe, Bike, Dumbbell, Footprints, Waves, RefreshCw, LayoutGrid, Activity,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
-  MoreHorizontal, Pencil, Trash2, X,
+  MoreHorizontal, Pencil, Trash2, X, Trophy,
 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
@@ -243,7 +243,11 @@ export function ActivityDetailSheet({
   onEdit: (act: ActivityEntry) => void;
   onDelete: (id: string) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [isRace,    setIsRace]    = useState(act?.isRace ?? false);
+  const [raceBusy,  setRaceBusy]  = useState(false);
+
+  useEffect(() => { setIsRace(act?.isRace ?? false); }, [act?.id, act?.isRace]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -419,6 +423,36 @@ export function ActivityDetailSheet({
               </p>
               <p className="text-sm text-ink/60 leading-relaxed">{act.notes}</p>
             </div>
+          )}
+
+          {/* Race toggle — only for running activities */}
+          {act.type === 'run' && (
+            <button
+              type="button"
+              disabled={raceBusy}
+              onClick={async () => {
+                setRaceBusy(true);
+                const next = !isRace;
+                setIsRace(next);
+                await RecoveryService.setIsRace(act.id, next);
+                setRaceBusy(false);
+              }}
+              className={`w-full flex items-center justify-between rounded-2xl px-4 py-3.5 transition-colors ${
+                isRace
+                  ? 'bg-amber-50 border border-amber-200'
+                  : 'bg-canvas border border-ink/5'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Trophy size={16} className={isRace ? 'text-amber-500' : 'text-ink/25'} />
+                <span className={`text-sm font-semibold ${isRace ? 'text-amber-700' : 'text-ink/50'}`}>
+                  Marcar como carrera
+                </span>
+              </div>
+              <div className={`h-5 w-9 rounded-full transition-colors flex items-center px-0.5 ${isRace ? 'bg-amber-500' : 'bg-ink/15'}`}>
+                <div className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${isRace ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </button>
           )}
 
         </div>

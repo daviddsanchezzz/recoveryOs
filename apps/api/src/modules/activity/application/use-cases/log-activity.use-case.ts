@@ -36,6 +36,7 @@ export class LogActivityUseCase {
       totalVolumeKg:  input.totalVolumeKg   ?? null,
       stravaId:       input.stravaId        ?? null,
       stravaName:     input.stravaName      ?? null,
+      isRace:         input.isRace          ?? false,
     });
 
     return this.repository.create(entry);

@@ -28,6 +28,7 @@ type ServerActivity = {
   totalVolumeKg?: number | null;
   stravaId?: string | null;
   stravaName?: string | null;
+  isRace?: boolean | null;
 };
 
 type ServerInjury = {
@@ -83,6 +84,7 @@ function mapServerActivity(a: ServerActivity): ActivityEntry {
     totalVolumeKg:    a.totalVolumeKg ?? undefined,
     stravaId:         a.stravaId ? Number(a.stravaId) : undefined,
     stravaName:       a.stravaName ?? undefined,
+    isRace:           a.isRace ?? false,
   };
 }
 
@@ -178,7 +180,16 @@ export const RecoveryService = {
         totalVolumeKg:   data.totalVolumeKg,
         stravaId:        data.stravaId ? String(data.stravaId) : undefined,
         stravaName:      data.stravaName,
+        isRace:          data.isRace ?? false,
       }).catch(() => toast.error('No se pudo guardar la actividad. Inténtalo de nuevo.'));
+    }
+  },
+
+  async setIsRace(id: string, isRace: boolean): Promise<void> {
+    useRecoveryStore.getState().updateActivityIsRace(id, isRace);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      await patchJson(`/activities/${id}/is-race`, { isRace });
     }
   },
 

@@ -87,6 +87,9 @@ export type ActivityEntry = {
   // Strava integration
   stravaId?: number;
   stravaName?: string;
+
+  // Race flag
+  isRace?: boolean;
 };
 
 export type DailyHabits = {
@@ -157,6 +160,7 @@ type RecoveryState = {
   removeWeightEntry: (id: string) => void;
   addActivity: (input: ActivityEntry) => void;
   removeActivity: (id: string) => void;
+  updateActivityIsRace: (id: string, isRace: boolean) => void;
   logInjuryPain: (input: Omit<InjuryLog, 'id'> & { id?: string }) => void;
   removeInjuryLog: (id: string) => void;
   setProfile: (input: Partial<ProfileState>) => void;
@@ -270,6 +274,8 @@ export const useRecoveryStore = create<RecoveryState>()(
         set((state) => ({ weightEntries: state.weightEntries.filter((w) => w.id !== id) })),
       removeActivity: (id) =>
         set((state) => ({ activities: state.activities.filter((a) => a.id !== id) })),
+      updateActivityIsRace: (id, isRace) =>
+        set((state) => ({ activities: state.activities.map((a) => a.id === id ? { ...a, isRace } : a) })),
       addActivity: (input) =>
         set((state) => ({
           activities: [

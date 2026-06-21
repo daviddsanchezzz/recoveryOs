@@ -37,6 +37,9 @@ export interface ActivityProps {
   // Strava
   stravaId?: string | null;
   stravaName?: string | null;
+
+  // Race flag
+  isRace?: boolean | null;
 }
 
 export class ActivityEntity {

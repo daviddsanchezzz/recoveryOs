@@ -185,6 +185,9 @@ model Activity {
   stravaId       String?  @unique // Strava activity ID — used for deduplication
   stravaName     String?          // activity name from Strava
 
+  // Race flag
+  isRace         Boolean  @default(false)
+
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, performedAt])
