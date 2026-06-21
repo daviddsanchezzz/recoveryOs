@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { STRAVA_REPOSITORY, StravaRepositoryPort } from '../../domain/strava-repository.port';
 import { StravaApiClient, StravaActivitySummary } from '../../infrastructure/strava-api.client';
@@ -87,6 +89,7 @@ export class SyncStravaUseCase {
 
     let page = 1;
     let synced = 0;
+    const debugEntries: unknown[] = [];
 
     while (true) {
       const activities = await this.api.fetchActivities(token.accessToken, after, page);
@@ -94,6 +97,7 @@ export class SyncStravaUseCase {
 
       for (const act of activities) {
         const entity = toActivityEntity(userId, act);
+        debugEntries.push({ raw: act, mapped: entity.props });
         await this.activityRepo.create(entity);
         synced++;
       }
@@ -101,6 +105,17 @@ export class SyncStravaUseCase {
       if (activities.length < 200) break;
       page++;
     }
+
+    // Write debug log so raw Strava fields can be compared with mapped values
+    try {
+      const logsDir = path.join(process.cwd(), 'logs');
+      fs.mkdirSync(logsDir, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      fs.writeFileSync(
+        path.join(logsDir, `strava-debug-${timestamp}.json`),
+        JSON.stringify(debugEntries, null, 2),
+      );
+    } catch { /* non-fatal */ }
 
     await this.stravaRepo.updateLastSync(userId);
     return { synced };
