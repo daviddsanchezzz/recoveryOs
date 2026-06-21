@@ -1,5 +1,5 @@
 import {
-  Controller, Delete, ForbiddenException, Get, HttpCode,
+  Body, Controller, Delete, ForbiddenException, Get, HttpCode,
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
@@ -70,10 +70,10 @@ export class StravaController {
 
   @Post('sync')
   @HttpCode(200)
-  async sync(@Req() req: any) {
+  async sync(@Req() req: any, @Body() body: { since?: string }) {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
-    return this.syncStrava.execute(session.user.id);
+    return this.syncStrava.execute(session.user.id, body.since);
   }
 
   @Delete('disconnect')

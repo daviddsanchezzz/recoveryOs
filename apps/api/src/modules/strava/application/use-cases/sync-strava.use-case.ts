@@ -65,11 +65,10 @@ export class SyncStravaUseCase {
     private readonly api: StravaApiClient,
   ) {}
 
-  async execute(userId: string): Promise<{ synced: number }> {
+  async execute(userId: string, since?: string): Promise<{ synced: number }> {
     let token = await this.stravaRepo.findTokenByUser(userId);
     if (!token) throw new NotFoundException('Strava not connected');
 
-    // Refresh token if expired
     if (token.isExpired) {
       const refreshed = await this.api.refreshAccessToken(token.refreshToken);
       await this.stravaRepo.updateToken(userId, {
@@ -80,10 +79,11 @@ export class SyncStravaUseCase {
       token.accessToken = refreshed.access_token;
     }
 
-    // Fetch activities since last sync (or all if first sync)
-    const after = token.lastSyncAt
-      ? Math.floor(token.lastSyncAt.getTime() / 1000)
-      : undefined;
+    const after = since
+      ? Math.floor(new Date(since).getTime() / 1000)
+      : token.lastSyncAt
+        ? Math.floor(token.lastSyncAt.getTime() / 1000)
+        : undefined;
 
     let page = 1;
     let synced = 0;
