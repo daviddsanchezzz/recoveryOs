@@ -3,7 +3,7 @@ import {
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
 import { IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
-import { randomBytes } from 'crypto';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
 import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
@@ -146,12 +146,16 @@ export class StravaController {
   }
 
   // One-time admin call to register the webhook subscription with Strava
-  // Protected by the verify token itself — only someone who knows the secret can call it
+  // Protected via header (not logged) with constant-time comparison
   @Post('webhook/subscribe')
   @HttpCode(200)
-  async subscribeWebhook(@Query('token') token: string) {
+  async subscribeWebhook(@Req() req: any) {
+    const token: string = req.headers['x-admin-token'] ?? '';
     const verifyToken = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
-    if (!verifyToken || token !== verifyToken) throw new ForbiddenException();
+    if (!verifyToken) throw new ForbiddenException();
+    const a = Buffer.from(token ?? '', 'utf8');
+    const b = Buffer.from(verifyToken, 'utf8');
+    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ForbiddenException();
 
     // Derive API base from STRAVA_REDIRECT_URI (e.g. https://api.railway.app/api/strava/callback → https://api.railway.app)
     const redirectUri = process.env.STRAVA_REDIRECT_URI ?? '';
