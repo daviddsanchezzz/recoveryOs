@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ActivityModule } from '../activity/activity.module';
 import { AuthModule } from '../auth/auth.module';
+import { PushModule } from '../push/push.module';
 import { HandleStravaCallbackUseCase } from './application/use-cases/handle-strava-callback.use-case';
 import { GetStravaStatusUseCase } from './application/use-cases/get-strava-status.use-case';
 import { SyncStravaUseCase } from './application/use-cases/sync-strava.use-case';
@@ -12,7 +13,7 @@ import { StravaApiClient } from './infrastructure/strava-api.client';
 import { StravaController } from './presentation/strava.controller';
 
 @Module({
-  imports: [AuthModule, ActivityModule],
+  imports: [AuthModule, ActivityModule, PushModule],
   controllers: [StravaController],
   providers: [
     HandleStravaCallbackUseCase,

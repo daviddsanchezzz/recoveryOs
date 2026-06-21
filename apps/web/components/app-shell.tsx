@@ -14,6 +14,7 @@ import { useSessionStore }    from '../stores/session-store';
 import { getJson }            from '../lib/api';
 import { RecoveryService }    from '../lib/services';
 import { todayIso }           from '../lib/date';
+import { registerServiceWorker } from '../lib/push';
 import type { TabId }         from './bottom-nav';
 
 export function AppShell() {
@@ -29,6 +30,8 @@ export function AppShell() {
   const user      = useSessionStore((state) => state.user);
   const setUser   = useSessionStore((state) => state.setUser);
   const clearUser = useSessionStore((state) => state.clearUser);
+
+  useEffect(() => { void registerServiceWorker(); }, []);
 
   useEffect(() => {
     let cancelled = false;

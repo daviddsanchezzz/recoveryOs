@@ -1,19 +1,27 @@
 'use client';
 
 import { Bell } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { AvatarDrawer } from './avatar-drawer';
 import { NotificationPanel } from './notification-panel';
+import { getJson } from '../lib/api';
 
 export function GlobalHeader() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [notifOpen, setNotifOpen]   = useState(false);
-  const [hasUnread, setHasUnread]   = useState(true);
+  const [hasUnread, setHasUnread]   = useState(false);
 
   const user    = useSessionStore((s) => s.user);
   const profile = useRecoveryStore((s) => s.profile);
+
+  useEffect(() => {
+    if (!user) return;
+    void getJson<{ id: string; read: boolean }[]>('/push/notifications')
+      .then((data) => setHasUnread((data ?? []).some((n) => !n.read)))
+      .catch(() => {});
+  }, [user]);
 
   const displayName = profile.name || user?.name || '';
   const initials = displayName
@@ -22,6 +30,11 @@ export function GlobalHeader() {
 
   function openNotif() {
     setNotifOpen(true);
+    setHasUnread(false);
+  }
+
+  function handleNotifClose() {
+    setNotifOpen(false);
     setHasUnread(false);
   }
 
@@ -63,8 +76,8 @@ export function GlobalHeader() {
         </div>
       </header>
 
-      <AvatarDrawer   isOpen={avatarOpen} onClose={() => setAvatarOpen(false)} />
-      <NotificationPanel isOpen={notifOpen}  onClose={() => setNotifOpen(false)} />
+      <AvatarDrawer      isOpen={avatarOpen} onClose={() => setAvatarOpen(false)} />
+      <NotificationPanel isOpen={notifOpen}  onClose={handleNotifClose} />
     </>
   );
 }

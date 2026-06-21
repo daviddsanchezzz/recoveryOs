@@ -9,6 +9,7 @@ import { NutritionModule } from './modules/nutrition/nutrition.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { SleepModule } from './modules/sleep/sleep.module';
 import { StravaModule } from './modules/strava/strava.module';
+import { PushModule } from './modules/push/push.module';
 import { WeeklySummaryModule } from './modules/weekly-summary/weekly-summary.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
@@ -28,6 +29,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     WeeklySummaryModule,
     PlanModule,
     StravaModule,
+    PushModule,
   ],
 })
 export class AppModule {}

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { STRAVA_REPOSITORY, StravaRepositoryPort } from '../../domain/strava-repository.port';
 import { StravaApiClient } from '../../infrastructure/strava-api.client';
 import { ACTIVITY_REPOSITORY, ActivityRepositoryPort } from '../../../activity/domain/activity-repository.port';
+import { PushService } from '../../../push/push.service';
 import { toActivityEntity } from '../strava-activity-mapper';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class HandleStravaWebhookUseCase {
     @Inject(STRAVA_REPOSITORY) private readonly stravaRepo: StravaRepositoryPort,
     @Inject(ACTIVITY_REPOSITORY) private readonly activityRepo: ActivityRepositoryPort,
     private readonly api: StravaApiClient,
+    private readonly push: PushService,
   ) {}
 
   async execute(event: {
@@ -41,6 +43,13 @@ export class HandleStravaWebhookUseCase {
     const calories = detail.calories != null && detail.calories > 0 ? Math.round(detail.calories) : null;
     const entity = toActivityEntity(token.userId, detail, calories);
     await this.activityRepo.create(entity);
+
+    const activityLabel = detail.name || 'Actividad';
+    void this.push.sendToUser(token.userId, {
+      title: 'Nueva actividad desde Strava',
+      body:  activityLabel,
+      type:  'strava_activity',
+    }).catch((err: unknown) => console.error('[StravaWebhook] Push failed:', err));
 
     console.log('[StravaWebhook] Activity %s saved for user %s', event.objectId, token.userId);
   }
