@@ -4,12 +4,12 @@ import {
 } from '@nestjs/common';
 import { IsOptional, IsString } from 'class-validator';
 import { randomBytes } from 'crypto';
+import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 
 class SyncBodyDto {
   @IsOptional() @IsString()
   since?: string;
 }
-import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
 import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
 import { SyncStravaUseCase } from '../application/use-cases/sync-strava.use-case';

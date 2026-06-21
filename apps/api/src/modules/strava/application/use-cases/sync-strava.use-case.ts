@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { STRAVA_REPOSITORY, StravaRepositoryPort } from '../../domain/strava-repository.port';
 import { StravaApiClient, StravaActivitySummary } from '../../infrastructure/strava-api.client';
@@ -39,17 +37,14 @@ function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityE
     maxHeartRate: act.max_heartrate != null && act.max_heartrate > 0 ? Math.round(act.max_heartrate) : null,
     distanceKm: act.distance != null && act.distance > 0 ? act.distance / 1000 : null,
     elevationGainM: act.total_elevation_gain != null && act.total_elevation_gain > 0 ? act.total_elevation_gain : null,
-    // Run/walk
     avgPaceSecPerKm: isRun && act.average_speed && act.average_speed > 0
       ? 1000 / act.average_speed
       : null,
     avgCadenceSpm: isRun && act.average_cadence ? Math.round(act.average_cadence) : null,
-    // Bike
     avgSpeedKmh: isBike && act.average_speed ? act.average_speed * 3.6 : null,
     avgPowerW: isBike && act.average_watts ? Math.round(act.average_watts) : null,
     avgCadenceRpm: isBike && act.average_cadence ? Math.round(act.average_cadence) : null,
     kilojoules: isBike && act.kilojoules ? act.kilojoules : null,
-    // Swim
     distanceM: isSwim && act.distance ? Math.round(act.distance) : null,
     avgPace100mSec: isSwim && act.average_speed && act.average_speed > 0
       ? 100 / act.average_speed
@@ -58,7 +53,6 @@ function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityE
     stravaName: act.name,
   });
 }
-
 
 @Injectable()
 export class SyncStravaUseCase {
@@ -88,37 +82,33 @@ export class SyncStravaUseCase {
         ? Math.floor(token.lastSyncAt.getTime() / 1000)
         : undefined;
 
+    console.log('[StravaSync] since=%s after=%s', since ?? 'none', after ?? 'none');
+
     let page = 1;
     let synced = 0;
-    const debugEntries: unknown[] = [];
 
     while (true) {
       const activities = await this.api.fetchActivities(token.accessToken, after, page);
       if (activities.length === 0) break;
 
       for (const act of activities) {
+        console.log('[StravaSync] raw activity:', JSON.stringify({
+          id: act.id,
+          name: act.name,
+          sport_type: act.sport_type,
+          calories: act.calories,
+          average_heartrate: act.average_heartrate,
+          max_heartrate: act.max_heartrate,
+          elapsed_time: act.elapsed_time,
+          distance: act.distance,
+        }));
         const entity = toActivityEntity(userId, act);
-        debugEntries.push({ raw: act, mapped: entity.props });
         await this.activityRepo.create(entity);
         synced++;
       }
 
       if (activities.length < 200) break;
       page++;
-    }
-
-    // Debug log: only when explicitly enabled in non-production environments
-    if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_STRAVA_SYNC === 'true') {
-      try {
-        const logsDir = path.join(process.cwd(), 'logs');
-        fs.mkdirSync(logsDir, { recursive: true });
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        fs.writeFileSync(
-          path.join(logsDir, `strava-debug-${timestamp}.json`),
-          JSON.stringify(debugEntries, null, 2),
-          { mode: 0o600 },
-        );
-      } catch { /* non-fatal */ }
     }
 
     await this.stravaRepo.updateLastSync(userId);
