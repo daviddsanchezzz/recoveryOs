@@ -2,7 +2,13 @@ import {
   Body, Controller, Delete, ForbiddenException, Get, HttpCode,
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 import { randomBytes } from 'crypto';
+
+class SyncBodyDto {
+  @IsOptional() @IsString()
+  since?: string;
+}
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
 import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
@@ -70,7 +76,7 @@ export class StravaController {
 
   @Post('sync')
   @HttpCode(200)
-  async sync(@Req() req: any, @Body() body: { since?: string }) {
+  async sync(@Req() req: any, @Body() body: SyncBodyDto) {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
     return this.syncStrava.execute(session.user.id, body.since);
