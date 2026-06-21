@@ -18,7 +18,7 @@ function mapType(stravaType: string): string {
   return TYPE_MAP[stravaType] ?? 'other';
 }
 
-function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityEntity {
+function toActivityEntity(userId: string, act: StravaActivitySummary, calories: number | null): ActivityEntity {
   const sportType = act.sport_type || act.type;
   const type = mapType(sportType);
   const isRun  = type === 'run';
@@ -32,7 +32,7 @@ function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityE
     source: 'strava',
     performedAt: new Date(act.start_date),
     durationMin: Math.round(act.elapsed_time / 60) || null,
-    calories: act.calories != null && act.calories > 0 ? Math.round(act.calories) : null,
+    calories,
     avgHeartRate: act.average_heartrate != null && act.average_heartrate > 0 ? Math.round(act.average_heartrate) : null,
     maxHeartRate: act.max_heartrate != null && act.max_heartrate > 0 ? Math.round(act.max_heartrate) : null,
     distanceKm: act.distance != null && act.distance > 0 ? act.distance / 1000 : null,
@@ -92,17 +92,14 @@ export class SyncStravaUseCase {
       if (activities.length === 0) break;
 
       for (const act of activities) {
-        console.log('[StravaSync] raw activity:', JSON.stringify({
-          id: act.id,
-          name: act.name,
-          sport_type: act.sport_type,
-          calories: act.calories,
-          average_heartrate: act.average_heartrate,
-          max_heartrate: act.max_heartrate,
-          elapsed_time: act.elapsed_time,
-          distance: act.distance,
-        }));
-        const entity = toActivityEntity(userId, act);
+        let calories: number | null = null;
+        try {
+          const detail = await this.api.fetchActivityDetail(token.accessToken, act.id);
+          calories = detail.calories != null && detail.calories > 0 ? Math.round(detail.calories) : null;
+        } catch { /* non-fatal */ }
+
+        console.log('[StravaSync] activity %s calories=%s max_hr=%s', act.name, calories, act.max_heartrate);
+        const entity = toActivityEntity(userId, act, calories);
         await this.activityRepo.create(entity);
         synced++;
       }

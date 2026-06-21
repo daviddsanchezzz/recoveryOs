@@ -89,4 +89,15 @@ export class StravaApiClient {
     if (!res.ok) throw new Error(`Strava fetch activities failed: ${res.status}`);
     return res.json() as Promise<StravaActivitySummary[]>;
   }
+
+  async fetchActivityDetail(
+    accessToken: string,
+    activityId: number,
+  ): Promise<{ calories?: number }> {
+    const res = await fetch(`${STRAVA_BASE}/api/v3/activities/${activityId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) throw new Error(`Strava fetch activity detail failed: ${res.status}`);
+    return res.json() as Promise<{ calories?: number }>;
+  }
 }
