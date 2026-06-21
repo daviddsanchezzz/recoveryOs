@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   SportShoe, Bike, Dumbbell, Footprints, Waves, RefreshCw, LayoutGrid, Activity,
   Plus, Clock, Flame, Heart, Mountain, Gauge, Bolt, Loader2,
-  MoreHorizontal, Pencil, Trash2, X, Trophy,
+  MoreHorizontal, Pencil, Trash2, X, Trophy, Search, SlidersHorizontal,
 } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
@@ -49,6 +49,306 @@ const FILTERS: { id: Filter; label: string; Icon: React.ElementType }[] = [
   { id: 'walk', label: 'Caminar',  Icon: Footprints },
   { id: 'swim', label: 'Natación', Icon: Waves      },
 ];
+
+type DateRange = 'all' | 'week' | 'month' | '3months' | 'year';
+type Source    = 'all' | 'strava' | 'manual';
+
+const DATE_RANGE_OPTS: { id: DateRange; label: string }[] = [
+  { id: 'all',     label: 'Todo' },
+  { id: 'week',    label: 'Esta semana' },
+  { id: 'month',   label: 'Este mes' },
+  { id: '3months', label: 'Últimos 3 meses' },
+  { id: 'year',    label: 'Este año' },
+];
+
+type AdvancedFilters = {
+  dateRange:      DateRange;
+  specificDate:   string;        // YYYY-MM-DD — overrides dateRange when set
+  minDistanceKm:  string;
+  maxDistanceKm:  string;
+  minDurationMin: string;
+  maxDurationMin: string;
+  source:         Source;
+  racesOnly:      boolean;
+};
+
+const DEFAULT_ADVANCED: AdvancedFilters = {
+  dateRange:      'all',
+  specificDate:   '',
+  minDistanceKm:  '',
+  maxDistanceKm:  '',
+  minDurationMin: '',
+  maxDurationMin: '',
+  source:         'all',
+  racesOnly:      false,
+};
+
+function countActiveFilters(f: AdvancedFilters): number {
+  return [
+    f.specificDate !== '' || f.dateRange !== 'all',
+    f.minDistanceKm !== '',
+    f.maxDistanceKm !== '',
+    f.minDurationMin !== '',
+    f.maxDurationMin !== '',
+    f.source !== 'all',
+    f.racesOnly,
+  ].filter(Boolean).length;
+}
+
+function applyAllFilters(
+  activities: ActivityEntry[],
+  typeFilter: Filter,
+  search: string,
+  adv: AdvancedFilters,
+): ActivityEntry[] {
+  let r = [...activities].sort((a, b) => b.date.localeCompare(a.date));
+
+  if (typeFilter !== 'all') r = r.filter((a) => a.type === typeFilter);
+
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    r = r.filter(
+      (a) =>
+        (a.stravaName ?? '').toLowerCase().includes(q) ||
+        (a.notes ?? '').toLowerCase().includes(q) ||
+        ACTIVITY_LABELS[a.type].toLowerCase().includes(q),
+    );
+  }
+
+  if (adv.specificDate) {
+    r = r.filter((a) => a.date === adv.specificDate);
+  } else if (adv.dateRange !== 'all') {
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    if      (adv.dateRange === 'week')    since.setDate(since.getDate() - 7);
+    else if (adv.dateRange === 'month')   since.setMonth(since.getMonth() - 1);
+    else if (adv.dateRange === '3months') since.setMonth(since.getMonth() - 3);
+    else if (adv.dateRange === 'year')    since.setFullYear(since.getFullYear() - 1);
+    const sinceStr = since.toISOString().split('T')[0];
+    r = r.filter((a) => a.date >= sinceStr);
+  }
+
+  const minDist = parseFloat(adv.minDistanceKm);
+  const maxDist = parseFloat(adv.maxDistanceKm);
+  if (!isNaN(minDist)) r = r.filter((a) => (a.distanceKm ?? 0) >= minDist);
+  if (!isNaN(maxDist)) r = r.filter((a) => (a.distanceKm ?? Infinity) <= maxDist);
+
+  const minDur = parseInt(adv.minDurationMin);
+  const maxDur = parseInt(adv.maxDurationMin);
+  if (!isNaN(minDur)) r = r.filter((a) => (a.durationMinutes ?? 0) >= minDur);
+  if (!isNaN(maxDur)) r = r.filter((a) => (a.durationMinutes ?? Infinity) <= maxDur);
+
+  if (adv.source === 'strava')  r = r.filter((a) => !!a.stravaId);
+  if (adv.source === 'manual')  r = r.filter((a) => !a.stravaId);
+  if (adv.racesOnly)            r = r.filter((a) => !!a.isRace);
+
+  return r;
+}
+
+// ─── Filter sheet ─────────────────────────────────────────────────────────────
+
+function FilterSheet({
+  isOpen,
+  filters,
+  onChange,
+  onClose,
+  onClear,
+}: {
+  isOpen: boolean;
+  filters: AdvancedFilters;
+  onChange: (f: AdvancedFilters) => void;
+  onClose: () => void;
+  onClear: () => void;
+}) {
+  const [draft, setDraft] = useState<AdvancedFilters>(filters);
+  useEffect(() => { if (isOpen) setDraft(filters); }, [isOpen]);
+
+  const set = <K extends keyof AdvancedFilters>(k: K, v: AdvancedFilters[K]) =>
+    setDraft((prev) => ({ ...prev, [k]: v }));
+
+  if (!isOpen) return null;
+
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[80] flex flex-col justify-end">
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-white rounded-t-[2rem] max-h-[88vh] overflow-y-auto">
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="h-1 w-10 rounded-full bg-ink/10" />
+          </div>
+
+          <div className="px-5 pb-8 space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-lg font-bold text-ink">Filtros</p>
+              <button type="button" onClick={onClose}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30">
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Date range */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Período</p>
+              <div className="flex flex-wrap gap-2">
+                {DATE_RANGE_OPTS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { set('dateRange', opt.id); set('specificDate', ''); }}
+                    className={`rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                      draft.dateRange === opt.id && !draft.specificDate
+                        ? 'bg-ink text-white'
+                        : 'bg-canvas text-ink/50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Specific date */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Día concreto</p>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={draft.specificDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    set('specificDate', e.target.value);
+                    if (e.target.value) set('dateRange', 'all');
+                  }}
+                  className="w-full rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-ink/20 appearance-none"
+                />
+                {draft.specificDate && (
+                  <button
+                    type="button"
+                    onClick={() => set('specificDate', '')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink/60"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-ink/30">
+                Al seleccionar un día concreto se ignora el período
+              </p>
+            </div>
+
+            {/* Distance */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Distancia (km)</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Mín"
+                  value={draft.minDistanceKm}
+                  onChange={(e) => set('minDistanceKm', e.target.value)}
+                  className="flex-1 rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink placeholder:text-ink/25 outline-none focus:ring-1 focus:ring-ink/20"
+                />
+                <span className="text-ink/30 text-sm">—</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Máx"
+                  value={draft.maxDistanceKm}
+                  onChange={(e) => set('maxDistanceKm', e.target.value)}
+                  className="flex-1 rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink placeholder:text-ink/25 outline-none focus:ring-1 focus:ring-ink/20"
+                />
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Duración (min)</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Mín"
+                  value={draft.minDurationMin}
+                  onChange={(e) => set('minDurationMin', e.target.value)}
+                  className="flex-1 rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink placeholder:text-ink/25 outline-none focus:ring-1 focus:ring-ink/20"
+                />
+                <span className="text-ink/30 text-sm">—</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Máx"
+                  value={draft.maxDurationMin}
+                  onChange={(e) => set('maxDurationMin', e.target.value)}
+                  className="flex-1 rounded-2xl bg-canvas px-4 py-2.5 text-sm text-ink placeholder:text-ink/25 outline-none focus:ring-1 focus:ring-ink/20"
+                />
+              </div>
+            </div>
+
+            {/* Source */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Origen</p>
+              <div className="flex gap-2">
+                {(['all', 'strava', 'manual'] as Source[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => set('source', s)}
+                    className={`rounded-2xl px-4 py-2 text-xs font-semibold transition-all ${
+                      draft.source === s
+                        ? 'bg-ink text-white'
+                        : 'bg-canvas text-ink/50'
+                    }`}
+                  >
+                    {s === 'all' ? 'Todo' : s === 'strava' ? 'Strava' : 'Manual'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Races only */}
+            <button
+              type="button"
+              onClick={() => set('racesOnly', !draft.racesOnly)}
+              className={`w-full flex items-center justify-between rounded-2xl px-4 py-3.5 transition-colors ${
+                draft.racesOnly ? 'bg-amber-50 border border-amber-200' : 'bg-canvas border border-ink/5'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Trophy size={15} className={draft.racesOnly ? 'text-amber-500' : 'text-ink/25'} />
+                <span className={`text-sm font-semibold ${draft.racesOnly ? 'text-amber-700' : 'text-ink/50'}`}>
+                  Solo carreras
+                </span>
+              </div>
+              <div className={`h-5 w-9 rounded-full flex items-center px-0.5 transition-colors ${draft.racesOnly ? 'bg-amber-500' : 'bg-ink/15'}`}>
+                <div className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${draft.racesOnly ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </button>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { setDraft(DEFAULT_ADVANCED); onClear(); onClose(); }}
+                className="flex-1 rounded-2xl border border-ink/10 py-3 text-sm font-semibold text-ink/50 hover:bg-canvas transition-colors"
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                onClick={() => { onChange(draft); onClose(); }}
+                className="flex-[2] rounded-2xl bg-ink py-3 text-sm font-semibold text-white transition-colors"
+              >
+                Aplicar filtros
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+}
 
 function relativeDate(dateStr: string): string {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -466,7 +766,10 @@ export function ActivityDetailSheet({
 
 export function ActividadesScreen() {
   const [filter,          setFilter]          = useState<Filter>('all');
+  const [search,          setSearch]          = useState('');
   const [showAdd,         setShowAdd]         = useState(false);
+  const [showFilters,     setShowFilters]     = useState(false);
+  const [advFilters,      setAdvFilters]      = useState<AdvancedFilters>(DEFAULT_ADVANCED);
   const [editActivity,    setEditActivity]    = useState<ActivityEntry | undefined>(undefined);
   const [detailActivity,  setDetailActivity]  = useState<ActivityEntry | null>(null);
   const [loadingMore,     setLoadingMore]     = useState(false);
@@ -488,7 +791,6 @@ export function ActividadesScreen() {
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && activitiesMeta.hasMore && !loadingMore && activitiesMeta.loaded && user) {
@@ -503,27 +805,38 @@ export function ActividadesScreen() {
     return () => observer.disconnect();
   }, [activitiesMeta, loadingMore, user]);
 
-  const sorted   = [...activities].sort((a, b) => b.date.localeCompare(a.date));
-  const filtered = filter === 'all' ? sorted : sorted.filter((a) => a.type === filter);
+  const filtered = useMemo(
+    () => applyAllFilters(activities, filter, search, advFilters),
+    [activities, filter, search, advFilters],
+  );
+
+  const activeAdvCount = countActiveFilters(advFilters);
 
   // Group by date
-  const groupedByDate = filtered.reduce<Record<string, ActivityEntry[]>>((acc, act) => {
-    if (!acc[act.date]) acc[act.date] = [];
-    acc[act.date].push(act);
-    return acc;
-  }, {});
-  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+  const groupedByDate = useMemo(
+    () => filtered.reduce<Record<string, ActivityEntry[]>>((acc, act) => {
+      if (!acc[act.date]) acc[act.date] = [];
+      acc[act.date].push(act);
+      return acc;
+    }, {}),
+    [filtered],
+  );
+  const sortedDates = useMemo(
+    () => Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a)),
+    [groupedByDate],
+  );
 
   return (
     <>
-      <div className="px-4 pt-4 pb-24 space-y-4 animate-fade-in">
+      <div className="px-4 pt-4 pb-24 space-y-3 animate-fade-in">
+        {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-0.5">
             <h1 className="text-2xl font-bold text-ink">Actividades</h1>
             <p className="text-sm text-ink/40">
-              {activities.length === 0
-                ? 'Sin actividades'
-                : `${activities.length} sesiones${activitiesMeta.hasMore ? '+' : ''}`}
+              {filtered.length !== activities.length
+                ? `${filtered.length} de ${activities.length}${activitiesMeta.hasMore ? '+' : ''} sesiones`
+                : `${activities.length}${activitiesMeta.hasMore ? '+' : ''} sesiones`}
             </p>
           </div>
           <button type="button" onClick={() => setShowAdd(true)}
@@ -536,19 +849,106 @@ export function ActividadesScreen() {
         {/* Strava */}
         <StravaConnectCard hideIfSynced onSynced={() => setLoadingMore(false)} />
 
-        {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {FILTERS.map(({ id, label, Icon }) => (
-            <button key={id} type="button" onClick={() => setFilter(id)} aria-label={label}
-              className={`flex-shrink-0 flex items-center gap-1.5 rounded-2xl transition-all duration-150 ${
-                id === 'all' ? 'px-3 py-2' : 'h-9 w-9 justify-center'
-              } ${filter === id ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/50'}`}
-            >
-              <Icon size={15} />
-              {id === 'all' && <span className="text-xs font-semibold">{label}</span>}
+        {/* Search bar */}
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, tipo, notas…"
+            className="w-full rounded-2xl bg-white shadow-card pl-9 pr-4 py-2.5 text-sm text-ink placeholder:text-ink/30 outline-none focus:ring-1 focus:ring-ink/15"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30">
+              <X size={13} />
             </button>
-          ))}
+          )}
         </div>
+
+        {/* Type chips + filter button */}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-2 overflow-x-auto flex-1" style={{ scrollbarWidth: 'none' }}>
+            {FILTERS.map(({ id, label, Icon }) => (
+              <button key={id} type="button" onClick={() => setFilter(id)} aria-label={label}
+                className={`flex-shrink-0 flex items-center gap-1.5 rounded-2xl transition-all duration-150 ${
+                  id === 'all' ? 'px-3 py-2' : 'h-9 w-9 justify-center'
+                } ${filter === id ? 'bg-ink text-white' : 'bg-white shadow-card text-ink/50'}`}
+              >
+                <Icon size={15} />
+                {id === 'all' && <span className="text-xs font-semibold">{label}</span>}
+              </button>
+            ))}
+          </div>
+          {/* Advanced filter button */}
+          <button
+            type="button"
+            onClick={() => setShowFilters(true)}
+            className={`relative flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-2xl transition-all ${
+              activeAdvCount > 0 ? 'bg-moss text-white' : 'bg-white shadow-card text-ink/50'
+            }`}
+          >
+            <SlidersHorizontal size={15} />
+            {activeAdvCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-ink text-white text-[9px] font-bold flex items-center justify-center">
+                {activeAdvCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Active filter summary chips */}
+        {activeAdvCount > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {advFilters.specificDate ? (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                {new Date(advFilters.specificDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            ) : advFilters.dateRange !== 'all' && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                {DATE_RANGE_OPTS.find((o) => o.id === advFilters.dateRange)?.label}
+              </span>
+            )}
+            {advFilters.minDistanceKm && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                ≥ {advFilters.minDistanceKm} km
+              </span>
+            )}
+            {advFilters.maxDistanceKm && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                ≤ {advFilters.maxDistanceKm} km
+              </span>
+            )}
+            {advFilters.minDurationMin && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                ≥ {advFilters.minDurationMin} min
+              </span>
+            )}
+            {advFilters.maxDurationMin && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1">
+                ≤ {advFilters.maxDurationMin} min
+              </span>
+            )}
+            {advFilters.source !== 'all' && (
+              <span className="rounded-full bg-moss/10 text-moss text-[11px] font-semibold px-2.5 py-1 capitalize">
+                {advFilters.source}
+              </span>
+            )}
+            {advFilters.racesOnly && (
+              <span className="rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold px-2.5 py-1">
+                Solo carreras
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdvFilters(DEFAULT_ADVANCED)}
+              className="rounded-full bg-ink/5 text-ink/40 text-[11px] font-semibold px-2.5 py-1"
+            >
+              × Limpiar
+            </button>
+          </div>
+        )}
 
         {/* List */}
         {!activitiesMeta.loaded && loadingMore ? (
@@ -559,11 +959,21 @@ export function ActividadesScreen() {
           <div className="rounded-4xl bg-canvas-light border border-sand/40 p-8 flex flex-col items-center gap-2 text-center">
             <Activity size={24} className="text-ink/20" />
             <p className="text-sm text-ink/40">
-              {filter === 'all'
-                ? 'Sin actividades registradas'
-                : `Sin actividades de tipo ${ACTIVITY_LABELS[filter as ActivityType]}`}
+              {search || activeAdvCount > 0
+                ? 'Ninguna actividad coincide con los filtros'
+                : filter === 'all'
+                  ? 'Sin actividades registradas'
+                  : `Sin actividades de tipo ${ACTIVITY_LABELS[filter as ActivityType]}`}
             </p>
-            <p className="text-xs text-ink/25">Pulsa + para añadir una actividad</p>
+            {(search || activeAdvCount > 0) && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setAdvFilters(DEFAULT_ADVANCED); }}
+                className="text-xs text-moss font-semibold mt-1"
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-5">
@@ -615,6 +1025,14 @@ export function ActividadesScreen() {
         onClose={() => setDetailActivity(null)}
         onEdit={(a) => { setDetailActivity(null); setEditActivity(a); setShowAdd(true); }}
         onDelete={(id) => { setDetailActivity(null); RecoveryService.deleteActivity(id); }}
+      />
+
+      <FilterSheet
+        isOpen={showFilters}
+        filters={advFilters}
+        onChange={setAdvFilters}
+        onClose={() => setShowFilters(false)}
+        onClear={() => setAdvFilters(DEFAULT_ADVANCED)}
       />
     </>
   );
