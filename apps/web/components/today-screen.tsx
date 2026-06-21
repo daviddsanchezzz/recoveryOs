@@ -16,7 +16,7 @@ import { SleepSheet }       from './sleep-sheet';
 import { SuenoScreen }      from './sueno-screen';
 import { DolorSheet }       from './dolor-sheet';
 import { LesionesScreen }   from './lesiones-screen';
-import { ActivityCard }     from './actividades-screen';
+import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { usePlanStore }     from '../stores/plan-store';
@@ -162,6 +162,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
   const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
+  const [detailActivity,     setDetailActivity]     = useState<ActivityEntry | null>(null);
   const [prefillActivity,    setPrefillActivity]    = useState<{ type: ActivityType; muscleGroups?: MuscleGroup[] } | undefined>(undefined);
 
   const {
@@ -461,6 +462,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                 <ActivityCard
                   key={act.id}
                   act={act}
+                  onTap={setDetailActivity}
                   onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
                   onDelete={(id) => RecoveryService.deleteActivity(id)}
                 />
@@ -584,6 +586,12 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         onClose={() => { setShowAddActivity(false); setEditActivity(undefined); setPrefillActivity(undefined); }}
         editActivity={editActivity}
         prefill={prefillActivity}
+      />
+      <ActivityDetailSheet
+        act={detailActivity}
+        onClose={() => setDetailActivity(null)}
+        onEdit={(a) => { setDetailActivity(null); setEditActivity(a); setShowAddActivity(true); }}
+        onDelete={(id) => { setDetailActivity(null); RecoveryService.deleteActivity(id); }}
       />
       <WeightSheet
         isOpen={showWeightSheet}

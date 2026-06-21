@@ -122,7 +122,7 @@ export function ActivityCard({
   act: ActivityEntry;
   onEdit: (act: ActivityEntry) => void;
   onDelete: (id: string) => void;
-  onTap: (act: ActivityEntry) => void;
+  onTap?: (act: ActivityEntry) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -142,7 +142,7 @@ export function ActivityCard({
   return (
     <div
       className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-start gap-3 cursor-pointer active:bg-canvas/60 transition-colors"
-      onClick={() => onTap(act)}
+      onClick={() => onTap?.(act)}
     >
       {/* Icon */}
       <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -231,7 +231,7 @@ export function ActivityCard({
 
 // ─── Activity detail sheet ────────────────────────────────────────────────────
 
-function ActivityDetailSheet({
+export function ActivityDetailSheet({
   act,
   onClose,
   onEdit,
