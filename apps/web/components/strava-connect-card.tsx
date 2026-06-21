@@ -144,7 +144,7 @@ export function StravaConnectCard({
               <button
                 type="button"
                 onClick={() => setPickingDate(false)}
-                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink/60"
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center text-ink/30 hover:text-ink/60 transition-colors"
               >
                 <X size={13} />
               </button>
