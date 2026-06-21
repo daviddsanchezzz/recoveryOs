@@ -305,38 +305,39 @@ export function AddActivitySheet({
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  {/* Duration: h + min (+ sec for run/walk) */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink/40 mb-1">Duración</p>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number" inputMode="numeric" min={0} max={23}
-                        value={durH} onChange={(e) => setDurH(e.target.value)}
-                        placeholder="0"
-                        className="w-10 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
-                      />
-                      <span className="text-xs text-ink/35 font-semibold">h</span>
-                      <input
-                        type="number" inputMode="numeric" min={0} max={59}
-                        value={durM} onChange={(e) => setDurM(e.target.value)}
-                        placeholder="00"
-                        className="w-12 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
-                      />
-                      <span className="text-xs text-ink/35 font-semibold">min</span>
-                      {(type === 'run' || type === 'walk') && (
-                        <>
-                          <input
-                            type="number" inputMode="numeric" min={0} max={59}
-                            value={durS} onChange={(e) => setDurS(e.target.value)}
-                            placeholder="00"
-                            className="w-12 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
-                          />
-                          <span className="text-xs text-ink/35 font-semibold">s</span>
-                        </>
-                      )}
-                    </div>
+                {/* Duration — full row with seconds for run/walk */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-ink/40 mb-1">Duración</p>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number" inputMode="numeric" min={0} max={23}
+                      value={durH} onChange={(e) => setDurH(e.target.value)}
+                      placeholder="0"
+                      className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                    />
+                    <span className="text-xs text-ink/40 font-semibold">h</span>
+                    <input
+                      type="number" inputMode="numeric" min={0} max={59}
+                      value={durM} onChange={(e) => setDurM(e.target.value)}
+                      placeholder="00"
+                      className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                    />
+                    <span className="text-xs text-ink/40 font-semibold">min</span>
+                    {(type === 'run' || type === 'walk') && (
+                      <>
+                        <input
+                          type="number" inputMode="numeric" min={0} max={59}
+                          value={durS} onChange={(e) => setDurS(e.target.value)}
+                          placeholder="00"
+                          className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                        />
+                        <span className="text-xs text-ink/40 font-semibold">s</span>
+                      </>
+                    )}
                   </div>
+                </div>
+
+                <div className="flex gap-2">
                   <Field label="Calorías" unit="kcal" value={kcal} onChange={setKcal} placeholder="400" />
                   <Field label="FC media" unit="bpm" value={avgHr} onChange={setAvgHr} placeholder="145" />
                 </div>
