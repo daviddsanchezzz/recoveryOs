@@ -44,8 +44,8 @@ type Filter = ActivityType | 'all';
 const FILTERS: { id: Filter; label: string; Icon: React.ElementType }[] = [
   { id: 'all',  label: 'Todo',     Icon: LayoutGrid },
   { id: 'gym',  label: 'Gym',      Icon: Dumbbell   },
-  { id: 'bike', label: 'Bici',     Icon: Bike       },
   { id: 'run',  label: 'Correr',   Icon: SportShoe  },
+  { id: 'bike', label: 'Bici',     Icon: Bike       },
   { id: 'walk', label: 'Caminar',  Icon: Footprints },
   { id: 'swim', label: 'Natación', Icon: Waves      },
 ];
