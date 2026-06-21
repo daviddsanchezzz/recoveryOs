@@ -54,10 +54,18 @@ export class ActivityController {
     @Param('userId') userId: string,
     @Query('limit') limit: string,
     @Query('beforeId') beforeId: string,
+    @Query('since') since: string,
     @Req() req: any,
   ) {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session || session.user.id !== userId) throw new ForbiddenException();
+
+    if (since) {
+      const sinceDate = new Date(since);
+      const items = await this.getActivitiesPaginatedUseCase.executeFrom(userId, sinceDate);
+      return { items, hasMore: false, nextCursor: null };
+    }
+
     return this.getActivitiesPaginatedUseCase.execute(
       userId,
       Number(limit) || 50,

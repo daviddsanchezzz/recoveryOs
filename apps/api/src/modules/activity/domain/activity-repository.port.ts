@@ -13,4 +13,5 @@ export interface ActivityRepositoryPort {
   findByUserToday(userId: string, date: string): Promise<ActivityEntity[]>;
   deleteByIdAndUser(id: string, userId: string): Promise<boolean>;
   findByStravaId(stravaId: string): Promise<ActivityEntity | null>;
+  findByUserFrom(userId: string, since: Date): Promise<ActivityEntity[]>;
 }

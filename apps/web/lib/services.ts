@@ -145,9 +145,9 @@ export const RecoveryService = {
   },
 
   // ─── Activity ─────────────────────────────────────────────
-  logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { date?: string }) {
+  logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { id?: string; date?: string }) {
     const resolvedDate = data.date ?? todayIso();
-    const id = crypto.randomUUID();
+    const id = data.id ?? crypto.randomUUID();
     useRecoveryStore.getState().addActivity({ ...data, id, date: resolvedDate });
     toast.success('Actividad guardada');
 
@@ -354,6 +354,12 @@ export const RecoveryService = {
     } else {
       toast.error('No se pudieron cargar los registros de sueño.');
     }
+  },
+
+  async fetchActivitiesFrom(userId: string, since: Date): Promise<ActivityEntry[]> {
+    const iso = since.toISOString().split('T')[0];
+    const res = await getJson<{ items: ServerActivity[] }>(`/activities/${userId}?since=${iso}`);
+    return res.items.map(mapServerActivity);
   },
 
   async loadActivitiesPage(userId: string, beforeId?: string): Promise<void> {

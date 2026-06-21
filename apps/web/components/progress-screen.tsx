@@ -1,8 +1,11 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe } from 'lucide-react';
 import { useRecoveryStore } from '../stores/recovery-store';
+import { useSessionStore } from '../stores/session-store';
+import { RecoveryService } from '../lib/services';
+import type { ActivityEntry } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
 import { LesionesScreen } from './lesiones-screen';
 import { SuenoScreen } from './sueno-screen';
@@ -184,13 +187,25 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showActivitySheet,  setShowActivitySheet]  = useState(false);
+  const [progressActivities, setProgressActivities] = useState<ActivityEntry[] | null>(null);
 
-  const { activities, weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
+  const user = useSessionStore((s) => s.user);
+  const { weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
     useRecoveryStore();
 
+  // Load last 12 weeks of activities independently (not relying on paginated store)
+  useEffect(() => {
+    if (!user) return;
+    const since = new Date();
+    since.setDate(since.getDate() - 84); // 12 weeks
+    RecoveryService.fetchActivitiesFrom(user.id, since)
+      .then(setProgressActivities)
+      .catch(() => setProgressActivities([]));
+  }, [user?.id]);
+
   const storeData = useMemo(
-    () => ({ activities, weightEntries, injuryLogs, checkIns, sleepEntries }),
-    [activities, weightEntries, injuryLogs, checkIns, sleepEntries],
+    () => ({ activities: progressActivities ?? [], weightEntries, injuryLogs, checkIns, sleepEntries }),
+    [progressActivities, weightEntries, injuryLogs, checkIns, sleepEntries],
   );
 
   function handleTabChange(tab: AnyTab) {

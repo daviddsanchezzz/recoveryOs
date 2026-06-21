@@ -18,4 +18,9 @@ export class GetActivitiesPaginatedUseCase {
       nextCursor: hasMore ? lastId : null,
     };
   }
+
+  async executeFrom(userId: string, since: Date) {
+    const items = await this.repository.findByUserFrom(userId, since);
+    return items.map((e) => e.props);
+  }
 }

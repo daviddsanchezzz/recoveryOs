@@ -152,10 +152,9 @@ export function AddActivitySheet({
 
   function handleSave() {
     if (!type) return;
-    // Delete old entry first when editing
-    if (editActivity) RecoveryService.deleteActivity(editActivity.id, true);
 
     RecoveryService.logActivity({
+      id:              editActivity?.id,
       type,
       date,
       durationMinutes: totalDurationMin > 0 ? totalDurationMin : undefined,

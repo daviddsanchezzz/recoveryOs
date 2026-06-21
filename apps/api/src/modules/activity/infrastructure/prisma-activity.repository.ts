@@ -120,6 +120,14 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
     return row ? toEntity(row) : null;
   }
 
+  async findByUserFrom(userId: string, since: Date): Promise<ActivityEntity[]> {
+    const rows = await this.prisma.activity.findMany({
+      where:   { userId, performedAt: { gte: since } },
+      orderBy: { performedAt: 'desc' },
+    });
+    return rows.map(toEntity);
+  }
+
   async findByUserToday(userId: string, date: string): Promise<ActivityEntity[]> {
     const start = new Date(date + 'T00:00:00.000Z');
     const end   = new Date(date + 'T23:59:59.999Z');
