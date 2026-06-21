@@ -99,7 +99,9 @@ export class SyncStravaUseCase {
           if (detail.total_weight != null && (detail.total_weight as number) > 0) {
             totalVolumeKg = Math.round((detail.total_weight as number) * 10) / 10;
           }
-        } catch { /* non-fatal */ }
+        } catch (err) {
+          console.warn('[StravaSync] detail fetch failed for %s: %s', act.id, (err as Error).message);
+        }
 
         const entity = toActivityEntity(userId, act, calories, totalVolumeKg);
         await this.activityRepo.create(entity);
