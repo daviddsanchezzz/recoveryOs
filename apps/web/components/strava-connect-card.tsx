@@ -6,6 +6,7 @@ import { useSessionStore } from '../stores/session-store';
 import { getJson, postJson, deleteJson } from '../lib/api';
 import { toast } from '../stores/toast-store';
 import { RecoveryService } from '../lib/services';
+import { useRecoveryStore } from '../stores/recovery-store';
 
 type StravaStatus = { connected: boolean; lastSyncAt: string | null };
 
@@ -78,10 +79,8 @@ export function StravaConnectCard({
       const result = await postJson<{ synced: number }>('/strava/sync', body);
       toast.success(`${result.synced} actividades sincronizadas desde Strava`);
       await loadStatus();
-      if (user) {
-        void RecoveryService.loadActivitiesPage(user.id);
-        onSynced?.();
-      }
+      useRecoveryStore.getState().resetActivitiesCache();
+      onSynced?.();
     } catch {
       toast.error('Error al sincronizar con Strava');
     } finally {

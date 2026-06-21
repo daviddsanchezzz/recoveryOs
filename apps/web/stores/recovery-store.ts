@@ -163,6 +163,7 @@ type RecoveryState = {
   seedWeightFromServer: (entries: WeightEntry[]) => void;
   seedTodayActivities: (entries: ActivityEntry[]) => void;
   appendActivities: (entries: ActivityEntry[], hasMore: boolean, nextCursor: string | null, replace?: boolean) => void;
+  resetActivitiesCache: () => void;
   seedInjuriesFromServer: (injuries: Injury[], logs: InjuryLog[]) => void;
   seedSleepFromServer: (entries: SleepEntry[]) => void;
   clearAllData: () => void;
@@ -315,6 +316,8 @@ export const useRecoveryStore = create<RecoveryState>()(
             activitiesMeta: { loaded: true, hasMore, nextCursor },
           };
         }),
+      resetActivitiesCache: () =>
+        set({ activitiesMeta: { loaded: false, hasMore: false, nextCursor: null } }),
       saveSleep: (input) =>
         set((state) => ({
           sleepEntries: [

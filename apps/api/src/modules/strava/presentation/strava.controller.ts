@@ -35,7 +35,7 @@ export class StravaController {
   @Get('connect')
   async connect(@Req() req: any, @Res() res: any) {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
-    if (!session) return res.redirect(`${this.frontendUrl}/actividades?strava=error&reason=auth`);
+    if (!session) return res.redirect(`${this.frontendUrl}/app?strava=error&reason=auth`);
 
     const state = randomBytes(32).toString('base64url');
     await this.stravaRepo.createOAuthState(state, session.user.id);
@@ -51,19 +51,19 @@ export class StravaController {
   ) {
     try {
       if (!state || !code) {
-        return res.redirect(`${this.frontendUrl}/actividades?strava=error&reason=missing`);
+        return res.redirect(`${this.frontendUrl}/app?strava=error&reason=missing`);
       }
 
       // consumeOAuthState verifies + deletes (one-time use)
       const userId = await this.stravaRepo.consumeOAuthState(state);
       if (!userId) {
-        return res.redirect(`${this.frontendUrl}/actividades?strava=error&reason=state`);
+        return res.redirect(`${this.frontendUrl}/app?strava=error&reason=state`);
       }
 
       await this.handleCallback.execute(userId, code);
-      return res.redirect(`${this.frontendUrl}/actividades?strava=connected`);
+      return res.redirect(`${this.frontendUrl}/app?strava=connected`);
     } catch {
-      return res.redirect(`${this.frontendUrl}/actividades?strava=error`);
+      return res.redirect(`${this.frontendUrl}/app?strava=error`);
     }
   }
 
