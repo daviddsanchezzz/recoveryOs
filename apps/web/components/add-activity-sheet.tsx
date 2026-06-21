@@ -9,8 +9,8 @@ import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recover
 
 const ACTIVITY_OPTS: { type: ActivityType; label: string; emoji: string }[] = [
   { type: 'gym',      label: 'Gym',       emoji: '🏋️' },
-  { type: 'bike',     label: 'Bici',      emoji: '🚴' },
   { type: 'run',      label: 'Correr',    emoji: '🏃' },
+  { type: 'bike',     label: 'Bici',      emoji: '🚴' },
   { type: 'walk',     label: 'Caminar',   emoji: '🚶' },
   { type: 'swim',     label: 'Nadar',     emoji: '🏊' },
   { type: 'mobility', label: 'Movilidad', emoji: '🧘' },

@@ -6,7 +6,7 @@ import type { ActivityType, DailyHabits } from '../stores/recovery-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { Panel } from './ui/card';
 
-const activityOptions: ActivityType[] = ['gym', 'bike', 'walk', 'swim', 'run', 'mobility', 'other'];
+const activityOptions: ActivityType[] = ['gym', 'run', 'bike', 'walk', 'swim', 'mobility', 'other'];
 
 const defaultHabits: DailyHabits = {
   rehab: false,

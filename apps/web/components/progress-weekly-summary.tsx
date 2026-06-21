@@ -11,7 +11,7 @@ function daysSince(date: string): number {
 }
 
 function fmtMinutes(v: number): string {
-  if (v === 0) return '--';
+  if (v === 0) return '0h';
   const h = Math.floor(v / 60);
   const m = Math.round(v % 60);
   if (h === 0) return `${m}min`;
