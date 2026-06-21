@@ -6,6 +6,7 @@ import { User, Target, Activity, LogOut, Plus, ChevronRight } from 'lucide-react
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { postJson } from '../lib/api';
+import { StravaConnectCard } from './strava-connect-card';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -280,19 +281,22 @@ export function ProfileScreen() {
       </div>
 
       {/* Connections */}
-      <div className="rounded-4xl bg-white shadow-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-ink/5">
-          <p className="text-sm font-semibold text-ink">Conexiones</p>
-        </div>
-        <div className="px-5">
-          {['Strava', 'Coros', 'OpenAI'].map((item) => (
-            <div key={item} className="flex items-center justify-between py-3 border-b border-ink/5 last:border-0">
-              <span className="text-sm text-ink/60">{item}</span>
-              <span className="rounded-full bg-sand/30 px-2.5 py-0.5 text-[10px] font-medium text-ink/30">
-                próximamente
-              </span>
-            </div>
-          ))}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1 pt-2">
+          Conexiones
+        </p>
+        <StravaConnectCard />
+        <div className="rounded-4xl bg-white shadow-card overflow-hidden">
+          <div className="px-5">
+            {['Coros', 'OpenAI'].map((item) => (
+              <div key={item} className="flex items-center justify-between py-3 border-b border-ink/5 last:border-0">
+                <span className="text-sm text-ink/60">{item}</span>
+                <span className="rounded-full bg-sand/30 px-2.5 py-0.5 text-[10px] font-medium text-ink/30">
+                  próximamente
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
