@@ -146,14 +146,12 @@ export class StravaController {
   }
 
   // One-time admin call to register the webhook subscription with Strava
+  // Protected by the verify token itself — only someone who knows the secret can call it
   @Post('webhook/subscribe')
   @HttpCode(200)
-  async subscribeWebhook(@Req() req: any) {
-    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
-    if (!session) throw new ForbiddenException();
-
+  async subscribeWebhook(@Query('token') token: string) {
     const verifyToken = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
-    if (!verifyToken) throw new Error('STRAVA_WEBHOOK_VERIFY_TOKEN not set');
+    if (!verifyToken || token !== verifyToken) throw new ForbiddenException();
 
     // Derive API base from STRAVA_REDIRECT_URI (e.g. https://api.railway.app/api/strava/callback → https://api.railway.app)
     const redirectUri = process.env.STRAVA_REDIRECT_URI ?? '';
