@@ -76,7 +76,7 @@ function CalendarDayDetail({ tab, date, data }: {
   if (tab === 'actividad') {
     const acts = data.activities.filter((a) => sameDay(a.date, date));
     hasData = acts.length > 0;
-    body = hasData ? (
+    body = (
       <div className="divide-y divide-ink/5">
         {acts.map((act) => (
           <div key={act.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
@@ -85,7 +85,7 @@ function CalendarDayDetail({ tab, date, data }: {
           </div>
         ))}
       </div>
-    ) : <p className="text-sm text-ink/30">Sin actividad este día</p>;
+    );
 
   } else if (tab === 'peso') {
     const entry = data.weightEntries.find((w) => sameDay(w.date, date));
@@ -142,6 +142,8 @@ function CalendarDayDetail({ tab, date, data }: {
   } else {
     return null;
   }
+
+  if (!hasData) return null;
 
   return (
     <div className="rounded-3xl bg-white shadow-card px-5 py-4 space-y-2 animate-fade-in">
