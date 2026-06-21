@@ -11,6 +11,7 @@ import { useSessionStore } from '../stores/session-store';
 import { RecoveryService } from '../lib/services';
 import { AddActivitySheet } from './add-activity-sheet';
 import { StravaConnectCard } from './strava-connect-card';
+import { Portal } from './portal';
 import type { ActivityType, ActivityEntry } from '../stores/recovery-store';
 
 const ACTIVITY_ICONS: Record<ActivityType, React.ElementType> = {
@@ -263,7 +264,8 @@ export function ActivityDetailSheet({
   const isGym  = act.type === 'gym';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <Portal>
+    <div className="fixed inset-0 z-[80] flex flex-col justify-end">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
@@ -422,6 +424,7 @@ export function ActivityDetailSheet({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
