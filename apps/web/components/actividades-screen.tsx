@@ -288,7 +288,7 @@ export function ActividadesScreen() {
         </div>
 
         {/* Strava */}
-        <StravaConnectCard onSynced={() => setLoadingMore(false)} />
+        <StravaConnectCard hideIfSynced onSynced={() => setLoadingMore(false)} />
 
         {/* Filter chips */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
