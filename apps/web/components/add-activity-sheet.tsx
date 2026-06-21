@@ -162,6 +162,8 @@ export function AddActivitySheet({
       kcal:            kcal     ? parseInt(kcal, 10)     : undefined,
       avgHeartRateBpm: avgHr    ? parseInt(avgHr, 10)    : undefined,
       notes:           notes.trim() || undefined,
+      stravaId:        editActivity?.stravaId,
+      stravaName:      editActivity?.stravaName,
       ...(type === 'run' || type === 'walk' ? {
         distanceKm:      distKm   ? parseFloat(distKm)         : undefined,
         avgPaceSecPerKm: paceToSec(paceMm, paceSs),
