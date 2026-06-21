@@ -13,6 +13,7 @@ import { WeightSheet } from './weight-sheet';
 import { SleepSheet } from './sleep-sheet';
 import { DolorSheet } from './dolor-sheet';
 import { AddActivitySheet } from './add-activity-sheet';
+import { ActivityDetailSheet } from './actividades-screen';
 import { todayIso, sameDay } from '../lib/date';
 import type { ProgressStoreData } from '../lib/progress-metrics';
 import {
@@ -174,7 +175,7 @@ const PR_CATS = [
   { label: '42K',  min: 40.0, max: 44.0 },
 ];
 
-function RunningPRs({ activities }: { activities: ActivityEntry[] }) {
+function RunningPRs({ activities, onSelect }: { activities: ActivityEntry[]; onSelect: (a: ActivityEntry) => void }) {
   const prs = useMemo(() => {
     const runs = activities.filter(
       (a) => a.type === 'run' && a.avgPaceSecPerKm && a.distanceKm,
@@ -200,7 +201,11 @@ function RunningPRs({ activities }: { activities: ActivityEntry[] }) {
       </p>
       <div className="rounded-4xl bg-white shadow-card px-4 py-4 space-y-3">
         {hasPRs ? prs.map((p) => (
-          <div key={p.label} className="flex items-center justify-between">
+          <div
+            key={p.label}
+            onClick={() => p.best && onSelect(p.best)}
+            className={`flex items-center justify-between ${p.best ? 'cursor-pointer active:opacity-60 transition-opacity' : ''}`}
+          >
             <div className="flex items-center gap-2.5">
               <div className="h-7 w-7 rounded-xl bg-canvas flex items-center justify-center">
                 <Timer size={13} className={p.best ? 'text-moss' : 'text-ink/20'} />
@@ -319,20 +324,31 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showActivitySheet,  setShowActivitySheet]  = useState(false);
+  const [detailActivity,     setDetailActivity]     = useState<ActivityEntry | null>(null);
+  const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
   const [progressActivities, setProgressActivities] = useState<ActivityEntry[] | null>(null);
+  const [allTimeActivities,  setAllTimeActivities]  = useState<ActivityEntry[] | null>(null);
 
   const user = useSessionStore((s) => s.user);
   const { weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
     useRecoveryStore();
 
-  // Load last 12 weeks of activities independently (not relying on paginated store)
+  // 12 weeks → charts, calendar, weekly summary
   useEffect(() => {
     if (!user) return;
     const since = new Date();
-    since.setDate(since.getDate() - 84); // 12 weeks
+    since.setDate(since.getDate() - 84);
     RecoveryService.fetchActivitiesFrom(user.id, since)
       .then(setProgressActivities)
       .catch(() => setProgressActivities([]));
+  }, [user?.id]);
+
+  // All-time → PRs and races (fetches once from a far-past date)
+  useEffect(() => {
+    if (!user) return;
+    RecoveryService.fetchActivitiesFrom(user.id, new Date('2010-01-01'))
+      .then(setAllTimeActivities)
+      .catch(() => setAllTimeActivities([]));
   }, [user?.id]);
 
   const storeData = useMemo(
@@ -510,8 +526,8 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
           {/* 6 — Running PRs + Races (only when run filter is active) */}
           {progressTab === 'actividad' && activityFilter === 'run' && (
             <>
-              <RunningPRs activities={storeData.activities} />
-              <CompletedRaces activities={storeData.activities} />
+              <RunningPRs activities={allTimeActivities ?? []} onSelect={setDetailActivity} />
+              <CompletedRaces activities={allTimeActivities ?? []} />
             </>
           )}
         </div>
@@ -537,6 +553,13 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
       <AddActivitySheet
         isOpen={showActivitySheet}
         onClose={() => setShowActivitySheet(false)}
+        editActivity={editActivity}
+      />
+      <ActivityDetailSheet
+        act={detailActivity}
+        onClose={() => setDetailActivity(null)}
+        onEdit={(a) => { setDetailActivity(null); setEditActivity(a); setShowActivitySheet(true); }}
+        onDelete={(id) => { setDetailActivity(null); RecoveryService.deleteActivity(id); }}
       />
     </div>
   );
