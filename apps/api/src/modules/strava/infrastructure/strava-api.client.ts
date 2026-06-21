@@ -9,6 +9,15 @@ export interface StravaTokenResponse {
   athlete: { id: number };
 }
 
+export interface StravaActivityDetail extends StravaActivitySummary {
+  calories?: number;
+  // Strength training fields (device-dependent, may or may not be present)
+  total_weight?: number;        // total volume in kg
+  weighted_average_watts?: number;
+  // Some devices send sets/reps via undocumented fields — capture anything numeric
+  [key: string]: unknown;
+}
+
 export interface StravaActivitySummary {
   id: number;
   name: string;
@@ -93,11 +102,11 @@ export class StravaApiClient {
   async fetchActivityDetail(
     accessToken: string,
     activityId: number,
-  ): Promise<{ calories?: number }> {
+  ): Promise<StravaActivityDetail> {
     const res = await fetch(`${STRAVA_BASE}/api/v3/activities/${activityId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) throw new Error(`Strava fetch activity detail failed: ${res.status}`);
-    return res.json() as Promise<{ calories?: number }>;
+    return res.json() as Promise<StravaActivityDetail>;
   }
 }

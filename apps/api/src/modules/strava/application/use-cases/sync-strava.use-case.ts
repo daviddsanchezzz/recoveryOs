@@ -18,7 +18,7 @@ function mapType(stravaType: string): string {
   return TYPE_MAP[stravaType] ?? 'other';
 }
 
-function toActivityEntity(userId: string, act: StravaActivitySummary, calories: number | null): ActivityEntity {
+function toActivityEntity(userId: string, act: StravaActivitySummary, calories: number | null, totalVolumeKg: number | null = null): ActivityEntity {
   const sportType = act.sport_type || act.type;
   const type = mapType(sportType);
   const isRun  = type === 'run';
@@ -49,6 +49,7 @@ function toActivityEntity(userId: string, act: StravaActivitySummary, calories: 
     avgPace100mSec: isSwim && act.average_speed && act.average_speed > 0
       ? 100 / act.average_speed
       : null,
+    totalVolumeKg,
     stravaId: String(act.id),
     stravaName: act.name,
   });
@@ -91,15 +92,29 @@ export class SyncStravaUseCase {
       const activities = await this.api.fetchActivities(token.accessToken, after, page);
       if (activities.length === 0) break;
 
+      // Log raw list response (first page only to avoid noise)
+      if (page === 1) {
+        console.log('[StravaSync] RAW LIST (first activity):', JSON.stringify(activities[0], null, 2));
+      }
+
       for (const act of activities) {
         let calories: number | null = null;
+        let totalVolumeKg: number | null = null;
         try {
           const detail = await this.api.fetchActivityDetail(token.accessToken, act.id);
+
+          // Log full raw detail for every WeightTraining/Workout (first one only per sync)
+          if ((act.sport_type === 'WeightTraining' || act.sport_type === 'Workout') && synced === 0) {
+            console.log('[StravaSync] RAW DETAIL WeightTraining "%s":', act.name, JSON.stringify(detail, null, 2));
+          }
+
           calories = detail.calories != null && detail.calories > 0 ? Math.round(detail.calories) : null;
+          if (detail.total_weight != null && (detail.total_weight as number) > 0) {
+            totalVolumeKg = Math.round((detail.total_weight as number) * 10) / 10;
+          }
         } catch { /* non-fatal */ }
 
-        console.log('[StravaSync] activity %s calories=%s max_hr=%s', act.name, calories, act.max_heartrate);
-        const entity = toActivityEntity(userId, act, calories);
+        const entity = toActivityEntity(userId, act, calories, totalVolumeKg);
         await this.activityRepo.create(entity);
         synced++;
       }
