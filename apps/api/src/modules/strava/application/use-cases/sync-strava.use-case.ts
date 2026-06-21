@@ -34,11 +34,11 @@ function toActivityEntity(userId: string, act: StravaActivitySummary): ActivityE
     source: 'strava',
     performedAt: new Date(act.start_date),
     durationMin: Math.round(act.elapsed_time / 60) || null,
-    calories: act.calories ? Math.round(act.calories) : null,
-    avgHeartRate: act.average_heartrate ? Math.round(act.average_heartrate) : null,
-    maxHeartRate: act.max_heartrate ? Math.round(act.max_heartrate) : null,
-    distanceKm: act.distance ? act.distance / 1000 : null,
-    elevationGainM: act.total_elevation_gain || null,
+    calories: act.calories != null && act.calories > 0 ? Math.round(act.calories) : null,
+    avgHeartRate: act.average_heartrate != null && act.average_heartrate > 0 ? Math.round(act.average_heartrate) : null,
+    maxHeartRate: act.max_heartrate != null && act.max_heartrate > 0 ? Math.round(act.max_heartrate) : null,
+    distanceKm: act.distance != null && act.distance > 0 ? act.distance / 1000 : null,
+    elevationGainM: act.total_elevation_gain != null && act.total_elevation_gain > 0 ? act.total_elevation_gain : null,
     // Run/walk
     avgPaceSecPerKm: isRun && act.average_speed && act.average_speed > 0
       ? 1000 / act.average_speed
