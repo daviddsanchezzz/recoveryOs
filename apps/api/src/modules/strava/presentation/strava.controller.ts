@@ -2,20 +2,45 @@ import {
   Body, Controller, Delete, ForbiddenException, Get, HttpCode,
   Inject, Param, Post, Query, Req, Res,
 } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
+import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
+import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
+import { SyncStravaUseCase } from '../application/use-cases/sync-strava.use-case';
+import { DisconnectStravaUseCase } from '../application/use-cases/disconnect-strava.use-case';
+import { HandleStravaWebhookUseCase } from '../application/use-cases/handle-strava-webhook.use-case';
+import { StravaApiClient } from '../infrastructure/strava-api.client';
+import { STRAVA_REPOSITORY, StravaRepositoryPort } from '../domain/strava-repository.port';
 
 class SyncBodyDto {
   @IsOptional() @IsString()
   since?: string;
 }
-import { HandleStravaCallbackUseCase } from '../application/use-cases/handle-strava-callback.use-case';
-import { GetStravaStatusUseCase } from '../application/use-cases/get-strava-status.use-case';
-import { SyncStravaUseCase } from '../application/use-cases/sync-strava.use-case';
-import { DisconnectStravaUseCase } from '../application/use-cases/disconnect-strava.use-case';
-import { StravaApiClient } from '../infrastructure/strava-api.client';
-import { STRAVA_REPOSITORY, StravaRepositoryPort } from '../domain/strava-repository.port';
+
+class StravaWebhookEventDto {
+  @IsString()
+  aspect_type!: string;
+
+  @IsNumber()
+  event_time!: number;
+
+  @IsNumber()
+  object_id!: number;
+
+  @IsString()
+  object_type!: string;
+
+  @IsNumber()
+  owner_id!: number;
+
+  @IsNumber()
+  subscription_id!: number;
+
+  @IsObject()
+  @IsOptional()
+  updates?: Record<string, unknown>;
+}
 
 @Controller('strava')
 export class StravaController {
@@ -26,6 +51,7 @@ export class StravaController {
     private readonly getStatus: GetStravaStatusUseCase,
     private readonly syncStrava: SyncStravaUseCase,
     private readonly disconnectStrava: DisconnectStravaUseCase,
+    private readonly handleWebhook: HandleStravaWebhookUseCase,
     private readonly stravaApi: StravaApiClient,
     @Inject(STRAVA_REPOSITORY) private readonly stravaRepo: StravaRepositoryPort,
     @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
@@ -88,5 +114,53 @@ export class StravaController {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
     return this.disconnectStrava.execute(session.user.id);
+  }
+
+  // Strava calls this GET to verify the webhook endpoint during subscription setup
+  @Get('webhook')
+  verifyWebhook(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string,
+    @Res() res: any,
+  ) {
+    const expected = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
+    if (mode === 'subscribe' && verifyToken === expected) {
+      return res.json({ 'hub.challenge': challenge });
+    }
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Strava sends activity events here
+  @Post('webhook')
+  @HttpCode(200)
+  async receiveWebhook(@Body() body: StravaWebhookEventDto) {
+    // Respond 200 immediately — Strava requires response within 2 seconds
+    void this.handleWebhook.execute({
+      objectType: body.object_type,
+      aspectType: body.aspect_type,
+      objectId: body.object_id,
+      ownerId: body.owner_id,
+    });
+    return { status: 'ok' };
+  }
+
+  // One-time admin call to register the webhook subscription with Strava
+  @Post('webhook/subscribe')
+  @HttpCode(200)
+  async subscribeWebhook(@Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new ForbiddenException();
+
+    const verifyToken = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
+    if (!verifyToken) throw new Error('STRAVA_WEBHOOK_VERIFY_TOKEN not set');
+
+    // Derive API base from STRAVA_REDIRECT_URI (e.g. https://api.railway.app/api/strava/callback → https://api.railway.app)
+    const redirectUri = process.env.STRAVA_REDIRECT_URI ?? '';
+    const apiBase = redirectUri.replace('/api/strava/callback', '');
+    const callbackUrl = `${apiBase}/api/strava/webhook`;
+
+    const result = await this.stravaApi.registerWebhookSubscription(callbackUrl, verifyToken);
+    return { subscriptionId: result.id, callbackUrl };
   }
 }

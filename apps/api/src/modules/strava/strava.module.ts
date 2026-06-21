@@ -5,6 +5,7 @@ import { HandleStravaCallbackUseCase } from './application/use-cases/handle-stra
 import { GetStravaStatusUseCase } from './application/use-cases/get-strava-status.use-case';
 import { SyncStravaUseCase } from './application/use-cases/sync-strava.use-case';
 import { DisconnectStravaUseCase } from './application/use-cases/disconnect-strava.use-case';
+import { HandleStravaWebhookUseCase } from './application/use-cases/handle-strava-webhook.use-case';
 import { STRAVA_REPOSITORY } from './domain/strava-repository.port';
 import { PrismaStravaRepository } from './infrastructure/prisma-strava.repository';
 import { StravaApiClient } from './infrastructure/strava-api.client';
@@ -18,6 +19,7 @@ import { StravaController } from './presentation/strava.controller';
     GetStravaStatusUseCase,
     SyncStravaUseCase,
     DisconnectStravaUseCase,
+    HandleStravaWebhookUseCase,
     StravaApiClient,
     PrismaStravaRepository,
     { provide: STRAVA_REPOSITORY, useExisting: PrismaStravaRepository },

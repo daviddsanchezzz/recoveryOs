@@ -27,6 +27,11 @@ export class PrismaStravaRepository implements StravaRepositoryPort {
     return r ? toEntity(r) : null;
   }
 
+  async findTokenByStravaAthleteId(stravaAthleteId: string): Promise<StravaTokenEntity | null> {
+    const r = await this.prisma.stravaToken.findFirst({ where: { stravaAthleteId } });
+    return r ? toEntity(r) : null;
+  }
+
   async saveToken(token: StravaTokenEntity): Promise<void> {
     await this.prisma.stravaToken.upsert({
       where: { userId: token.userId },

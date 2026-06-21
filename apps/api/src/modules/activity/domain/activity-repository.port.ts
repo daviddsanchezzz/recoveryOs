@@ -12,4 +12,5 @@ export interface ActivityRepositoryPort {
   ): Promise<{ items: ActivityEntity[]; hasMore: boolean }>;
   findByUserToday(userId: string, date: string): Promise<ActivityEntity[]>;
   deleteByIdAndUser(id: string, userId: string): Promise<boolean>;
+  findByStravaId(stravaId: string): Promise<ActivityEntity | null>;
 }

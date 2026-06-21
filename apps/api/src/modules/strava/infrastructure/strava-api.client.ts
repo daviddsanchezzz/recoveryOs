@@ -105,4 +105,22 @@ export class StravaApiClient {
     if (!res.ok) throw new Error(`Strava fetch activity detail failed: ${res.status}`);
     return res.json() as Promise<StravaActivityDetail>;
   }
+
+  async registerWebhookSubscription(callbackUrl: string, verifyToken: string): Promise<{ id: number }> {
+    const body = new URLSearchParams({
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      callback_url: callbackUrl,
+      verify_token: verifyToken,
+    });
+    const res = await fetch(`${STRAVA_BASE}/api/v3/push_subscriptions`, {
+      method: 'POST',
+      body,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Strava webhook subscription failed: ${res.status} ${text}`);
+    }
+    return res.json() as Promise<{ id: number }>;
+  }
 }

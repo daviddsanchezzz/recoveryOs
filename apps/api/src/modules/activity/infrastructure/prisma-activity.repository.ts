@@ -115,6 +115,11 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
     return count > 0;
   }
 
+  async findByStravaId(stravaId: string): Promise<ActivityEntity | null> {
+    const row = await this.prisma.activity.findUnique({ where: { stravaId } });
+    return row ? toEntity(row) : null;
+  }
+
   async findByUserToday(userId: string, date: string): Promise<ActivityEntity[]> {
     const start = new Date(date + 'T00:00:00.000Z');
     const end   = new Date(date + 'T23:59:59.999Z');
