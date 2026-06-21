@@ -11,11 +11,7 @@ export interface StravaTokenResponse {
 
 export interface StravaActivityDetail extends StravaActivitySummary {
   calories?: number;
-  // Strength training fields (device-dependent, may or may not be present)
-  total_weight?: number;        // total volume in kg
-  weighted_average_watts?: number;
-  // Some devices send sets/reps via undocumented fields — capture anything numeric
-  [key: string]: unknown;
+  total_weight?: number;
 }
 
 export interface StravaActivitySummary {

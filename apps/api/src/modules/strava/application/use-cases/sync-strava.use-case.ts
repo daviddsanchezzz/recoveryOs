@@ -99,9 +99,6 @@ export class SyncStravaUseCase {
           if (detail.total_weight != null && (detail.total_weight as number) > 0) {
             totalVolumeKg = Math.round((detail.total_weight as number) * 10) / 10;
           }
-          if ((act.sport_type === 'WeightTraining' || act.sport_type === 'Workout') && synced === 0) {
-            console.log('[StravaSync] DETAIL gym "%s":', act.name, JSON.stringify(detail));
-          }
         } catch { /* non-fatal */ }
 
         const entity = toActivityEntity(userId, act, calories, totalVolumeKg);
