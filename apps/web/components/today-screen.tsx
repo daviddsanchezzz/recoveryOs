@@ -447,8 +447,8 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                 const Icon = PLAN_ICONS[entry.type] ?? Dumbbell;
                 const plannedDetails = [
                   entry.time,
-                  entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' Â· '),
-                ].filter(Boolean).join(' Â· ');
+                  entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' · '),
+                ].filter(Boolean).join(' · ');
                 const value = matchedActivity
                   ? formatActivitySummary(matchedActivity) || (entry.time ? `Hecha · ${entry.time}` : 'Hecha')
                   : entry.time ?? (entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' · ') || null);

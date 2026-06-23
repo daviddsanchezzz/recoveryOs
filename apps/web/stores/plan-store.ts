@@ -11,6 +11,20 @@ export type Goal = {
   sortOrder: number;
 };
 
+export type StructuredGoalType =
+  | 'steps_daily'
+  | 'active_calories_daily'
+  | 'sleep_hours_daily'
+  | 'activity_minutes_weekly'
+  | 'activity_sessions_weekly'
+  | 'training_sessions_daily';
+
+export type StructuredGoal = {
+  type: StructuredGoalType;
+  enabled: boolean;
+  target: number;
+};
+
 export type ActiveProgram = {
   id: string;
   name: string;
@@ -27,6 +41,7 @@ export type PlanEntry = {
 
 type PlanState = {
   goals: Goal[];
+  structuredGoals: StructuredGoal[];
   program: ActiveProgram | null;
   goalsLoaded: boolean;
   programLoaded: boolean;
@@ -36,6 +51,8 @@ type PlanState = {
   templateLoaded: boolean;
 
   setGoals: (goals: Goal[]) => void;
+  setStructuredGoals: (goals: StructuredGoal[]) => void;
+  updateStructuredGoal: (type: StructuredGoalType, data: Partial<Omit<StructuredGoal, 'type'>>) => void;
   addGoal: (goal: Goal) => void;
   updateGoal: (id: string, data: Partial<Omit<Goal, 'id'>>) => void;
   removeGoal: (id: string) => void;
@@ -55,6 +72,14 @@ export const usePlanStore = create<PlanState>()(
   persist(
     (set) => ({
       goals: [],
+      structuredGoals: [
+        { type: 'steps_daily', enabled: true, target: 10000 },
+        { type: 'active_calories_daily', enabled: true, target: 700 },
+        { type: 'sleep_hours_daily', enabled: true, target: 8 },
+        { type: 'activity_minutes_weekly', enabled: true, target: 300 },
+        { type: 'activity_sessions_weekly', enabled: false, target: 5 },
+        { type: 'training_sessions_daily', enabled: false, target: 1 },
+      ],
       program: null,
       goalsLoaded: false,
       programLoaded: false,
@@ -64,6 +89,13 @@ export const usePlanStore = create<PlanState>()(
       templateLoaded: false,
 
       setGoals: (goals) => set({ goals, goalsLoaded: true }),
+      setStructuredGoals: (structuredGoals) => set({ structuredGoals }),
+      updateStructuredGoal: (type, data) =>
+        set((s) => ({
+          structuredGoals: s.structuredGoals.map((goal) =>
+            goal.type === type ? { ...goal, ...data } : goal,
+          ),
+        })),
       addGoal: (goal) => set((s) => ({ goals: [...s.goals, goal] })),
       updateGoal: (id, data) =>
         set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...data } : g)) })),
@@ -102,7 +134,7 @@ export const usePlanStore = create<PlanState>()(
     }),
     {
       name: 'recoveryos-plan-v1',
-      partialize: (state) => ({ weekPlan: state.weekPlan, template: state.template }),
+      partialize: (state) => ({ weekPlan: state.weekPlan, template: state.template, structuredGoals: state.structuredGoals }),
     },
   ),
 );
