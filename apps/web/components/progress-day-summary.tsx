@@ -1,7 +1,8 @@
 'use client';
 
-import { Moon, Scale, Dumbbell, Zap } from 'lucide-react';
+import { Flame, Footprints, Moon, Scale, Dumbbell, Zap } from 'lucide-react';
 import { sameDay } from '../lib/date';
+import { ACTIVE_CALORIES_GOAL, STEPS_GOAL } from '../lib/health-metrics';
 import type { ProgressStoreData } from '../lib/progress-metrics';
 
 function fmtSleepH(h: number): string {
@@ -28,6 +29,7 @@ export function ProgressDaySummary({ date, data }: { date: string; data: Progres
   const weightEntry   = data.weightEntries.find((w) => sameDay(w.date, date));
   const dayActivities = data.activities.filter((a) => sameDay(a.date, date));
   const dayLogs       = data.injuryLogs.filter((l) => sameDay(l.date, date));
+  const movementEntry = data.dailyHealthMetrics.find((entry) => sameDay(entry.date, date));
 
   const avgPain   = dayLogs.length > 0
     ? (dayLogs.reduce((s, l) => s + l.painLevel, 0) / dayLogs.length).toFixed(1)
@@ -56,6 +58,18 @@ export function ProgressDaySummary({ date, data }: { date: string; data: Progres
         ? `${dayActivities.length} sesión${dayActivities.length !== 1 ? 'es' : ''}${totalMins > 0 ? ` · ${fmtMins(totalMins)}` : ''}`
         : null,
       color: 'text-moss',
+    },
+    {
+      icon: Footprints,
+      rowLabel: 'Pasos',
+      value: movementEntry ? `${movementEntry.steps.toLocaleString('es-ES')} / ${STEPS_GOAL.toLocaleString('es-ES')}` : null,
+      color: 'text-moss',
+    },
+    {
+      icon: Flame,
+      rowLabel: 'Kcal activas',
+      value: movementEntry ? `${movementEntry.activeCalories} / ${ACTIVE_CALORIES_GOAL}` : null,
+      color: 'text-ember',
     },
     {
       icon: Zap,

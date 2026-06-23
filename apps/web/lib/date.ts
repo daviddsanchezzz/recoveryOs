@@ -22,8 +22,10 @@ export function formatShortDate(date: string) {
   });
 }
 
-export function startOfWeekIso(baseDate = new Date()): string {
-  const date = new Date(baseDate);
+export function startOfWeekIso(baseDate: Date | string = new Date()): string {
+  const date = typeof baseDate === 'string'
+    ? new Date(baseDate + 'T12:00:00')
+    : new Date(baseDate);
   const day  = date.getDay(); // 0=Sun … 6=Sat
   const diff = day === 0 ? -6 : 1 - day; // Monday = start
   date.setDate(date.getDate() + diff);
@@ -37,7 +39,7 @@ export function addDays(isoDate: string, days: number): string {
   return localIso(date);
 }
 
-export function weekDates(baseDate = new Date()): string[] {
+export function weekDates(baseDate: Date | string = new Date()): string[] {
   const start = startOfWeekIso(baseDate);
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }

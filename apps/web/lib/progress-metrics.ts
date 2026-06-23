@@ -1,5 +1,6 @@
-import type { ActivityEntry, ActivityType, DailyCheckIn, InjuryLog, SleepEntry, WeightEntry } from '../stores/recovery-store';
+import type { ActivityEntry, ActivityType, DailyCheckIn, DailyHealthMetricEntry, InjuryLog, SleepEntry, WeightEntry } from '../stores/recovery-store';
 import { addDays, startOfWeekIso, todayIso, weekDates } from './date';
+import { ACTIVE_CALORIES_GOAL, STEPS_GOAL } from './health-metrics';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -83,6 +84,15 @@ export type ProgressStoreData = {
   injuryLogs: InjuryLog[];
   checkIns: DailyCheckIn[];
   sleepEntries: SleepEntry[];
+  dailyHealthMetrics: DailyHealthMetricEntry[];
+};
+
+export type MovementSummary = {
+  averageSteps: number;
+  averageActiveCalories: number;
+  stepsGoalDays: number;
+  activeCaloriesGoalDays: number;
+  daysWithData: number;
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -411,6 +421,7 @@ export function getResumenCalendarDots(year: number, month: number, data: Progre
     const date  = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const count = [
       data.activities.some((a)   => a.date === date),
+      data.dailyHealthMetrics.some((entry) => entry.date === date && (entry.steps > 0 || entry.activeCalories > 0)),
       data.weightEntries.some((w) => w.date === date),
       data.sleepEntries.some((s)  => s.date === date),
       data.injuryLogs.some((l)   => l.date === date),
@@ -432,7 +443,8 @@ export function getStreaks(data: ProgressStoreData): StreakItem[] {
     data.weightEntries.some((e) => e.date === cur) ||
     data.sleepEntries.some((e)   => e.date === cur) ||
     data.activities.some((a)     => a.date === cur) ||
-    data.injuryLogs.some((l)     => l.date === cur)
+    data.injuryLogs.some((l)     => l.date === cur) ||
+    data.dailyHealthMetrics.some((entry) => entry.date === cur && (entry.steps > 0 || entry.activeCalories > 0))
   ) { anyDataDays++; cur = addDays(cur, -1); }
 
   // Consecutive days with weight entry
@@ -569,7 +581,7 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
 
   // MOCK – mostrar cuando hay datos pero aún no hay historial suficiente para comparar
   const hasAnyData = data.activities.length > 0 || data.weightEntries.length > 0 ||
-    data.sleepEntries.length > 0 || data.injuryLogs.length > 0;
+    data.sleepEntries.length > 0 || data.injuryLogs.length > 0 || data.dailyHealthMetrics.length > 0;
   if (!hasAnyData) {
     return [{ key: 'empty', text: 'Registra datos regularmente para ver tus insights.', direction: 'neutral' }];
   }
@@ -582,4 +594,22 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
     { key: 'mock-5', text: 'Llevas 3 días consecutivos registrando todos tus datos.',   direction: 'positive' },
   ]; // MOCK
   return [mockPool[seed % mockPool.length], mockPool[(seed + 1) % mockPool.length]];
+}
+
+export function getMovementSummary(data: ProgressStoreData, baseDate = todayIso()): MovementSummary {
+  const dates = weekDates(baseDate);
+  const entries = dates
+    .map((date) => data.dailyHealthMetrics.find((entry) => entry.date === date))
+    .filter((entry): entry is DailyHealthMetricEntry => Boolean(entry));
+
+  const totalSteps = entries.reduce((sum, entry) => sum + entry.steps, 0);
+  const totalActiveCalories = entries.reduce((sum, entry) => sum + entry.activeCalories, 0);
+
+  return {
+    averageSteps: entries.length > 0 ? Math.round(totalSteps / entries.length) : 0,
+    averageActiveCalories: entries.length > 0 ? Math.round(totalActiveCalories / entries.length) : 0,
+    stepsGoalDays: entries.filter((entry) => entry.steps >= STEPS_GOAL).length,
+    activeCaloriesGoalDays: entries.filter((entry) => entry.activeCalories >= ACTIVE_CALORIES_GOAL).length,
+    daysWithData: entries.length,
+  };
 }

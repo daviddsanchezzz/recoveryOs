@@ -1,6 +1,6 @@
 'use client';
 
-import { DailyCheckIn, InjuryLog, WeightEntry, ActivityEntry } from '../stores/recovery-store';
+import { DailyCheckIn, InjuryLog, WeightEntry, ActivityEntry, DailyHealthMetricEntry } from '../stores/recovery-store';
 import { weekDates } from '../lib/date';
 
 const DAY_INITIALS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -21,6 +21,7 @@ export function WeeklyCalendar({
   weights,
   activities,
   injuryLogs,
+  healthMetrics,
 }: {
   selectedDate: string;
   onSelect: (date: string) => void;
@@ -28,6 +29,7 @@ export function WeeklyCalendar({
   weights: WeightEntry[];
   activities: ActivityEntry[];
   injuryLogs: InjuryLog[];
+  healthMetrics?: DailyHealthMetricEntry[];
 }) {
   const dates = weekDates();
 
@@ -41,9 +43,11 @@ export function WeeklyCalendar({
         const hasActivity = activities.some((e) => e.date === date);
         const hasRehab    = checkIns.some((e) => e.date === date && e.habits.rehab);
         const hasPain     = injuryLogs.some((e) => e.date === date);
+        const hasMovement = healthMetrics?.some((entry) => entry.date === date && (entry.steps > 0 || entry.activeCalories > 0)) ?? false;
 
         const dots = [
           hasActivity && 'bg-moss',
+          hasMovement && 'bg-ink/45',
           hasWeight   && 'bg-ember',
           hasRehab    && 'bg-ink/70',
           hasPain     && 'bg-red-400',

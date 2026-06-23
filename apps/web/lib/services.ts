@@ -1,7 +1,7 @@
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { toast } from '../stores/toast-store';
-import type { ActivityEntry, Injury, InjuryLog, InjuryStatus, SleepEntry, WeightEntry } from '../stores/recovery-store';
+import type { ActivityEntry, DailyHealthMetricEntry, Injury, InjuryLog, InjuryStatus, SleepEntry, WeightEntry } from '../stores/recovery-store';
 import { deleteJson, getJson, patchJson, postJson } from './api';
 import { sameDay, todayIso } from './date';
 
@@ -58,6 +58,15 @@ type ServerSleepEntry = {
   date: string;
   durationH: number;
   quality: number;
+};
+
+type ServerHealthMetric = {
+  id: string;
+  userId: string;
+  date: string;
+  steps: number;
+  activeCalories: number;
+  source: string;
 };
 
 function mapServerActivity(a: ServerActivity): ActivityEntry {
@@ -120,6 +129,16 @@ function mapServerSleep(s: ServerSleepEntry): SleepEntry {
     date: isoDate(s.date),
     durationH: s.durationH,
     quality: s.quality as SleepEntry['quality'],
+  };
+}
+
+function mapServerHealthMetric(entry: ServerHealthMetric): DailyHealthMetricEntry {
+  return {
+    id: entry.id,
+    date: isoDate(entry.date),
+    steps: entry.steps,
+    activeCalories: entry.activeCalories,
+    source: entry.source as DailyHealthMetricEntry['source'],
   };
 }
 
@@ -314,6 +333,39 @@ export const RecoveryService = {
   },
 
   // ─── Full daily check-in ──────────────────────────────────
+  logHealthMetric(data: { date?: string; steps: number; activeCalories: number; source?: DailyHealthMetricEntry['source'] }) {
+    const userId = useSessionStore.getState().user?.id;
+    if (!userId) return;
+
+    postJson<ServerHealthMetric>('/health-metrics', {
+      date: data.date ?? todayIso(),
+      steps: data.steps,
+      activeCalories: data.activeCalories,
+      source: data.source ?? 'manual',
+    })
+      .then((entry) => {
+        useRecoveryStore.getState().saveHealthMetric(mapServerHealthMetric(entry));
+        toast.success('Movimiento guardado');
+      })
+      .catch(() => toast.error('No se pudo guardar el movimiento.'));
+  },
+
+  updateHealthMetric(id: string, data: { date?: string; steps?: number; activeCalories?: number; source?: DailyHealthMetricEntry['source'] }) {
+    patchJson<ServerHealthMetric>(`/health-metrics/${id}`, data)
+      .then((entry) => {
+        useRecoveryStore.getState().updateHealthMetric(id, mapServerHealthMetric(entry));
+        toast.success('Movimiento actualizado');
+      })
+      .catch(() => toast.error('No se pudo actualizar el movimiento.'));
+  },
+
+  deleteHealthMetric(id: string, silent = false) {
+    useRecoveryStore.getState().removeHealthMetric(id);
+    if (!silent) toast.success('Movimiento eliminado');
+    deleteJson(`/health-metrics/${id}`)
+      .catch(() => toast.error('No se pudo eliminar el movimiento.'));
+  },
+
   saveCheckIn(data: Parameters<ReturnType<typeof useRecoveryStore.getState>['saveDailyCheckIn']>[0]) {
     useRecoveryStore.getState().saveDailyCheckIn(data);
   },
@@ -322,14 +374,16 @@ export const RecoveryService = {
 
   async loadTodayData(userId: string, date: string): Promise<void> {
     const store = useRecoveryStore.getState();
+    const healthFrom = '2010-01-01';
 
-    const [weightsResult, todayResult, injuriesResult, sleepResult] = await Promise.allSettled([
+    const [weightsResult, todayResult, injuriesResult, sleepResult, healthMetricsResult] = await Promise.allSettled([
       getJson<{ currentWeightKg: number | null; trend: Array<{ id: string; date: string; value: number }> }>(
         `/weights/${userId}/summary`,
       ),
       getJson<ServerActivity[]>(`/activities/${userId}/today?date=${date}`),
       getJson<ServerInjury[]>(`/injuries/${userId}`),
       getJson<ServerSleepEntry[]>(`/sleep/${userId}`),
+      getJson<ServerHealthMetric[]>(`/health-metrics?from=${healthFrom}&to=${date}`),
     ]);
 
     if (weightsResult.status === 'fulfilled') {
@@ -364,6 +418,12 @@ export const RecoveryService = {
       store.seedSleepFromServer(sleepResult.value.map(mapServerSleep));
     } else {
       toast.error('No se pudieron cargar los registros de sueño.');
+    }
+
+    if (healthMetricsResult.status === 'fulfilled') {
+      store.seedHealthMetricsFromServer(healthMetricsResult.value.map(mapServerHealthMetric));
+    } else {
+      toast.error('No se pudieron cargar los datos de movimiento.');
     }
   },
 

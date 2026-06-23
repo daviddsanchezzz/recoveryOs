@@ -33,7 +33,7 @@ export function WeightScreen({ onClose }: { onClose: () => void }) {
 
   const sorted     = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
   const latest     = sorted[sorted.length - 1];
-  const chartData  = getLast12WeightChartData({ activities: [], weightEntries, injuryLogs: [], checkIns: [], sleepEntries: [] });
+  const chartData  = getLast12WeightChartData({ activities: [], weightEntries, injuryLogs: [], checkIns: [], sleepEntries: [], dailyHealthMetrics: [] });
   const prev        = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
   const delta       = latest && prev ? Number((latest.weightKg - prev.weightKg).toFixed(1)) : null;
 

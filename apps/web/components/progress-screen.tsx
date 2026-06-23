@@ -5,6 +5,7 @@ import { LayoutGrid, Dumbbell, Bike, Footprints, Waves, RefreshCw, SportShoe, Tr
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { RecoveryService } from '../lib/services';
+import { ACTIVE_CALORIES_GOAL, STEPS_GOAL } from '../lib/health-metrics';
 import type { ActivityEntry } from '../stores/recovery-store';
 import { WeightScreen } from './weight-screen';
 import { LesionesScreen } from './lesiones-screen';
@@ -27,6 +28,7 @@ import {
   getResumenCalendarDots,
   getStreaks,
   getTrends,
+  getMovementSummary,
   CHART_METRIC_OPTIONS,
   DEFAULT_CHART_METRIC,
   TAB_CHART_COLOR,
@@ -335,7 +337,7 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   const [allTimeActivities,  setAllTimeActivities]  = useState<ActivityEntry[] | null>(null);
 
   const user = useSessionStore((s) => s.user);
-  const { weightEntries, injuryLogs, checkIns, sleepEntries, selectedDate, setSelectedDate } =
+  const { weightEntries, injuryLogs, checkIns, sleepEntries, dailyHealthMetrics, selectedDate, setSelectedDate } =
     useRecoveryStore();
 
   // 12 weeks → charts, calendar, weekly summary
@@ -357,8 +359,8 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   }, [user?.id]);
 
   const storeData = useMemo(
-    () => ({ activities: progressActivities ?? [], weightEntries, injuryLogs, checkIns, sleepEntries }),
-    [progressActivities, weightEntries, injuryLogs, checkIns, sleepEntries],
+    () => ({ activities: progressActivities ?? [], weightEntries, injuryLogs, checkIns, sleepEntries, dailyHealthMetrics }),
+    [progressActivities, weightEntries, injuryLogs, checkIns, sleepEntries, dailyHealthMetrics],
   );
 
   function handleTabChange(tab: AnyTab) {
@@ -377,6 +379,7 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   );
   const streaks   = useMemo(() => getStreaks(storeData),   [storeData]);
   const trends    = useMemo(() => getTrends(storeData),    [storeData]);
+  const movementSummary = useMemo(() => getMovementSummary(storeData), [storeData]);
 
   const getDots = useCallback(
     (y: number, m: number) => getCalendarDots(progressTab, activityFilter, y, m, storeData),
@@ -458,6 +461,35 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
           </div>
           {/* Rachas */}
           <ProgressStreaks streaks={streaks} />
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Movimiento diario</p>
+            <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink/50">Pasos medios</span>
+                <span className="text-sm font-semibold text-ink">
+                  {movementSummary.averageSteps.toLocaleString('es-ES')} / día
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink/50">Kcal activas medias</span>
+                <span className="text-sm font-semibold text-ink">
+                  {movementSummary.averageActiveCalories.toLocaleString('es-ES')} / día
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink/50">Objetivo pasos</span>
+                <span className="text-sm font-semibold text-ink">
+                  {movementSummary.stepsGoalDays} / 7 días · {STEPS_GOAL.toLocaleString('es-ES')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink/50">Objetivo kcal activas</span>
+                <span className="text-sm font-semibold text-ink">
+                  {movementSummary.activeCaloriesGoalDays} / 7 días · {ACTIVE_CALORIES_GOAL}
+                </span>
+              </div>
+            </div>
+          </div>
           {/* Insights */}
           <ProgressTrends trends={trends} />
         </div>

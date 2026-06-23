@@ -23,6 +23,7 @@ model User {
   injuries        Injury[]
   injuryLogs      InjuryLog[]
   sleepEntries    SleepEntry[]
+  dailyHealthMetrics DailyHealthMetric[]
   nutritionLogs   NutritionLog[]
   activities      Activity[]
   weeklySummaries WeeklySummary[]
@@ -130,6 +131,21 @@ model SleepEntry {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, date])
+}
+
+model DailyHealthMetric {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime
+  steps           Int      @default(0)
+  activeCalories  Int      @default(0)
+  source          String   @default("manual") // manual | apple_health | coros | garmin | mock
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, source])
   @@index([userId, date])
 }
 

@@ -13,6 +13,7 @@ import { MonthlyCalendar }  from './monthly-calendar';
 import { WeightSheet }      from './weight-sheet';
 import { WeightScreen }     from './weight-screen';
 import { SleepSheet }       from './sleep-sheet';
+import { MovementSheet }    from './movement-sheet';
 import { SuenoScreen }      from './sueno-screen';
 import { DolorSheet }       from './dolor-sheet';
 import { LesionesScreen }   from './lesiones-screen';
@@ -23,6 +24,7 @@ import { usePlanStore }     from '../stores/plan-store';
 import { RecoveryService }  from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
+import { ACTIVE_CALORIES_GOAL, getMovementPercent, STEPS_GOAL } from '../lib/health-metrics';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 
 const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
@@ -218,6 +220,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const [showWeightSheet,    setShowWeightSheet]    = useState(false);
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
+  const [showMovementSheet,  setShowMovementSheet]  = useState(false);
   const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
@@ -228,7 +231,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
 
   const {
     selectedDate, setSelectedDate,
-    checkIns, weightEntries, activities, injuryLogs, injuries, sleepEntries,
+    checkIns, weightEntries, activities, injuryLogs, injuries, sleepEntries, dailyHealthMetrics,
   } = useRecoveryStore();
 
   const weekPlan   = usePlanStore((s) => s.weekPlan);
@@ -243,6 +246,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const dayLogs       = injuryLogs.filter((l) => sameDay(l.date, selectedDate));
   const todaySleep    = sleepEntries.find((s) => sameDay(s.date, selectedDate));
   const todayWeight   = weightEntries.find((w) => sameDay(w.date, selectedDate));
+  const todayMovement = dailyHealthMetrics.find((entry) => sameDay(entry.date, selectedDate));
   const activeInjuries = injuries.filter((i) => i.status !== 'resolved');
   const hasRehab       = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
 
@@ -281,9 +285,9 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     :                  { label: 'Día tranquilo', color: 'text-ink/40' };
 
   // MOCK – sustituir por Apple Health
-  const mockMovement  = getMockMovement(selectedDate);
-  const stepsPct      = Math.min(100, Math.round((mockMovement.steps / mockMovement.stepsGoal) * 100));
-  const kcalPct       = Math.min(100, Math.round((mockMovement.kcal  / mockMovement.kcalGoal)  * 100));
+  const movementSteps = todayMovement?.steps ?? 0;
+  const movementActiveCalories = todayMovement?.activeCalories ?? 0;
+  const { stepsPct, activeCaloriesPct, overallPct } = getMovementPercent(movementSteps, movementActiveCalories);
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -318,6 +322,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             weights={weightEntries}
             activities={activities}
             injuryLogs={injuryLogs}
+            healthMetrics={dailyHealthMetrics}
           />
         </div>
 
@@ -529,7 +534,20 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
             Movimiento de hoy
           </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-4">
+          <button
+            type="button"
+            onClick={() => setShowMovementSheet(true)}
+            className="w-full rounded-4xl bg-white shadow-card px-5 py-4 space-y-4 text-left"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-bold text-ink">Movimiento hoy</p>
+                <p className="text-xs text-ink/40 mt-0.5">{overallPct}% objetivo diario</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
+                <ChevronRight size={16} className="text-ink/35" />
+              </div>
+            </div>
             {/* Pasos */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -538,8 +556,8 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                   <span className="text-xs text-ink/50">Pasos</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-bold text-ink">{mockMovement.steps.toLocaleString('es-ES')}</span>
-                  <span className="text-[10px] text-ink/30">/ {mockMovement.stepsGoal.toLocaleString('es-ES')}</span>
+                  <span className="text-sm font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
+                  <span className="text-[10px] text-ink/30">/ {STEPS_GOAL.toLocaleString('es-ES')}</span>
                 </div>
               </div>
               <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
@@ -554,15 +572,15 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
                   <span className="text-xs text-ink/50">Calorías</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-bold text-ink">{mockMovement.kcal}</span>
-                  <span className="text-[10px] text-ink/30">/ {mockMovement.kcalGoal} kcal</span>
+                  <span className="text-sm font-bold text-ink">{movementActiveCalories}</span>
+                  <span className="text-[10px] text-ink/30">/ {ACTIVE_CALORIES_GOAL} kcal</span>
                 </div>
               </div>
               <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                <div className="bg-ember h-1.5 rounded-full" style={{ width: `${kcalPct}%` }} />
+                <div className="bg-ember h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* ── Activities detail ─────────────────────────────── */}
@@ -694,6 +712,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         weights={weightEntries}
         activities={activities}
         injuryLogs={injuryLogs}
+        healthMetrics={dailyHealthMetrics}
       />
       <AddActivitySheet
         isOpen={showAddActivity}
@@ -721,6 +740,14 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         defaultDurationH={todaySleep?.durationH}
         defaultQuality={todaySleep?.quality}
         editId={todaySleep?.id}
+      />
+      <MovementSheet
+        isOpen={showMovementSheet}
+        onClose={() => setShowMovementSheet(false)}
+        defaultDate={selectedDate}
+        defaultSteps={todayMovement?.steps}
+        defaultActiveCalories={todayMovement?.activeCalories}
+        editId={todayMovement?.id}
       />
       <DolorSheet
         isOpen={showDolorSheet}

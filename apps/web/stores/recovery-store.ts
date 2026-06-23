@@ -46,6 +46,16 @@ export type SleepEntry = {
   quality: 1 | 2 | 3 | 4 | 5;
 };
 
+export type HealthMetricSource = 'manual' | 'apple_health' | 'coros' | 'garmin' | 'mock';
+
+export type DailyHealthMetricEntry = {
+  id: string;
+  date: string;
+  steps: number;
+  activeCalories: number;
+  source: HealthMetricSource;
+};
+
 export type MuscleGroup =
   | 'pecho' | 'espalda' | 'biceps' | 'triceps'
   | 'hombro' | 'core' | 'pierna' | 'gluteo';
@@ -147,11 +157,15 @@ type RecoveryState = {
   activitiesMeta: ActivitiesMeta;
   checkIns: DailyCheckIn[];
   sleepEntries: SleepEntry[];
+  dailyHealthMetrics: DailyHealthMetricEntry[];
   selectedDate: string;
   setSelectedDate: (date: string) => void;
   saveSleep: (input: Omit<SleepEntry, 'id'> & { id?: string }) => void;
   updateSleepEntry: (id: string, data: Partial<Omit<SleepEntry, 'id'>>) => void;
   removeSleepEntry: (id: string) => void;
+  saveHealthMetric: (input: Omit<DailyHealthMetricEntry, 'id'> & { id?: string }) => void;
+  updateHealthMetric: (id: string, data: Partial<Omit<DailyHealthMetricEntry, 'id'>>) => void;
+  removeHealthMetric: (id: string) => void;
   saveDailyCheckIn: (input: CheckInInput) => void;
   addInjury: (input: Omit<Injury, 'id'> & { id?: string }) => void;
   updateInjury: (injuryId: string, input: Partial<Omit<Injury, 'id'>>) => void;
@@ -170,6 +184,7 @@ type RecoveryState = {
   resetActivitiesCache: () => void;
   seedInjuriesFromServer: (injuries: Injury[], logs: InjuryLog[]) => void;
   seedSleepFromServer: (entries: SleepEntry[]) => void;
+  seedHealthMetricsFromServer: (entries: DailyHealthMetricEntry[]) => void;
   clearAllData: () => void;
 };
 
@@ -194,6 +209,7 @@ export const useRecoveryStore = create<RecoveryState>()(
       activitiesMeta: INITIAL_ACTIVITIES_META,
       checkIns: [],
       sleepEntries: [],
+      dailyHealthMetrics: [],
       selectedDate: todayIso(),
       setSelectedDate: (date) => set({ selectedDate: date }),
       saveDailyCheckIn: (input) =>
@@ -337,6 +353,19 @@ export const useRecoveryStore = create<RecoveryState>()(
         })),
       removeSleepEntry: (id) =>
         set((state) => ({ sleepEntries: state.sleepEntries.filter((e) => e.id !== id) })),
+      saveHealthMetric: (input) =>
+        set((state) => ({
+          dailyHealthMetrics: [
+            ...state.dailyHealthMetrics.filter((entry) => !(sameDay(entry.date, input.date) && entry.source === input.source)),
+            { ...input, id: input.id ?? createId('health-metric') },
+          ],
+        })),
+      updateHealthMetric: (id, data) =>
+        set((state) => ({
+          dailyHealthMetrics: state.dailyHealthMetrics.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)),
+        })),
+      removeHealthMetric: (id) =>
+        set((state) => ({ dailyHealthMetrics: state.dailyHealthMetrics.filter((entry) => entry.id !== id) })),
       removeInjury: (id) =>
         set((state) => ({
           injuries: state.injuries.filter((i) => i.id !== id),
@@ -348,12 +377,14 @@ export const useRecoveryStore = create<RecoveryState>()(
         set({ injuries, injuryLogs: logs }),
       seedSleepFromServer: (entries) =>
         set({ sleepEntries: entries }),
+      seedHealthMetricsFromServer: (entries) =>
+        set({ dailyHealthMetrics: entries }),
       clearAllData: () =>
-        set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], sleepEntries: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
+        set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], sleepEntries: [], dailyHealthMetrics: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
     }),
     {
       name: 'recoveryos-v1-store',
-      version: 3,
+      version: 4,
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { activitiesMeta: _meta, ...rest } = state;
@@ -369,11 +400,11 @@ export const useRecoveryStore = create<RecoveryState>()(
           activities: [],
           checkIns: [],
           sleepEntries: [],
+          dailyHealthMetrics: [],
           selectedDate: todayIso(),
         } as unknown as RecoveryState;
       },
     },
   ),
 );
-
 

@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { DailyCheckIn, WeightEntry, ActivityEntry, InjuryLog } from '../stores/recovery-store';
+import type { DailyCheckIn, WeightEntry, ActivityEntry, InjuryLog, DailyHealthMetricEntry } from '../stores/recovery-store';
 import { todayIso } from '../lib/date';
 import { Portal } from './portal';
 
@@ -36,6 +36,7 @@ export function MonthlyCalendar({
   weights,
   activities,
   injuryLogs,
+  healthMetrics,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -45,6 +46,7 @@ export function MonthlyCalendar({
   weights: WeightEntry[];
   activities: ActivityEntry[];
   injuryLogs: InjuryLog[];
+  healthMetrics?: DailyHealthMetricEntry[];
 }) {
   const [year, setYear] = useState(() => new Date(selectedDate + 'T12:00:00').getFullYear());
   const [month, setMonth] = useState(() => new Date(selectedDate + 'T12:00:00').getMonth());
@@ -127,9 +129,11 @@ export function MonthlyCalendar({
               const hasWeight = weights.some((w) => w.date === date);
               const hasRehab = checkIns.some((c) => c.date === date && c.habits.rehab);
               const hasPain = injuryLogs.some((l) => l.date === date);
+              const hasMovement = healthMetrics?.some((entry) => entry.date === date && (entry.steps > 0 || entry.activeCalories > 0)) ?? false;
 
               const dots = [
                 hasActivity && 'bg-moss',
+                hasMovement && 'bg-ink/45',
                 hasWeight && 'bg-ember',
                 hasRehab && 'bg-ink',
                 hasPain && 'bg-red-400',
