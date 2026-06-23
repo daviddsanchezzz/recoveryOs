@@ -238,12 +238,8 @@ export function getWeeklySummary(
       const prevGymActs      = prevActs.filter((a) => a.type === 'gym');
       const prevVolumeKg     = prevGymActs.length > 0 ? prevGymActs.reduce((s, a) => s + (a.totalVolumeKg ?? 0), 0) : null;
 
-      // MOCK – comparación con semana anterior cuando no hay historial suficiente
-      const effectivePrevMinutes  = prevTotalMinutes === 0 && totalMinutes   > 0 ? Math.round(totalMinutes  * 0.87)         : prevTotalMinutes;
-      const effectivePrevSessions = prevSessions     === 0 && sessions       > 0 ? Math.max(1, sessions - 1)                 : prevSessions;
-      const effectivePrevVolumeKg = prevVolumeKg  === null && totalVolumeKg != null ? Math.round(totalVolumeKg * 0.9)       : prevVolumeKg;
       return { tab: 'actividad', totalMinutes, sessions, totalVolumeKg, distanceKm, avgHrBpm,
-               prevTotalMinutes: effectivePrevMinutes, prevSessions: effectivePrevSessions, prevVolumeKg: effectivePrevVolumeKg };
+               prevTotalMinutes, prevSessions, prevVolumeKg };
     }
 
     case 'peso': {
@@ -260,10 +256,7 @@ export function getWeeklySummary(
       const weekChangeKg  = last && entryWeekAgo  && entryWeekAgo.date  !== last.date ? Number((last.weightKg - entryWeekAgo.weightKg).toFixed(1))  : null;
       const monthChangeKg = last && entryMonthAgo && entryMonthAgo.date !== last.date ? Number((last.weightKg - entryMonthAgo.weightKg).toFixed(1)) : null;
 
-      // MOCK – estimación de cambio cuando no hay entradas anteriores suficientes
-      const effectiveWeekChange  = weekChangeKg  ?? (last != null ? -0.4 : null); // MOCK
-      const effectiveMonthChange = monthChangeKg ?? (last != null ? -1.2 : null); // MOCK
-      return { tab: 'peso', currentKg: last?.weightKg ?? null, lastEntryDate: last?.date ?? null, changeVsPrev, weekChangeKg: effectiveWeekChange, monthChangeKg: effectiveMonthChange };
+      return { tab: 'peso', currentKg: last?.weightKg ?? null, lastEntryDate: last?.date ?? null, changeVsPrev, weekChangeKg, monthChangeKg };
     }
 
     case 'lesion': {
@@ -281,21 +274,12 @@ export function getWeeklySummary(
       const week              = datesInRange(wStart, wEnd);
       const daysCompleted     = week.filter((d) => didRehabOn(d, data)).length;
       const prevDaysCompleted = datesInRange(pwStart, pwEnd).filter((d) => didRehabOn(d, data)).length;
-      // MOCK – estimación comparativa cuando no hay semana anterior
-      const effectivePrevAvg  = avgPrev ?? (avgThis !== null ? Number(Math.min(10, avgThis + 1.3).toFixed(1)) : null); // MOCK
-      const effectiveDelta    = avgThis !== null && effectivePrevAvg !== null ? Number((avgThis - effectivePrevAvg).toFixed(1)) : deltaPoints;
-      let   effectiveTrend    = trend;
-      if (!effectiveTrend && avgThis !== null && effectivePrevAvg !== null) {
-        if (avgThis < effectivePrevAvg - 0.3)      effectiveTrend = 'mejorando';
-        else if (avgThis > effectivePrevAvg + 0.3) effectiveTrend = 'empeorando';
-        else                                        effectiveTrend = 'estable';
-      }
       return {
         tab: 'lesion',
         avg: avgThis,
-        prevAvg: effectivePrevAvg,
-        trend: effectiveTrend,
-        deltaPoints: effectiveDelta,
+        prevAvg: avgPrev,
+        trend,
+        deltaPoints,
         daysCompleted,
         pct: week.length > 0 ? Math.round((daysCompleted / week.length) * 100) : 0,
         prevDaysCompleted,
@@ -309,16 +293,13 @@ export function getWeeklySummary(
       const avgQualVal = avg(entries.map((e) => e.quality));
       const prevAvgHVal  = avg(prevEntries.map((e) => e.durationH));
       const prevAvgQVal  = avg(prevEntries.map((e) => e.quality));
-      // MOCK – estimación comparativa cuando no hay semana anterior
-      const effectivePrevAvgH  = prevAvgHVal  ?? (avgHVal    !== null ? Number((avgHVal    - 0.2).toFixed(1)) : null); // MOCK
-      const effectivePrevAvgQ  = prevAvgQVal  ?? (avgQualVal !== null ? Number((avgQualVal - 0.2).toFixed(1)) : null); // MOCK
       return {
         tab: 'sueno',
         avgH:           avgHVal,
         totalH:         entries.length > 0 ? Number(entries.reduce((s, e) => s + e.durationH, 0).toFixed(1)) : null,
         avgQuality:     avgQualVal,
-        prevAvgH:       effectivePrevAvgH,
-        prevAvgQuality: effectivePrevAvgQ,
+        prevAvgH:       prevAvgHVal,
+        prevAvgQuality: prevAvgQVal,
       };
     }
   }
