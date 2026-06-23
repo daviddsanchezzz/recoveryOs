@@ -61,6 +61,52 @@ function fmtMins(v: number): string {
   return `${h}h ${m}min`;
 }
 
+function formatActivitySummary(activity: ActivityEntry): string {
+  const parts: string[] = [];
+
+  if (activity.durationMinutes && activity.durationMinutes > 0) {
+    parts.push(fmtMins(activity.durationMinutes));
+  }
+
+  if ((activity.type === 'run' || activity.type === 'walk' || activity.type === 'bike') && activity.distanceKm) {
+    parts.push(`${activity.distanceKm.toFixed(1)} km`);
+  }
+
+  if (activity.type === 'gym' && activity.muscleGroups && activity.muscleGroups.length > 0) {
+    parts.push(activity.muscleGroups.map((group) => MUSCLE_LABELS[group] ?? group).join(' · '));
+  }
+
+  return parts.join(' · ');
+}
+
+function matchesPlanEntry(entry: { type: ActivityType; muscleGroups?: MuscleGroup[] }, activity: ActivityEntry): boolean {
+  if (activity.type !== entry.type) return false;
+
+  if (entry.type !== 'gym') return true;
+  if (!entry.muscleGroups || entry.muscleGroups.length === 0) return true;
+  if (!activity.muscleGroups || activity.muscleGroups.length === 0) return false;
+
+  return entry.muscleGroups.every((group) => activity.muscleGroups?.includes(group));
+}
+
+function getPlannedActivityMatches(
+  entries: Array<{ type: ActivityType; label: string; time?: string; muscleGroups?: MuscleGroup[] }>,
+  activities: ActivityEntry[],
+) {
+  const usedIds = new Set<string>();
+
+  return entries.map((entry) => {
+    const matchedActivity = activities.find((activity) => {
+      if (usedIds.has(activity.id)) return false;
+      return matchesPlanEntry(entry, activity);
+    }) ?? null;
+
+    if (matchedActivity) usedIds.add(matchedActivity.id);
+
+    return { entry, matchedActivity };
+  });
+}
+
 // MOCK – sustituir por Apple Health
 function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsGoal: number; kcalGoal: number } {
   const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -126,15 +172,30 @@ function DailyRow({
         }
       </button>
 
-      {/* Label + value */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
-          {label}
-        </p>
-        <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
-          {value ?? 'Sin registrar'}
-        </p>
+      <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+        <Icon size={15} className={done ? doneColor : 'text-ink/35'} />
       </div>
+
+      {/* Label + value */}
+      {onDetail ? (
+        <button type="button" onClick={onDetail} className="flex-1 min-w-0 text-left">
+          <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
+            {label}
+          </p>
+          <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
+            {value ?? 'Sin registrar'}
+          </p>
+        </button>
+      ) : (
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
+            {label}
+          </p>
+          <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
+            {value ?? 'Sin registrar'}
+          </p>
+        </div>
+      )}
 
       {/* Arrow → detail screen */}
       {onDetail && (
@@ -195,6 +256,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     ? [`${dayActivities.length} sesión${dayActivities.length > 1 ? 'es' : ''}`, totalActMins > 0 ? fmtMins(totalActMins) : null].filter(Boolean).join(' · ')
     : null;
 
+  const plannedActivityRows = getPlannedActivityMatches(planEntries, dayActivities);
   const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
 
   const avgPainToday = dayLogs.length > 0
@@ -280,7 +342,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         </div>
 
         {/* ── Plan del día ──────────────────────────────────── */}
-        {planEntries.length > 0 && (
+        {false && planEntries.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
               Plan del día
@@ -362,7 +424,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         {/* ── Registros del día ─────────────────────────────── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Registros de hoy
+            {planEntries.length > 0 ? 'Cosas para hoy' : 'Registros de hoy'}
           </p>
           <div className="rounded-4xl bg-white shadow-card px-5 py-1 divide-y divide-ink/5">
             <DailyRow
@@ -375,16 +437,62 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
               onAdd={() => setShowSleepSheet(true)}
               onDetail={() => setShowSuenoScreen(true)}
             />
-            <DailyRow
-              icon={Dumbbell}
-              label="Actividad"
-              value={activityValue}
-              done={dayActivities.length > 0}
-              doneColor="text-moss"
-              doneBg="bg-moss"
-              onAdd={() => setShowAddActivity(true)}
-              onDetail={onNavToActividades}
-            />
+            {plannedActivityRows.length > 0 ? (
+              plannedActivityRows.map(({ entry, matchedActivity }, index) => {
+                const Icon = PLAN_ICONS[entry.type] ?? Dumbbell;
+                const value = matchedActivity
+                  ? formatActivitySummary(matchedActivity) || (entry.time ? `Hecha · ${entry.time}` : 'Hecha')
+                  : entry.time ?? (entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' · ') || null);
+
+                return (
+                  <DailyRow
+                    key={`${entry.type}-${entry.label}-${index}`}
+                    icon={Icon}
+                    label={entry.label}
+                    value={value}
+                    done={!!matchedActivity}
+                    doneColor="text-moss"
+                    doneBg="bg-moss"
+                    onAdd={() => {
+                      if (matchedActivity) {
+                        setDetailActivity(matchedActivity);
+                        return;
+                      }
+                      setEditActivity(undefined);
+                      setDetailActivity(null);
+                      setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
+                      setShowAddActivity(true);
+                    }}
+                    onDetail={() => {
+                      if (matchedActivity) {
+                        setDetailActivity(matchedActivity);
+                        return;
+                      }
+                      setEditActivity(undefined);
+                      setDetailActivity(null);
+                      setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
+                      setShowAddActivity(true);
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <DailyRow
+                icon={Dumbbell}
+                label="Actividad"
+                value={activityValue}
+                done={dayActivities.length > 0}
+                doneColor="text-moss"
+                doneBg="bg-moss"
+                onAdd={() => {
+                  setEditActivity(undefined);
+                  setDetailActivity(null);
+                  setPrefillActivity(undefined);
+                  setShowAddActivity(true);
+                }}
+                onDetail={dayActivities[0] ? () => setDetailActivity(dayActivities[0]) : onNavToActividades}
+              />
+            )}
             <DailyRow
               icon={Scale}
               label="Peso"
@@ -452,7 +560,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         </div>
 
         {/* ── Activities detail ─────────────────────────────── */}
-        {dayActivities.length > 0 && (
+        {dayActivities.length > 0 && planEntries.length === 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
               Actividades
