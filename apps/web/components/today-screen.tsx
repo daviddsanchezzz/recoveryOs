@@ -424,7 +424,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         {/* ── Registros del día ─────────────────────────────── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            {planEntries.length > 0 ? 'Cosas para hoy' : 'Registros de hoy'}
+            {planEntries.length > 0 ? 'Tareas de hoy' : 'Registros de hoy'}
           </p>
           <div className="rounded-4xl bg-white shadow-card px-5 py-1 divide-y divide-ink/5">
             <DailyRow

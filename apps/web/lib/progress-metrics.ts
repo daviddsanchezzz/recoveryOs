@@ -1,5 +1,5 @@
 import type { ActivityEntry, ActivityType, DailyCheckIn, InjuryLog, SleepEntry, WeightEntry } from '../stores/recovery-store';
-import { addDays, todayIso, weekDates } from './date';
+import { addDays, startOfWeekIso, todayIso, weekDates } from './date';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -147,13 +147,37 @@ function fmtShort(iso: string): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function diffDays(start: string, end: string): number {
+  const startDate = new Date(start + 'T12:00:00').getTime();
+  const endDate = new Date(end + 'T12:00:00').getTime();
+  return Math.round((endDate - startDate) / 86400000);
+}
+
+function getCurrentWeekWindow(baseDate = todayIso()) {
+  const start = startOfWeekIso(new Date(baseDate + 'T12:00:00'));
+  const end = baseDate;
+  return { start, end, elapsedDays: diffDays(start, end) };
+}
+
+function getPreviousComparableWeekWindow(baseDate = todayIso()) {
+  const current = getCurrentWeekWindow(baseDate);
+  const start = addDays(current.start, -7);
+  const end = addDays(start, current.elapsedDays);
+  return { start, end, elapsedDays: current.elapsedDays };
+}
+
+function getFullWeekWindow(weeksAgo: number, baseDate = todayIso()) {
+  const currentWeekStart = startOfWeekIso(new Date(baseDate + 'T12:00:00'));
+  const start = addDays(currentWeekStart, -(weeksAgo * 7));
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
 function getLast12WeekRanges(): { start: string; end: string; label: string; rangeLabel: string }[] {
-  const today = todayIso();
   return Array.from({ length: 12 }, (_, i) => {
     const weeksAgo = 11 - i;
-    const end      = addDays(today, -(weeksAgo * 7));
-    const start    = addDays(end, -6);
-    const dObj     = new Date(end + 'T12:00:00');
+    const { start, end } = getFullWeekWindow(weeksAgo);
+    const dObj = new Date(end + 'T12:00:00');
     return {
       start,
       end,
@@ -188,13 +212,16 @@ export function getWeeklySummary(
   data: ProgressStoreData,
 ): WeeklySummary {
   const today   = todayIso();
-  const wStart  = addDays(today, -6);
-  const pwStart = addDays(today, -13);
-  const pwEnd   = addDays(today, -7);
+  const currentWeek = getCurrentWeekWindow(today);
+  const previousComparableWeek = getPreviousComparableWeekWindow(today);
+  const wStart  = currentWeek.start;
+  const wEnd    = currentWeek.end;
+  const pwStart = previousComparableWeek.start;
+  const pwEnd   = previousComparableWeek.end;
 
   switch (tab) {
     case 'actividad': {
-      const acts     = data.activities.filter((a) => a.date >= wStart && matchesFilter(a.type, filter));
+      const acts     = data.activities.filter((a) => a.date >= wStart && a.date <= wEnd && matchesFilter(a.type, filter));
       const prevActs = data.activities.filter((a) => a.date >= pwStart && a.date <= pwEnd && matchesFilter(a.type, filter));
 
       const totalMinutes  = acts.reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
@@ -240,7 +267,7 @@ export function getWeeklySummary(
     }
 
     case 'lesion': {
-      const thisLogs  = data.injuryLogs.filter((l) => l.date >= wStart);
+      const thisLogs  = data.injuryLogs.filter((l) => l.date >= wStart && l.date <= wEnd);
       const prevLogs  = data.injuryLogs.filter((l) => l.date >= pwStart && l.date <= pwEnd);
       const avgThis   = avg(thisLogs.map((l) => l.painLevel));
       const avgPrev   = avg(prevLogs.map((l) => l.painLevel));
@@ -251,7 +278,7 @@ export function getWeeklySummary(
         else if (avgThis > avgPrev + 0.3) trend = 'empeorando';
         else                              trend = 'estable';
       }
-      const week              = weekDates();
+      const week              = datesInRange(wStart, wEnd);
       const daysCompleted     = week.filter((d) => didRehabOn(d, data)).length;
       const prevDaysCompleted = datesInRange(pwStart, pwEnd).filter((d) => didRehabOn(d, data)).length;
       // MOCK – estimación comparativa cuando no hay semana anterior
@@ -263,11 +290,20 @@ export function getWeeklySummary(
         else if (avgThis > effectivePrevAvg + 0.3) effectiveTrend = 'empeorando';
         else                                        effectiveTrend = 'estable';
       }
-      return { tab: 'lesion', avg: avgThis, prevAvg: effectivePrevAvg, trend: effectiveTrend, deltaPoints: effectiveDelta, daysCompleted, pct: Math.round((daysCompleted / 7) * 100), prevDaysCompleted };
+      return {
+        tab: 'lesion',
+        avg: avgThis,
+        prevAvg: effectivePrevAvg,
+        trend: effectiveTrend,
+        deltaPoints: effectiveDelta,
+        daysCompleted,
+        pct: week.length > 0 ? Math.round((daysCompleted / week.length) * 100) : 0,
+        prevDaysCompleted,
+      };
     }
 
     case 'sueno': {
-      const entries     = data.sleepEntries.filter((s) => s.date >= wStart);
+      const entries     = data.sleepEntries.filter((s) => s.date >= wStart && s.date <= wEnd);
       const prevEntries = data.sleepEntries.filter((s) => s.date >= pwStart && s.date <= pwEnd);
       const avgHVal    = avg(entries.map((e) => e.durationH));
       const avgQualVal = avg(entries.map((e) => e.quality));
@@ -436,8 +472,8 @@ export function getStreaks(data: ProgressStoreData): StreakItem[] {
   // Consecutive weeks with at least one activity
   let activityWeeks = 0;
   for (let w = 0; w < 52; w++) {
-    const end = addDays(today, -(w * 7));
-    if (!data.activities.some((a) => a.date >= addDays(end, -6) && a.date <= end)) break;
+    const { start, end } = getFullWeekWindow(w, today);
+    if (!data.activities.some((a) => a.date >= start && a.date <= end)) break;
     activityWeeks++;
   }
 
@@ -455,15 +491,18 @@ export function getStreaks(data: ProgressStoreData): StreakItem[] {
 export function getTrends(data: ProgressStoreData): TrendItem[] {
   const today    = todayIso();
   const insights: TrendItem[] = [];
+  const currentWeek = getCurrentWeekWindow(today);
+  const previousComparableWeek = getPreviousComparableWeekWindow(today);
 
   // 1. Best activity week in last 8 weeks
-  const wStart       = addDays(today, -6);
-  const thisWeekMins = data.activities.filter((a) => a.date >= wStart).reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
+  const thisWeekMins = data.activities
+    .filter((a) => a.date >= currentWeek.start && a.date <= currentWeek.end)
+    .reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
   if (thisWeekMins > 0) {
     let priorWithData = 0, priorWithMore = 0;
     for (let w = 1; w <= 8; w++) {
-      const end   = addDays(today, -(w * 7));
-      const start = addDays(end, -6);
+      const start = addDays(previousComparableWeek.start, -(7 * (w - 1)));
+      const end = addDays(start, previousComparableWeek.elapsedDays);
       const mins  = data.activities.filter((a) => a.date >= start && a.date <= end).reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
       if (mins > 0) { priorWithData++; if (mins >= thisWeekMins) priorWithMore++; }
     }
@@ -473,8 +512,8 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
   }
 
   // 2. Activity sessions comparison vs previous week
-  const thisWeekSessions = data.activities.filter((a) => a.date >= wStart).length;
-  const prevWeekSessions = data.activities.filter((a) => a.date >= addDays(today, -14) && a.date < addDays(today, -7)).length;
+  const thisWeekSessions = data.activities.filter((a) => a.date >= currentWeek.start && a.date <= currentWeek.end).length;
+  const prevWeekSessions = data.activities.filter((a) => a.date >= previousComparableWeek.start && a.date <= previousComparableWeek.end).length;
   if (thisWeekSessions > 0 && prevWeekSessions > 0) {
     const diff = thisWeekSessions - prevWeekSessions;
     if (diff >= 2)       insights.push({ key: 'sessions-up',   text: `Has completado ${diff} sesiones más que la semana pasada.`,        direction: 'positive' });
@@ -482,7 +521,7 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
   }
 
   // 3. Pain trend — vs peak or vs previous week
-  const recentPain = data.injuryLogs.filter((l) => l.date >= addDays(today, -7));
+  const recentPain = data.injuryLogs.filter((l) => l.date >= currentWeek.start && l.date <= currentWeek.end);
   if (recentPain.length > 0 && data.injuryLogs.length >= 4) {
     const rAvg  = recentPain.reduce((s, l) => s + l.painLevel, 0) / recentPain.length;
     const peak  = Math.max(...data.injuryLogs.map((l) => l.painLevel));
@@ -490,7 +529,7 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
       const pct = Math.round(((peak - rAvg) / peak) * 100);
       insights.push({ key: 'pain-peak', text: `Tu dolor está un ${pct}% por debajo de tu peor momento registrado.`, direction: 'positive' });
     } else {
-      const prevPain = data.injuryLogs.filter((l) => l.date >= addDays(today, -14) && l.date < addDays(today, -7));
+      const prevPain = data.injuryLogs.filter((l) => l.date >= previousComparableWeek.start && l.date <= previousComparableWeek.end);
       if (prevPain.length > 0) {
         const pAvg = prevPain.reduce((s, l) => s + l.painLevel, 0) / prevPain.length;
         const d    = Number((rAvg - pAvg).toFixed(1));
@@ -520,8 +559,8 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
   }
 
   // 5. Sleep vs previous week
-  const sleepThis = data.sleepEntries.filter((s) => s.date >= addDays(today, -7));
-  const sleepPrev = data.sleepEntries.filter((s) => s.date >= addDays(today, -14) && s.date < addDays(today, -7));
+  const sleepThis = data.sleepEntries.filter((s) => s.date >= currentWeek.start && s.date <= currentWeek.end);
+  const sleepPrev = data.sleepEntries.filter((s) => s.date >= previousComparableWeek.start && s.date <= previousComparableWeek.end);
   if (sleepThis.length >= 3 && sleepPrev.length >= 3) {
     const aT = sleepThis.reduce((s, e) => s + e.durationH, 0) / sleepThis.length;
     const aP = sleepPrev.reduce((s, e) => s + e.durationH, 0) / sleepPrev.length;
@@ -533,8 +572,8 @@ export function getTrends(data: ProgressStoreData): TrendItem[] {
   // 6. Rehab consistency
   let rehabWeeks = 0;
   for (let w = 0; w < 8; w++) {
-    const end = addDays(today, -(w * 7));
-    if (datesInRange(addDays(end, -6), end).filter((d) => didRehabOn(d, data)).length < 4) break;
+    const { start, end } = getFullWeekWindow(w, today);
+    if (datesInRange(start, end).filter((d) => didRehabOn(d, data)).length < 4) break;
     rehabWeeks++;
   }
   if (rehabWeeks >= 3) insights.push({ key: 'rehab', text: `Llevas ${rehabWeeks} semanas cumpliendo tu objetivo de rehab.`, direction: 'positive' });
