@@ -9,31 +9,32 @@ datasource db {
 }
 
 model User {
-  id              String          @id @default(cuid())
-  email           String          @unique
-  emailVerified   Boolean         @default(false)
-  image           String?
-  passwordHash    String?
-  name            String
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  accounts        Account[]
-  sessions        Session[]
-  weightEntries   WeightEntry[]
-  injuries        Injury[]
-  injuryLogs      InjuryLog[]
-  sleepEntries    SleepEntry[]
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  emailVerified      Boolean             @default(false)
+  image              String?
+  passwordHash       String?
+  name               String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  accounts           Account[]
+  sessions           Session[]
+  weightEntries      WeightEntry[]
+  injuries           Injury[]
+  injuryLogs         InjuryLog[]
+  sleepEntries       SleepEntry[]
   dailyHealthMetrics DailyHealthMetric[]
-  nutritionLogs   NutritionLog[]
-  activities      Activity[]
-  weeklySummaries WeeklySummary[]
-  goals           Goal[]
-  programs        Program[]
-  weekPlanDays    WeekPlanDay[]
-  weekTemplateDays WeekTemplateDay[]
-  stravaToken       StravaToken?
-  pushSubscriptions PushSubscription[]
-  notifications     Notification[]
+  nutritionLogs      NutritionLog[]
+  activities         Activity[]
+  weeklySummaries    WeeklySummary[]
+  goals              Goal[]
+  programs           Program[]
+  weekPlanDays       WeekPlanDay[]
+  weekTemplateDays   WeekTemplateDay[]
+  stravaToken        StravaToken?
+  pushSubscriptions  PushSubscription[]
+  notifications      Notification[]
+  nutritionGoal      NutritionGoal?
 }
 
 model Session {
@@ -111,7 +112,7 @@ model InjuryLog {
   injuryId  String
   userId    String
   date      DateTime
-  painLevel Int      // 0-10
+  painLevel Int // 0-10
   didRehab  Boolean  @default(false)
   notes     String?
   createdAt DateTime @default(now())
@@ -127,7 +128,7 @@ model SleepEntry {
   userId    String
   date      DateTime
   durationH Float
-  quality   Int      // 1-5
+  quality   Int // 1-5
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -135,15 +136,15 @@ model SleepEntry {
 }
 
 model DailyHealthMetric {
-  id              String   @id @default(cuid())
-  userId          String
-  date            DateTime
-  steps           Int      @default(0)
-  activeCalories  Int      @default(0)
-  source          String   @default("manual") // manual | apple_health | coros | garmin | mock
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime
+  steps          Int      @default(0)
+  activeCalories Int      @default(0)
+  source         String   @default("manual") // manual | apple_health | coros | garmin | mock
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date, source])
   @@index([userId, date])
@@ -154,59 +155,75 @@ model NutritionLog {
   userId       String
   consumedAt   DateTime
   rawText      String
+  description  String?
+  mealType     String   @default("snack") // breakfast|lunch|snack|dinner|extra
   calories     Int
   proteinGrams Float
   carbsGrams   Float
   fatGrams     Float
+  quality      String   @default("medium") // low|medium|high
+  confidence   String   @default("medium") // low|medium|high
+  source       String   @default("manual") // manual|ai|template
   createdAt    DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+}
+
+model NutritionGoal {
+  id             String @id @default(cuid())
+  userId         String @unique
+  caloriesTarget Int    @default(2300)
+  proteinTarget  Int    @default(150)
+  waterTargetMl  Int?
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Activity {
-  id             String   @id @default(cuid())
-  userId         String
-  type           String           // gym | bike | run | walk | swim | mobility | rehab | other
-  source         String           // manual | strava | coros
-  performedAt    DateTime
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  type        String // gym | bike | run | walk | swim | mobility | rehab | other
+  source      String // manual | strava | coros
+  performedAt DateTime
+  createdAt   DateTime @default(now())
 
   // Common
-  durationMin    Float?
-  calories       Int?             // kcal
-  avgHeartRate   Int?             // bpm
-  maxHeartRate   Int?             // bpm
-  notes          String?
+  durationMin  Float?
+  calories     Int? // kcal
+  avgHeartRate Int? // bpm
+  maxHeartRate Int? // bpm
+  notes        String?
 
   // Distance activities (run, walk, bike)
   distanceKm     Float?
-  elevationGainM Float?           // meters
+  elevationGainM Float? // meters
 
   // Run / Walk
-  avgPaceSecPerKm Float?          // seconds/km → display as mm:ss/km
-  avgCadenceSpm  Int?             // steps/min
+  avgPaceSecPerKm Float? // seconds/km → display as mm:ss/km
+  avgCadenceSpm   Int? // steps/min
 
   // Bike
-  avgSpeedKmh    Float?           // km/h
-  avgPowerW      Int?             // watts
-  avgCadenceRpm  Int?             // rpm
-  kilojoules     Float?           // kJ (from Strava)
+  avgSpeedKmh   Float? // km/h
+  avgPowerW     Int? // watts
+  avgCadenceRpm Int? // rpm
+  kilojoules    Float? // kJ (from Strava)
 
   // Swim
-  distanceM      Int?             // meters
-  avgPace100mSec Int?             // seconds per 100m
+  distanceM      Int? // meters
+  avgPace100mSec Int? // seconds per 100m
 
   // Gym
-  muscleGroups   String[]         // pecho | espalda | biceps | triceps | hombro | core | pierna | gluteo
-  totalVolumeKg  Float?           // total kg lifted
+  muscleGroups  String[] // pecho | espalda | biceps | triceps | hombro | core | pierna | gluteo
+  totalVolumeKg Float? // total kg lifted
 
   // Strava integration (stravaId as String to avoid BigInt JSON issues)
-  stravaId       String?  @unique // Strava activity ID — used for deduplication
-  stravaName     String?          // activity name from Strava
+  stravaId   String? @unique // Strava activity ID — used for deduplication
+  stravaName String? // activity name from Strava
 
   // Race flag
-  isRace         Boolean  @default(false)
+  isRace Boolean @default(false)
 
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, performedAt])
 }
@@ -247,7 +264,7 @@ model Notification {
   userId    String
   title     String
   body      String?
-  type      String   // strava_activity | ...
+  type      String // strava_activity | ...
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -271,8 +288,8 @@ model StravaToken {
 model WeekPlanDay {
   id        String   @id @default(cuid())
   userId    String
-  date      String   // YYYY-MM-DD
-  entries   Json     // PlanEntry[]
+  date      String // YYYY-MM-DD
+  entries   Json // PlanEntry[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -284,8 +301,8 @@ model WeekPlanDay {
 model WeekTemplateDay {
   id        String   @id @default(cuid())
   userId    String
-  dayIndex  Int      // 0=Mon … 6=Sun
-  entries   Json     // PlanEntry[]
+  dayIndex  Int // 0=Mon … 6=Sun
+  entries   Json // PlanEntry[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
