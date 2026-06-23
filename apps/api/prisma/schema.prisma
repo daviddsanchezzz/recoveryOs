@@ -177,6 +177,8 @@ model NutritionGoal {
   proteinTarget  Int    @default(150)
   waterTargetMl  Int?
   user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Activity {
