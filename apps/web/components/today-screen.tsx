@@ -440,16 +440,22 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             {plannedActivityRows.length > 0 ? (
               plannedActivityRows.map(({ entry, matchedActivity }, index) => {
                 const Icon = PLAN_ICONS[entry.type] ?? Dumbbell;
+                const plannedDetails = [
+                  entry.time,
+                  entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' Â· '),
+                ].filter(Boolean).join(' Â· ');
                 const value = matchedActivity
                   ? formatActivitySummary(matchedActivity) || (entry.time ? `Hecha · ${entry.time}` : 'Hecha')
                   : entry.time ?? (entry.muscleGroups?.map((group) => MUSCLE_LABELS[group] ?? group).join(' · ') || null);
+
+                const displayValue = matchedActivity ? value : plannedDetails || value;
 
                 return (
                   <DailyRow
                     key={`${entry.type}-${entry.label}-${index}`}
                     icon={Icon}
                     label={entry.label}
-                    value={value}
+                    value={displayValue}
                     done={!!matchedActivity}
                     doneColor="text-moss"
                     doneBg="bg-moss"

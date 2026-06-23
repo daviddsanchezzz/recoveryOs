@@ -323,17 +323,13 @@ export function AddActivitySheet({
                       className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
                     />
                     <span className="text-xs text-ink/40 font-semibold">min</span>
-                    {(type === 'run' || type === 'walk') && (
-                      <>
-                        <input
-                          type="number" inputMode="numeric" min={0} max={59}
-                          value={durS} onChange={(e) => setDurS(e.target.value)}
-                          placeholder="00"
-                          className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
-                        />
-                        <span className="text-xs text-ink/40 font-semibold">s</span>
-                      </>
-                    )}
+                    <input
+                      type="number" inputMode="numeric" min={0} max={59}
+                      value={durS} onChange={(e) => setDurS(e.target.value)}
+                      placeholder="00"
+                      className="w-14 rounded-xl bg-canvas-light border border-ink/8 px-2 py-2.5 text-sm outline-none text-center"
+                    />
+                    <span className="text-xs text-ink/40 font-semibold">s</span>
                   </div>
                 </div>
 
