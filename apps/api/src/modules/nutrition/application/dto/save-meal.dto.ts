@@ -1,41 +1,40 @@
-import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Confidence, MealSource, MealType, Quality } from '../../domain/meal-types';
 
-export class LogMealDto {
+export class SaveMealDto {
   @IsString()
   userId!: string;
 
-  @Type(() => Date)
-  @IsDate()
-  consumedAt!: Date;
+  @IsString()
+  date!: string; // YYYY-MM-DD
+
+  @IsEnum(['breakfast', 'lunch', 'snack', 'dinner', 'extra'])
+  mealType!: MealType;
 
   @IsString()
   rawText!: string;
 
-  @IsInt()
-  @Min(0)
-  calories!: number;
-
-  @IsNumber()
-  @Min(0)
-  proteinGrams!: number;
-
-  @IsNumber()
-  @Min(0)
-  carbsGrams!: number;
-
-  @IsNumber()
-  @Min(0)
-  fatGrams!: number;
-
-  @IsOptional()
-  @IsEnum(['breakfast', 'lunch', 'snack', 'dinner', 'extra'])
-  mealType?: MealType;
-
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsInt()
+  @Min(0)
+  caloriesEstimate!: number;
+
+  @IsNumber()
+  @Min(0)
+  proteinEstimate!: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  carbsEstimate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fatEstimate?: number;
 
   @IsOptional()
   @IsEnum(['low', 'medium', 'high'])
@@ -49,4 +48,3 @@ export class LogMealDto {
   @IsEnum(['manual', 'ai', 'template'])
   source?: MealSource;
 }
-
