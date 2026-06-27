@@ -26,8 +26,11 @@
     "@nestjs/cli": "10.4.9",
     "@nestjs/schematics": "10.2.3",
     "@nestjs/testing": "10.4.15",
+    "@types/jest": "^30.0.0",
     "@types/node": "20.16.11",
+    "jest": "^30.4.2",
     "prisma": "5.22.0",
+    "ts-jest": "^29.4.11",
     "ts-node": "10.9.2",
     "typescript": "5.4.5"
   }
