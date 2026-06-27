@@ -4,30 +4,30 @@ import {
   NUTRITION_REPOSITORY,
   NutritionRepositoryPort,
 } from '../../domain/nutrition-repository.port';
-import { LogMealDto } from '../dto/log-meal.dto';
+import { SaveMealDto } from '../dto/save-meal.dto';
 
 @Injectable()
-export class LogMealUseCase {
+export class SaveMealUseCase {
   constructor(
     @Inject(NUTRITION_REPOSITORY)
     private readonly repository: NutritionRepositoryPort,
   ) {}
 
-  execute(input: LogMealDto) {
+  execute(input: SaveMealDto): Promise<NutritionEntryEntity> {
     const entry = new NutritionEntryEntity(
       crypto.randomUUID(),
       input.userId,
-      input.consumedAt,
+      new Date(`${input.date}T12:00:00.000Z`),
       input.rawText,
-      input.calories,
-      input.proteinGrams,
-      input.carbsGrams,
-      input.fatGrams,
-      input.mealType ?? 'snack',
+      input.caloriesEstimate,
+      input.proteinEstimate,
+      input.carbsEstimate ?? 0,
+      input.fatEstimate ?? 0,
+      input.mealType,
       input.description ?? null,
       input.quality ?? 'medium',
       input.confidence ?? 'medium',
-      input.source ?? 'manual',
+      input.source ?? 'ai',
     );
     return this.repository.create(entry);
   }
