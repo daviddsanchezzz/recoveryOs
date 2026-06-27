@@ -82,13 +82,7 @@ function formatActivitySummary(activity: ActivityEntry): string {
 }
 
 function matchesPlanEntry(entry: { type: ActivityType; muscleGroups?: MuscleGroup[] }, activity: ActivityEntry): boolean {
-  if (activity.type !== entry.type) return false;
-
-  if (entry.type !== 'gym') return true;
-  if (!entry.muscleGroups || entry.muscleGroups.length === 0) return true;
-  if (!activity.muscleGroups || activity.muscleGroups.length === 0) return false;
-
-  return entry.muscleGroups.every((group) => activity.muscleGroups?.includes(group));
+  return activity.type === entry.type;
 }
 
 function getPlannedActivityMatches(

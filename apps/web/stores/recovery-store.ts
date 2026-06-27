@@ -387,7 +387,7 @@ export const useRecoveryStore = create<RecoveryState>()(
       version: 4,
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { activitiesMeta: _meta, ...rest } = state;
+        const { activitiesMeta: _meta, selectedDate: _date, ...rest } = state;
         return rest as RecoveryState;
       },
       migrate: (_persisted: unknown, _fromVersion: number) => {
