@@ -29,7 +29,7 @@ const DEFAULT_TEMPLATES: MealTemplate[] = [
   },
   {
     id: 'tmpl-3',
-    name: 'Tostada jamón',
+    name: 'Tostada con jamón',
     mealType: 'breakfast',
     description: 'Tostada con jamón serrano',
     caloriesEstimate: 280,
@@ -37,7 +37,7 @@ const DEFAULT_TEMPLATES: MealTemplate[] = [
   },
   {
     id: 'tmpl-4',
-    name: 'Tostada fuet',
+    name: 'Tostada con fuet',
     mealType: 'breakfast',
     description: 'Tostada con fuet',
     caloriesEstimate: 320,
