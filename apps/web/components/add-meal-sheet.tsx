@@ -32,9 +32,10 @@ interface AddMealSheetProps {
   isOpen: boolean;
   onClose: () => void;
   defaultDate: string;
+  onSaved?: () => void;
 }
 
-export function AddMealSheet({ isOpen, onClose, defaultDate }: AddMealSheetProps) {
+export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealSheetProps) {
   const userId    = useSessionStore((s) => s.user?.id);
   const templates = useNutritionStore((s) => s.templates);
 
@@ -117,6 +118,7 @@ export function AddMealSheet({ isOpen, onClose, defaultDate }: AddMealSheetProps
         confidence:       proposal?.confidence ?? 'medium',
         source:           proposal ? 'ai' : 'manual',
       });
+      onSaved?.();
       setTimeout(onClose, 600);
     } catch {
       setSaved(false);
