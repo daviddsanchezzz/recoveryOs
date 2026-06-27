@@ -572,6 +572,8 @@ export const NutritionService = {
   },
 
   async fetchWeeklyNutrition(userId: string): Promise<WeeklyNutrition> {
-    return getJson<WeeklyNutrition>(`/nutrition/weekly?userId=${userId}`);
+    const data = await getJson<WeeklyNutrition>(`/nutrition/weekly?userId=${userId}`);
+    useNutritionStore.getState().setWeeklyNutrition(data);
+    return data;
   },
 };
