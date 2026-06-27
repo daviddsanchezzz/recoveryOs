@@ -451,3 +451,127 @@ export const RecoveryService = {
     useRecoveryStore.getState().clearAllData();
   },
 };
+
+// ─── Nutrition ─────────────────────────────────────────────────────────────────
+
+import { useNutritionStore } from '../stores/nutrition-store';
+import type {
+  MealEntry, NutritionTemplate, DailySummary, ParsedMealProposal,
+  WeeklyNutrition, MealType, Quality, Confidence, MealSource,
+} from '../stores/nutrition-store';
+
+type ServerMealEntry = {
+  id: string;
+  userId: string;
+  consumedAt: string;
+  rawText: string;
+  description: string | null;
+  mealType: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  quality: string;
+  confidence: string;
+  source: string;
+};
+
+function mapServerMeal(m: ServerMealEntry): MealEntry {
+  const date = m.consumedAt.includes('T') ? m.consumedAt.split('T')[0] : m.consumedAt;
+  return {
+    id: m.id,
+    userId: m.userId,
+    date,
+    mealType: m.mealType as MealType,
+    description: m.description,
+    rawText: m.rawText,
+    calories: m.calories,
+    proteinGrams: m.proteinGrams,
+    carbsGrams: m.carbsGrams,
+    fatGrams: m.fatGrams,
+    quality: m.quality as Quality,
+    confidence: m.confidence as Confidence,
+    source: m.source as MealSource,
+  };
+}
+
+export const NutritionService = {
+  async parseMeal(text: string, date?: string): Promise<ParsedMealProposal> {
+    return postJson<ParsedMealProposal>('/nutrition/parse', { text, date });
+  },
+
+  async saveMeal(params: {
+    userId: string;
+    date: string;
+    mealType: MealType;
+    rawText: string;
+    description?: string;
+    caloriesEstimate: number;
+    proteinEstimate: number;
+    carbsEstimate?: number;
+    fatEstimate?: number;
+    quality?: Quality;
+    confidence?: Confidence;
+    source?: MealSource;
+  }): Promise<MealEntry> {
+    const saved = await postJson<ServerMealEntry>('/nutrition/meals', params);
+    const meal  = mapServerMeal(saved);
+    useNutritionStore.getState().addMeal(meal);
+    toast.success('Comida guardada');
+    return meal;
+  },
+
+  async fetchDailySummary(userId: string, date: string): Promise<DailySummary> {
+    const raw = await getJson<{
+      totalCalories: number;
+      totalProtein: number;
+      totalCarbs: number;
+      totalFat: number;
+      caloriesTarget: number;
+      proteinTarget: number;
+      mealsCount: number;
+      mealsByType?: Record<string, ServerMealEntry[]>;
+      missingMealTypes: string[];
+      proteinProgressPercent: number;
+      caloriesProgressPercent: number;
+    }>(
+      `/nutrition/summary?userId=${userId}&date=${date}`,
+    );
+    const summary: DailySummary = {
+      totalCalories: raw.totalCalories,
+      totalProtein: raw.totalProtein,
+      totalCarbs: raw.totalCarbs,
+      totalFat: raw.totalFat,
+      caloriesTarget: raw.caloriesTarget,
+      proteinTarget: raw.proteinTarget,
+      mealsCount: raw.mealsCount,
+      mealsByType: Object.fromEntries(
+        Object.entries(raw.mealsByType ?? {}).map(([k, v]) => [
+          k,
+          v.map(mapServerMeal),
+        ]),
+      ),
+      missingMealTypes: raw.missingMealTypes as MealType[],
+      proteinProgressPercent: raw.proteinProgressPercent,
+      caloriesProgressPercent: raw.caloriesProgressPercent,
+    };
+    useNutritionStore.getState().setSummaryForDate(date, summary);
+    return summary;
+  },
+
+  async deleteMeal(mealId: string, date: string): Promise<void> {
+    await deleteJson(`/nutrition/meals/${mealId}`);
+    useNutritionStore.getState().removeMeal(mealId, date);
+    toast.success('Comida eliminada');
+  },
+
+  async fetchTemplates(): Promise<NutritionTemplate[]> {
+    const templates = await getJson<NutritionTemplate[]>('/nutrition/templates');
+    useNutritionStore.getState().setTemplates(templates);
+    return templates;
+  },
+
+  async fetchWeeklyNutrition(userId: string): Promise<WeeklyNutrition> {
+    return getJson<WeeklyNutrition>(`/nutrition/weekly?userId=${userId}`);
+  },
+};
