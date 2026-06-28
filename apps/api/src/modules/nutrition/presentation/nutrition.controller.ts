@@ -74,12 +74,10 @@ export class NutritionController {
   }
 
   @Get('meals')
-  getMealsByDate(
-    @Query('userId') userId: string,
-    @Query('date') date: string,
-  ) {
-    if (!userId || !date) throw new BadRequestException('userId and date are required');
-    return this.getMealsByDateUseCase.execute(userId, date);
+  async getMealsByDate(@Query('date') date: string, @Req() req: any) {
+    if (!date) throw new BadRequestException('date is required');
+    const session = await this.requireSession(req);
+    return this.getMealsByDateUseCase.execute(session.user.id, date);
   }
 
   @Patch('meals/:id')
@@ -100,26 +98,24 @@ export class NutritionController {
   // NOTE: @Get('summary') MUST be declared before @Get(':userId/summary')
   // to avoid NestJS route shadowing (static segments take priority when ordered first).
   @Get('summary')
-  getDailySummary(
-    @Query('userId') userId: string,
-    @Query('date') date: string,
-  ) {
-    if (!userId || !date) throw new BadRequestException('userId and date are required');
-    return this.getDailySummaryUseCase.execute(userId, date);
+  async getDailySummary(@Query('date') date: string, @Req() req: any) {
+    if (!date) throw new BadRequestException('date is required');
+    const session = await this.requireSession(req);
+    return this.getDailySummaryUseCase.execute(session.user.id, date);
   }
 
   @Get('weekly')
-  getWeekly(@Query('userId') userId: string) {
-    if (!userId) throw new BadRequestException('userId is required');
-    return this.getWeeklyNutritionUseCase.execute(userId);
+  async getWeekly(@Req() req: any) {
+    const session = await this.requireSession(req);
+    return this.getWeeklyNutritionUseCase.execute(session.user.id);
   }
 
   // ── Goals ────────────────────────────────────────────────────────────────
 
   @Get('goals')
-  getGoal(@Query('userId') userId: string) {
-    if (!userId) throw new BadRequestException('userId is required');
-    return this.getNutritionGoalUseCase.execute(userId);
+  async getGoal(@Req() req: any) {
+    const session = await this.requireSession(req);
+    return this.getNutritionGoalUseCase.execute(session.user.id);
   }
 
   @Patch('goals')
