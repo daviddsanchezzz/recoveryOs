@@ -70,6 +70,12 @@ export interface NutritionTemplate {
   proteinEstimate: number;
 }
 
+export interface NutritionGoal {
+  caloriesTarget: number;
+  proteinTarget: number;
+  waterTargetMl: number | null;
+}
+
 // Store state
 interface NutritionState {
   // Daily data (keyed by YYYY-MM-DD)
@@ -78,6 +84,9 @@ interface NutritionState {
 
   // Weekly progress
   weeklyNutrition: WeeklyNutrition | null;
+
+  // User goal
+  goal: NutritionGoal | null;
 
   // Templates
   templates: NutritionTemplate[];
@@ -89,6 +98,7 @@ interface NutritionState {
   removeMeal(id: string, date: string): void;
   updateMeal(id: string, date: string, updates: Partial<MealEntry>): void;
   setWeeklyNutrition(data: WeeklyNutrition): void;
+  setGoal(goal: NutritionGoal): void;
   setTemplates(templates: NutritionTemplate[]): void;
 }
 
@@ -96,6 +106,7 @@ export const useNutritionStore = create<NutritionState>()((set) => ({
   mealsByDate: {},
   summaryByDate: {},
   weeklyNutrition: null,
+  goal: null,
   templates: [],
 
   setMealsForDate(date, meals) {
@@ -145,6 +156,10 @@ export const useNutritionStore = create<NutritionState>()((set) => ({
 
   setWeeklyNutrition(data) {
     set({ weeklyNutrition: data });
+  },
+
+  setGoal(goal) {
+    set({ goal });
   },
 
   setTemplates(templates) {

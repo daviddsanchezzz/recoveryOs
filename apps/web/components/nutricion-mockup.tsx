@@ -87,7 +87,7 @@ export function NutricionMockup() {
               <span className="text-[10px] font-semibold text-ink/40 uppercase tracking-wide">Calorías</span>
             </div>
             <p className="text-xl font-bold text-ink">{data.avgCalories.toLocaleString('es')}</p>
-            <p className="text-[10px] text-ink/40">/ {CALORIES_TARGET.toLocaleString('es')} kcal</p>
+            <p className="text-[10px] text-ink/40">/ {data.caloriesTarget.toLocaleString('es')} kcal</p>
           </div>
           <div className="flex-1 rounded-2xl bg-canvas px-4 py-3">
             <div className="flex items-center gap-1.5 mb-1">

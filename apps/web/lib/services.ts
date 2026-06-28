@@ -457,7 +457,7 @@ export const RecoveryService = {
 import { useNutritionStore } from '../stores/nutrition-store';
 import type {
   MealEntry, NutritionTemplate, DailySummary, ParsedMealProposal,
-  WeeklyNutrition, MealType, Quality, Confidence, MealSource,
+  WeeklyNutrition, NutritionGoal, MealType, Quality, Confidence, MealSource,
 } from '../stores/nutrition-store';
 
 type ServerMealEntry = {
@@ -575,5 +575,62 @@ export const NutritionService = {
     const data = await getJson<WeeklyNutrition>(`/nutrition/weekly?userId=${userId}`);
     useNutritionStore.getState().setWeeklyNutrition(data);
     return data;
+  },
+
+  async fetchMealsForDate(date: string): Promise<MealEntry[]> {
+    const raw = await getJson<ServerMealEntry[]>(`/nutrition/meals?date=${date}`);
+    const meals = raw.map(mapServerMeal);
+    useNutritionStore.getState().setMealsForDate(date, meals);
+    return meals;
+  },
+
+  async updateMeal(
+    id: string,
+    date: string,
+    fields: {
+      mealType?: MealType;
+      description?: string;
+      caloriesEstimate?: number;
+      proteinEstimate?: number;
+      carbsEstimate?: number;
+      fatEstimate?: number;
+      quality?: Quality;
+    },
+  ): Promise<MealEntry> {
+    const raw = await patchJson<ServerMealEntry>(`/nutrition/meals/${id}`, fields);
+    const meal = mapServerMeal(raw);
+    useNutritionStore.getState().updateMeal(id, date, meal);
+    return meal;
+  },
+
+  async fetchGoal(): Promise<NutritionGoal> {
+    const raw = await getJson<{ caloriesTarget: number; proteinTarget: number; waterTargetMl: number | null }>(
+      '/nutrition/goals',
+    );
+    const goal: NutritionGoal = {
+      caloriesTarget: raw.caloriesTarget,
+      proteinTarget:  raw.proteinTarget,
+      waterTargetMl:  raw.waterTargetMl,
+    };
+    useNutritionStore.getState().setGoal(goal);
+    return goal;
+  },
+
+  async updateGoal(fields: {
+    caloriesTarget?: number;
+    proteinTarget?: number;
+    waterTargetMl?: number;
+  }): Promise<NutritionGoal> {
+    const raw = await patchJson<{ caloriesTarget: number; proteinTarget: number; waterTargetMl: number | null }>(
+      '/nutrition/goals',
+      fields,
+    );
+    const goal: NutritionGoal = {
+      caloriesTarget: raw.caloriesTarget,
+      proteinTarget:  raw.proteinTarget,
+      waterTargetMl:  raw.waterTargetMl,
+    };
+    useNutritionStore.getState().setGoal(goal);
+    return goal;
   },
 };
