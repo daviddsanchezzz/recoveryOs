@@ -54,8 +54,10 @@ export interface ParsedMealProposal {
 export interface WeeklyNutrition {
   avgCalories: number;
   avgProtein: number;
+  caloriesTarget: number;
   proteinTarget: number;
   daysHittingProtein: number;
+  totalLoggedDays: number;
   dailyData: Array<{ date: string; calories: number; protein: number }>;
 }
 

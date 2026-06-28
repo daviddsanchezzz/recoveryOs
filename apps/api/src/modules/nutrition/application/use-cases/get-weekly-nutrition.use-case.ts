@@ -21,24 +21,27 @@ export class GetWeeklyNutritionUseCase {
   ) {}
 
   async execute(userId: string) {
-    const [allEntries, goal] = await Promise.all([
-      this.repo.findByUser(userId),
+    // Build last 7 days (oldest first) using UTC dates
+    const days: { date: string; calories: number; protein: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      days.push({ date: dateStr, calories: 0, protein: 0 });
+    }
+
+    const from = new Date(`${days[0].date}T00:00:00.000Z`);
+    const to   = new Date(`${days[days.length - 1].date}T23:59:59.999Z`);
+
+    const [entries, goal] = await Promise.all([
+      this.repo.findByDateRange(userId, from, to),
       this.goalRepo.findByUser(userId),
     ]);
 
     const proteinTarget = goal?.proteinTarget ?? DEFAULT_PROTEIN_TARGET;
     const caloriesTarget = goal?.caloriesTarget ?? DEFAULT_CALORIES_TARGET;
 
-    // Build last 7 days (oldest first)
-    const days: { date: string; calories: number; protein: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      days.push({ date: dateStr, calories: 0, protein: 0 });
-    }
-
-    for (const entry of allEntries) {
+    for (const entry of entries) {
       const dateStr = entry.consumedAt.toISOString().split('T')[0];
       const day = days.find((d) => d.date === dateStr);
       if (day) {

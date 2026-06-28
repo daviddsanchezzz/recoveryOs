@@ -23,6 +23,12 @@ export class InMemoryNutritionRepository implements NutritionRepositoryPort {
     );
   }
 
+  async findByDateRange(userId: string, from: Date, to: Date): Promise<NutritionEntryEntity[]> {
+    return this.entries.filter(
+      (e) => e.userId === userId && e.consumedAt >= from && e.consumedAt <= to,
+    );
+  }
+
   async findById(id: string): Promise<NutritionEntryEntity | null> {
     return this.entries.find((e) => e.id === id) ?? null;
   }

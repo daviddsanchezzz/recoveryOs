@@ -10,8 +10,6 @@ import type { WeeklyNutrition } from '../stores/nutrition-store';
 
 type MetricKey = 'kcal' | 'prot';
 
-const CALORIES_TARGET = 2300;
-
 function dayLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00Z');
   return ['D', 'L', 'M', 'X', 'J', 'V', 'S'][d.getUTCDay()];
@@ -58,7 +56,7 @@ export function NutricionMockup() {
   }));
 
   const metricConfig = {
-    kcal: { label: 'Calorías', color: '#b56b45', unit: 'kcal', avg: data.avgCalories, target: CALORIES_TARGET },
+    kcal: { label: 'Calorías', color: '#b56b45', unit: 'kcal', avg: data.avgCalories, target: data.caloriesTarget },
     prot: { label: 'Proteína', color: '#54715a', unit: 'g',    avg: data.avgProtein,  target: data.proteinTarget },
   }[metric];
 
@@ -66,7 +64,7 @@ export function NutricionMockup() {
     ? Math.round((data.avgProtein / data.proteinTarget) * 100)
     : 0;
 
-  const totalLoggedDays = data.dailyData.length;
+  const totalLoggedDays = data.totalLoggedDays;
 
   const insight = totalLoggedDays === 0
     ? 'Empieza a registrar comidas para ver tu progreso nutricional.'

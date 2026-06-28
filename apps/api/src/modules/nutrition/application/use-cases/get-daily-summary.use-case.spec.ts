@@ -21,6 +21,7 @@ const mockRepo: NutritionRepositoryPort = {
     makeEntry('lunch', 700, 45),
     makeEntry('snack', 150, 5),
   ]),
+  findByDateRange: jest.fn(),
   findById: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { DeleteMealUseCase } from './application/use-cases/delete-meal.use-case';
 import { GetDailySummaryUseCase } from './application/use-cases/get-daily-summary.use-case';
 import { GetMealsByDateUseCase } from './application/use-cases/get-meals-by-date.use-case';
@@ -21,6 +22,7 @@ import { PrismaNutritionRepository } from './infrastructure/prisma-nutrition.rep
 import { NutritionController } from './presentation/nutrition.controller';
 
 @Module({
+  imports: [AuthModule],
   controllers: [NutritionController],
   providers: [
     // Use cases

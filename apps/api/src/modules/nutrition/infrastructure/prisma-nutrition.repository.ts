@@ -71,6 +71,14 @@ export class PrismaNutritionRepository implements NutritionRepositoryPort {
     return rows.map((r) => this.map(r));
   }
 
+  async findByDateRange(userId: string, from: Date, to: Date): Promise<NutritionEntryEntity[]> {
+    const rows = await this.prisma.nutritionLog.findMany({
+      where: { userId, consumedAt: { gte: from, lte: to } },
+      orderBy: { consumedAt: 'asc' },
+    });
+    return rows.map((r) => this.map(r));
+  }
+
   async findById(id: string): Promise<NutritionEntryEntity | null> {
     const row = await this.prisma.nutritionLog.findUnique({ where: { id } });
     return row ? this.map(row) : null;

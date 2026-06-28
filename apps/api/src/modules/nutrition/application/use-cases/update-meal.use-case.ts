@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { NutritionEntryEntity } from '../../domain/nutrition-entry.entity';
 import {
   NUTRITION_REPOSITORY,
@@ -13,11 +13,12 @@ export class UpdateMealUseCase {
     private readonly repository: NutritionRepositoryPort,
   ) {}
 
-  async execute(id: string, input: UpdateMealDto): Promise<NutritionEntryEntity> {
+  async execute(id: string, input: UpdateMealDto, callerId: string): Promise<NutritionEntryEntity> {
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new NotFoundException(`Meal with id ${id} not found`);
     }
+    if (existing.userId !== callerId) throw new ForbiddenException();
 
     return this.repository.update(id, {
       ...(input.mealType !== undefined && { mealType: input.mealType }),

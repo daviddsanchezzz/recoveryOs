@@ -39,14 +39,15 @@ export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealS
   const userId    = useSessionStore((s) => s.user?.id);
   const templates = useNutritionStore((s) => s.templates);
 
-  const [text,      setText]      = useState('');
-  const [loading,   setLoading]   = useState(false);
-  const [proposal,  setProposal]  = useState<ParsedMealProposal | null>(null);
-  const [mealType,  setMealType]  = useState<MealType>('snack');
-  const [calories,  setCalories]  = useState('');
-  const [protein,   setProtein]   = useState('');
-  const [quality,   setQuality]   = useState<Quality>('medium');
-  const [saved,     setSaved]     = useState(false);
+  const [text,        setText]        = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [proposal,    setProposal]    = useState<ParsedMealProposal | null>(null);
+  const [mealType,    setMealType]    = useState<MealType>('snack');
+  const [calories,    setCalories]    = useState('');
+  const [protein,     setProtein]     = useState('');
+  const [quality,     setQuality]     = useState<Quality>('medium');
+  const [saved,       setSaved]       = useState(false);
+  const [isTemplate,  setIsTemplate]  = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +58,7 @@ export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealS
       setMealType('snack');
       setQuality('medium');
       setSaved(false);
+      setIsTemplate(false);
       if (templates.length === 0) {
         NutritionService.fetchTemplates().catch(() => {});
       }
@@ -66,6 +68,7 @@ export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealS
   async function handleEstimate() {
     if (!text.trim()) return;
     setLoading(true);
+    setIsTemplate(false);
     try {
       const result = await NutritionService.parseMeal(text.trim(), defaultDate);
       setProposal(result);
@@ -85,6 +88,7 @@ export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealS
     setMealType(tmpl.mealType);
     setCalories(String(tmpl.caloriesEstimate));
     setProtein(String(tmpl.proteinEstimate));
+    setIsTemplate(true);
     setProposal({
       mealType:         tmpl.mealType,
       description:      tmpl.description,
@@ -116,7 +120,7 @@ export function AddMealSheet({ isOpen, onClose, defaultDate, onSaved }: AddMealS
         fatEstimate:      proposal?.fatEstimate,
         quality,
         confidence:       proposal?.confidence ?? 'medium',
-        source:           proposal ? 'ai' : 'manual',
+        source:           isTemplate ? 'template' : proposal ? 'ai' : 'manual',
       });
       onSaved?.();
       setTimeout(onClose, 600);

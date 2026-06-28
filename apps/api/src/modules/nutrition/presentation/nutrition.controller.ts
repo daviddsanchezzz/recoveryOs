@@ -1,6 +1,9 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query,
+  BadRequestException,
+  Body, Controller, Delete, ForbiddenException, Get, HttpCode,
+  Inject, Param, Patch, Post, Query, Req, UnauthorizedException,
 } from '@nestjs/common';
+import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { DeleteMealUseCase } from '../application/use-cases/delete-meal.use-case';
 import { GetDailySummaryUseCase } from '../application/use-cases/get-daily-summary.use-case';
 import { GetMealsByDateUseCase } from '../application/use-cases/get-meals-by-date.use-case';
@@ -34,7 +37,14 @@ export class NutritionController {
     private readonly getNutritionGoalUseCase: GetNutritionGoalUseCase,
     private readonly updateNutritionGoalUseCase: UpdateNutritionGoalUseCase,
     private readonly getTemplatesUseCase: GetTemplatesUseCase,
+    @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
   ) {}
+
+  private async requireSession(req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new UnauthorizedException();
+    return session;
+  }
 
   // ── Legacy endpoints (backward compat) ──────────────────────────────────
 
@@ -58,8 +68,9 @@ export class NutritionController {
   // ── Meals CRUD ───────────────────────────────────────────────────────────
 
   @Post('meals')
-  saveMeal(@Body() body: SaveMealDto) {
-    return this.saveMealUseCase.execute(body);
+  async saveMeal(@Body() body: SaveMealDto, @Req() req: any) {
+    const session = await this.requireSession(req);
+    return this.saveMealUseCase.execute({ ...body, userId: session.user.id });
   }
 
   @Get('meals')
@@ -67,18 +78,21 @@ export class NutritionController {
     @Query('userId') userId: string,
     @Query('date') date: string,
   ) {
+    if (!userId || !date) throw new BadRequestException('userId and date are required');
     return this.getMealsByDateUseCase.execute(userId, date);
   }
 
   @Patch('meals/:id')
-  updateMeal(@Param('id') id: string, @Body() body: UpdateMealDto) {
-    return this.updateMealUseCase.execute(id, body);
+  async updateMeal(@Param('id') id: string, @Body() body: UpdateMealDto, @Req() req: any) {
+    const session = await this.requireSession(req);
+    return this.updateMealUseCase.execute(id, body, session.user.id);
   }
 
   @Delete('meals/:id')
   @HttpCode(204)
-  async deleteMeal(@Param('id') id: string) {
-    await this.deleteMealUseCase.execute(id);
+  async deleteMeal(@Param('id') id: string, @Req() req: any) {
+    const session = await this.requireSession(req);
+    await this.deleteMealUseCase.execute(id, session.user.id);
   }
 
   // ── Summary ──────────────────────────────────────────────────────────────
@@ -90,11 +104,13 @@ export class NutritionController {
     @Query('userId') userId: string,
     @Query('date') date: string,
   ) {
+    if (!userId || !date) throw new BadRequestException('userId and date are required');
     return this.getDailySummaryUseCase.execute(userId, date);
   }
 
   @Get('weekly')
   getWeekly(@Query('userId') userId: string) {
+    if (!userId) throw new BadRequestException('userId is required');
     return this.getWeeklyNutritionUseCase.execute(userId);
   }
 
@@ -102,12 +118,14 @@ export class NutritionController {
 
   @Get('goals')
   getGoal(@Query('userId') userId: string) {
+    if (!userId) throw new BadRequestException('userId is required');
     return this.getNutritionGoalUseCase.execute(userId);
   }
 
   @Patch('goals')
-  updateGoal(@Body() body: UpdateGoalDto) {
-    return this.updateNutritionGoalUseCase.execute(body);
+  async updateGoal(@Body() body: UpdateGoalDto, @Req() req: any) {
+    const session = await this.requireSession(req);
+    return this.updateNutritionGoalUseCase.execute({ ...body, userId: session.user.id });
   }
 
   // ── Templates ────────────────────────────────────────────────────────────
