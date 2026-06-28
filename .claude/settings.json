@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 06e2037 HEAD)",
+      "Bash(sed -i 's/Task 4 \\(Repository\\): pending/Task 4 \\(Repository\\): complete \\(commit 2a9c8da, review clean\\)/' .superpowers/sdd/progress.md)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 5)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 2a9c8da HEAD)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 6)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 4c6bd95 HEAD)",
+      "Bash(git commit *)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 7)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 2339e41 HEAD)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 21ef35f HEAD)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 9)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" 4961d3c HEAD)",
+      "Bash(sed -i 's/Task 9 \\(Nutrition Service\\): pending/Task 9 \\(Nutrition Service\\): complete \\(commits 4961d3c..d6b4642, review clean after fetchWeeklyNutrition fix\\)/' .superpowers/sdd/progress.md)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 10)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" d6b4642 HEAD)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 11)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/review-package\" ea265dc HEAD)",
+      "Bash(sed -i 's/Task 11 \\(Today Screen\\): pending/Task 11 \\(Today Screen\\): complete \\(commit 70c29df, review clean\\)/' .superpowers/sdd/progress.md)",
+      "Bash(bash \"C:/Users/david/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief\" \"docs/superpowers/plans/2026-06-23-nutrition-ai.md\" 12)"
+    ]
+  }
+}
