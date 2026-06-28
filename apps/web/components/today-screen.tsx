@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   Scale, Zap, Moon, Dumbbell,
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
   Bike, Waves, RefreshCw, SportShoe, Target, Clock,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -19,9 +20,12 @@ import { DolorSheet }       from './dolor-sheet';
 import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
+import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { usePlanStore }     from '../stores/plan-store';
-import { RecoveryService }  from '../lib/services';
+import { useNutritionStore } from '../stores/nutrition-store';
+import { useSessionStore }  from '../stores/session-store';
+import { RecoveryService, NutritionService } from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, getMovementPercent, STEPS_GOAL } from '../lib/health-metrics';
@@ -219,6 +223,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
+  const [showAddMeal,        setShowAddMeal]        = useState(false);
   const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
   const [detailActivity,     setDetailActivity]     = useState<ActivityEntry | null>(null);
   const [prefillActivity,    setPrefillActivity]    = useState<{ type: ActivityType; muscleGroups?: MuscleGroup[] } | undefined>(undefined);
@@ -227,6 +232,15 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     selectedDate, setSelectedDate,
     checkIns, weightEntries, activities, injuryLogs, injuries, sleepEntries, dailyHealthMetrics,
   } = useRecoveryStore();
+
+  const userId          = useSessionStore((s) => s.user?.id);
+  const nutritionByDate = useNutritionStore((s) => s.summaryByDate);
+  const dailyNutrition  = nutritionByDate[selectedDate] ?? null;
+
+  useEffect(() => {
+    if (!userId || nutritionByDate[selectedDate]) return;
+    NutritionService.fetchDailySummary(userId, selectedDate).catch(() => {});
+  }, [selectedDate, userId]);
 
   const weekPlan   = usePlanStore((s) => s.weekPlan);
   const planEntries = weekPlan[selectedDate] ?? [];
@@ -577,6 +591,90 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
           </button>
         </div>
 
+        {/* ── Alimentación ──────────────────────────────────── */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Alimentación
+          </p>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed size={15} className={dailyNutrition ? 'text-moss' : 'text-ink/35'} />
+                <p className="text-sm font-bold text-ink">Alimentación</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddMeal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-canvas text-xs font-semibold text-ink/60 active:scale-95 transition-transform"
+              >
+                <Plus size={11} />
+                Añadir
+              </button>
+            </div>
+
+            {dailyNutrition ? (
+              <>
+                {/* Kcal progress */}
+                <div className="space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-2xl font-bold text-ink">
+                      {dailyNutrition.totalCalories.toLocaleString('es')}
+                    </span>
+                    <span className="text-xs text-ink/40">/ {dailyNutrition.caloriesTarget.toLocaleString('es')} kcal</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-ember transition-all"
+                      style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Protein progress */}
+                <div className="space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-base font-semibold text-ink">
+                      {dailyNutrition.totalProtein}g
+                    </span>
+                    <span className="text-xs text-ink/40">/ {dailyNutrition.proteinTarget}g proteína</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-moss transition-all"
+                      style={{ width: `${Math.min(dailyNutrition.proteinProgressPercent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Meal type checkmarks */}
+                <div className="flex gap-3 pt-1 flex-wrap">
+                  {(['breakfast', 'lunch', 'snack', 'dinner'] as const).map((type) => {
+                    const labels: Record<string, string> = {
+                      breakfast: 'Desayuno', lunch: 'Comida', snack: 'Merienda', dinner: 'Cena',
+                    };
+                    const done = (dailyNutrition.mealsByType[type]?.length ?? 0) > 0;
+                    return (
+                      <div key={type} className="flex items-center gap-1">
+                        <div className={`h-4 w-4 rounded-full flex items-center justify-center ${done ? 'bg-moss' : 'border border-ink/15'}`}>
+                          {done && <Check size={9} strokeWidth={2.5} className="text-white" />}
+                        </div>
+                        <span className={`text-xs ${done ? 'text-ink/70 font-medium' : 'text-ink/30'}`}>
+                          {labels[type]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="py-2 text-center">
+                <p className="text-sm text-ink/30">Sin registros hoy</p>
+                <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ── Activities detail ─────────────────────────────── */}
         {dayActivities.length > 0 && planEntries.length === 0 && (
           <div className="space-y-2">
@@ -747,6 +845,15 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         isOpen={showDolorSheet}
         onClose={() => setShowDolorSheet(false)}
         defaultDate={selectedDate}
+      />
+      <AddMealSheet
+        isOpen={showAddMeal}
+        onClose={() => setShowAddMeal(false)}
+        defaultDate={selectedDate}
+        onSaved={() => {
+          const uid = useSessionStore.getState().user?.id;
+          if (uid) NutritionService.fetchDailySummary(uid, selectedDate).catch(() => {});
+        }}
       />
       {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
       {showSuenoScreen    && <SuenoScreen     onClose={() => setShowSuenoScreen(false)} />}
