@@ -1,0 +1,42 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createTokenStore } from "./token-store.js";
+
+describe("createTokenStore", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "coros-spike-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("returns undefined when no tokens have been saved", async () => {
+    const store = createTokenStore(dir);
+    expect(await store.loadTokens()).toBeUndefined();
+  });
+
+  it("round-trips saved tokens", async () => {
+    const store = createTokenStore(dir);
+    await store.saveTokens({ access_token: "abc", refresh_token: "xyz", obtained_at: 123 });
+    expect(await store.loadTokens()).toEqual({ access_token: "abc", refresh_token: "xyz", obtained_at: 123 });
+  });
+
+  it("round-trips saved client info independently of tokens", async () => {
+    const store = createTokenStore(dir);
+    await store.saveClientInfo({ client_id: "client-1", client_secret: "secret-1" });
+    expect(await store.loadClientInfo()).toEqual({ client_id: "client-1", client_secret: "secret-1" });
+    expect(await store.loadTokens()).toBeUndefined();
+  });
+
+  it("overwrites previous tokens on save", async () => {
+    const store = createTokenStore(dir);
+    await store.saveTokens({ access_token: "first", obtained_at: 1 });
+    await store.saveTokens({ access_token: "second", obtained_at: 2 });
+    expect(await store.loadTokens()).toEqual({ access_token: "second", obtained_at: 2 });
+  });
+});
