@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir, platform } from "node:os";
 import path from "node:path";
 import { createTokenStore } from "./token-store.js";
 
@@ -38,5 +38,15 @@ describe("createTokenStore", () => {
     await store.saveTokens({ access_token: "first", obtained_at: 1 });
     await store.saveTokens({ access_token: "second", obtained_at: 2 });
     expect(await store.loadTokens()).toEqual({ access_token: "second", obtained_at: 2 });
+  });
+
+  it("creates token files with owner-only permissions", async () => {
+    const store = createTokenStore(dir);
+    await store.saveTokens({ access_token: "abc", obtained_at: 123 });
+    const tokenFileStat = await stat(path.join(dir, "tokens.json"));
+    // POSIX permission bits are only enforced on non-Windows filesystems
+    if (platform() !== "win32") {
+      expect(tokenFileStat.mode & 0o777).toBe(0o600);
+    }
   });
 });

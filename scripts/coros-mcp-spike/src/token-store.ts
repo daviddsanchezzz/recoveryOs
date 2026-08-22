@@ -33,8 +33,13 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
 }
 
 async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+  await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
+  const fh = await fs.open(filePath, "w", 0o600);
+  try {
+    await fh.writeFile(JSON.stringify(data, null, 2), "utf-8");
+  } finally {
+    await fh.close();
+  }
 }
 
 export function createTokenStore(storeDir: string): TokenStore {
