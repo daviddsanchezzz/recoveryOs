@@ -94,4 +94,18 @@ describe('createCorosOAuthProvider', () => {
     await provider.saveTokens({ access_token: 'new-access', refresh_token: 'new-refresh', expires_in: 3600, token_type: 'Bearer' });
     expect(repo.saveToken).toHaveBeenCalledWith('user-1', expect.objectContaining({ accessToken: 'new-access', refreshToken: 'new-refresh' }));
   });
+
+  it('saveTokens() preserves the previously-stored refresh token when the response omits refresh_token', async () => {
+    const repo = mockRepo();
+    repo.findTokenByUser.mockResolvedValue({
+      id: 't1', userId: 'user-1', accessToken: 'stored-access', refreshToken: 'previously-stored-refresh',
+      expiresAt: new Date(), corosUserId: null, lastSyncAt: null, lastSuccessfulSyncAt: null,
+      lastAttemptAt: null, syncStatus: 'idle', syncError: null, isExpired: false,
+    } as never);
+    const provider = createCorosOAuthProvider({ userId: 'user-1', repo, redirectUri: 'https://api.example.com/coros/callback' });
+
+    await provider.saveTokens({ access_token: 'new-access', token_type: 'Bearer' });
+
+    expect(repo.saveToken).toHaveBeenCalledWith('user-1', expect.objectContaining({ accessToken: 'new-access', refreshToken: 'previously-stored-refresh' }));
+  });
 });

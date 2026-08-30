@@ -60,9 +60,16 @@ export function createCorosOAuthProvider(opts: CorosOAuthProviderOptions): OAuth
     },
     async saveTokens(tokens: OAuthTokens) {
       const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 86_400) * 1000);
+      let refreshToken = tokens.refresh_token;
+      if (!refreshToken) {
+        // RFC 6749 §6 does not require the server to return a new refresh_token on
+        // every refresh — omission means "keep using the one you already have."
+        const existing = await repo.findTokenByUser(userId);
+        refreshToken = existing?.refreshToken ?? '';
+      }
       await repo.saveToken(userId, {
         accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? '',
+        refreshToken,
         expiresAt,
       });
     },
