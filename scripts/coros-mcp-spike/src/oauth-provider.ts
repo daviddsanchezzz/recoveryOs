@@ -1,4 +1,5 @@
 import open from "open";
+import { randomBytes } from "node:crypto";
 import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { TokenStore } from "./token-store.js";
@@ -15,6 +16,13 @@ export function createCorosOAuthProvider(store: TokenStore): OAuthClientProvider
   return {
     get redirectUrl() {
       return CALLBACK_URL;
+    },
+    // The SDK only appends `state` to the authorization URL when the provider
+    // implements this optional method (see auth() in the installed SDK's
+    // client/auth.js) — without it, no CSRF state is ever generated.
+    state() {
+      pendingState = randomBytes(32).toString("base64url");
+      return pendingState;
     },
     get clientMetadata(): OAuthClientMetadata {
       return {
