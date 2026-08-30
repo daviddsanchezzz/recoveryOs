@@ -5,6 +5,11 @@ import type { TokenStore } from "./token-store.js";
 import { CALLBACK_URL } from "./config.js";
 
 let pendingCodeVerifier: string | undefined;
+let pendingState: string | undefined;
+
+export function getPendingState(): string | undefined {
+  return pendingState;
+}
 
 export function createCorosOAuthProvider(store: TokenStore): OAuthClientProvider {
   return {
@@ -44,6 +49,7 @@ export function createCorosOAuthProvider(store: TokenStore): OAuthClientProvider
       });
     },
     async redirectToAuthorization(authorizationUrl: URL) {
+      pendingState = authorizationUrl.searchParams.get("state") ?? undefined;
       console.log(`Opening browser for COROS authorization:\n${authorizationUrl.toString()}\n`);
       await open(authorizationUrl.toString());
     },

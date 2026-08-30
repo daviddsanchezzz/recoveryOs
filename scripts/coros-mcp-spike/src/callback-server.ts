@@ -20,6 +20,6 @@ export function waitForCallback(port: number): Promise<{ code: string; state: st
       server.close();
       resolve({ code, state });
     });
-    server.listen(port);
+    server.listen(port, "127.0.0.1");
   });
 }

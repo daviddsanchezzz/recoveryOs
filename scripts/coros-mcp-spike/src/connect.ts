@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import { MCP_URL, STORE_DIR, CALLBACK_PORT } from "./config.js";
 import { createTokenStore } from "./token-store.js";
-import { createCorosOAuthProvider } from "./oauth-provider.js";
+import { createCorosOAuthProvider, getPendingState } from "./oauth-provider.js";
 import { waitForCallback } from "./callback-server.js";
 
 async function main() {
@@ -24,7 +24,11 @@ async function main() {
   }
 
   console.log(`Waiting for you to authorize in the browser (listening on port ${CALLBACK_PORT})...`);
-  const { code } = await waitForCallback(CALLBACK_PORT);
+  const { code, state } = await waitForCallback(CALLBACK_PORT);
+  const expectedState = getPendingState();
+  if (expectedState !== undefined && state !== expectedState) {
+    throw new Error("OAuth callback 'state' did not match the value sent in the authorization request — possible CSRF/interception, aborting.");
+  }
   await transport.finishAuth(code);
 
   // The first transport's internal AbortController is already consumed by the
