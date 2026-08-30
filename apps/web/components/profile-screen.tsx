@@ -7,6 +7,7 @@ import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { postJson } from '../lib/api';
 import { StravaConnectCard } from './strava-connect-card';
+import { CorosConnectCard } from './coros-connect-card';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -286,9 +287,10 @@ export function ProfileScreen() {
           Conexiones
         </p>
         <StravaConnectCard />
+        <CorosConnectCard />
         <div className="rounded-4xl bg-white shadow-card overflow-hidden">
           <div className="px-5">
-            {['Coros', 'OpenAI'].map((item) => (
+            {['OpenAI'].map((item) => (
               <div key={item} className="flex items-center justify-between py-3 border-b border-ink/5 last:border-0">
                 <span className="text-sm text-ink/60">{item}</span>
                 <span className="rounded-full bg-sand/30 px-2.5 py-0.5 text-[10px] font-medium text-ink/30">

@@ -135,7 +135,7 @@ export function InsightsScreen() {
       {/* Future integrations */}
       <div className="rounded-4xl border border-sand/60 bg-canvas-light p-5 space-y-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-ink/30">Próximamente</p>
-        {['Strava — actividad automática', 'Coros — sueño y HRV', 'IA real — insights con GPT'].map((item) => (
+        {['IA real — insights con GPT'].map((item) => (
           <div key={item} className="flex items-center justify-between py-1">
             <span className="text-sm text-ink/50">{item}</span>
             <span className="rounded-full bg-sand/40 px-2.5 py-0.5 text-[10px] font-medium text-ink/30">soon</span>
