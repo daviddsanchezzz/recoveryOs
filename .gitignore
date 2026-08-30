@@ -9,3 +9,4 @@ pnpm-lock.yaml
 yarn.lock
 apps/api/prisma/dev.db
 *.log
+.worktrees
