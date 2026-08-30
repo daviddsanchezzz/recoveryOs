@@ -10,6 +10,7 @@ import { COROS_REPOSITORY } from './domain/coros-repository.port';
 import { PrismaCorosRepository } from './infrastructure/prisma-coros.repository';
 import { CorosMcpClient } from './infrastructure/coros-mcp.client';
 import { CorosController } from './presentation/coros.controller';
+import { CorosSyncCron } from './coros-sync.cron';
 
 @Module({
   imports: [AuthModule, HealthMetricsModule, SleepModule],
@@ -20,6 +21,7 @@ import { CorosController } from './presentation/coros.controller';
     SyncCorosUseCase,
     DisconnectCorosUseCase,
     CorosMcpClient,
+    CorosSyncCron,
     PrismaCorosRepository,
     { provide: COROS_REPOSITORY, useExisting: PrismaCorosRepository },
   ],

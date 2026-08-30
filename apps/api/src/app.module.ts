@@ -9,6 +9,7 @@ import { HealthMetricsModule } from './modules/health-metrics/health-metrics.mod
 import { InjuryModule } from './modules/injury/injury.module';
 import { NutritionModule } from './modules/nutrition/nutrition.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { SleepModule } from './modules/sleep/sleep.module';
 import { StravaModule } from './modules/strava/strava.module';
 import { PushModule } from './modules/push/push.module';
@@ -20,6 +21,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
   controllers: [AppController],
   imports: [
     PrismaModule,
+    ScheduleModule.forRoot(),
     AuthModule,
     ActivityModule,
     HealthMetricsModule,
