@@ -35,6 +35,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   notifications      Notification[]
   nutritionGoal      NutritionGoal?
+  corosToken         CorosToken?
 }
 
 model Session {
@@ -128,23 +129,31 @@ model SleepEntry {
   userId    String
   date      DateTime
   durationH Float
-  quality   Int // 1-5
+  quality   Int // 1-5, manual entry only
+  score     Int? // 0-100, from COROS — distinct from manual `quality`
+  source    String   @default("manual") // manual | coros
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, date, source])
   @@index([userId, date])
 }
 
 model DailyHealthMetric {
-  id             String   @id @default(cuid())
-  userId         String
-  date           DateTime
-  steps          Int      @default(0)
-  activeCalories Int      @default(0)
-  source         String   @default("manual") // manual | apple_health | coros | garmin | mock
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime
+  steps            Int      @default(0)
+  activeCalories   Int      @default(0)
+  restingHeartRate Int? // bpm, from COROS
+  hrv              Int? // ms, from COROS
+  avgHeartRate     Int? // bpm, from COROS
+  stressAvg        Int? // 0-100, from COROS
+  recoveryPct      Int? // 0-100, from COROS
+  source           String   @default("manual") // manual | apple_health | coros | garmin | mock
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date, source])
   @@index([userId, date])
@@ -221,6 +230,8 @@ model Activity {
   // Strava integration (stravaId as String to avoid BigInt JSON issues)
   stravaId   String? @unique // Strava activity ID — used for deduplication
   stravaName String? // activity name from Strava
+  corosId    String? @unique // COROS activity ID — used for deduplication
+  corosName  String? // activity name from COROS
 
   // Race flag
   isRace Boolean @default(false)
@@ -340,4 +351,44 @@ model Program {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Issued once via COROS MCP Dynamic Client Registration (RFC 7591) and reused
+// by every user's authorization flow — this is an app-level credential, not
+// per-user (unlike CorosToken below).
+model CorosOAuthClient {
+  id           String   @id @default("singleton")
+  clientId     String
+  clientSecret String?
+  createdAt    DateTime @default(now())
+}
+
+// Bridges the two separate HTTP requests of a single OAuth attempt (GET
+// /coros/connect generates state+codeVerifier; GET /coros/callback needs both
+// back to complete the PKCE token exchange). One-time use, short TTL.
+model CorosOAuthState {
+  state        String   @id
+  userId       String
+  codeVerifier String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model CorosToken {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  accessToken          String
+  refreshToken         String
+  expiresAt            DateTime
+  corosUserId          String?
+  lastSyncAt           DateTime?
+  lastSuccessfulSyncAt DateTime?
+  lastAttemptAt        DateTime?
+  syncStatus           String    @default("idle") // idle | syncing | success | error | reauth_required
+  syncError            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
