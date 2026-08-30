@@ -3,8 +3,16 @@ import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.serv
 import { SleepEntryEntity } from '../domain/sleep-entry.entity';
 import { SleepRepositoryPort } from '../domain/sleep-repository.port';
 
-function toEntity(r: { id: string; userId: string; date: Date; durationH: number; quality: number }): SleepEntryEntity {
-  return new SleepEntryEntity(r.id, r.userId, r.date, r.durationH, r.quality);
+function toEntity(r: {
+  id: string;
+  userId: string;
+  date: Date;
+  durationH: number;
+  quality: number;
+  score: number | null;
+  source: string;
+}): SleepEntryEntity {
+  return new SleepEntryEntity(r.id, r.userId, r.date, r.durationH, r.quality, r.score, r.source);
 }
 
 @Injectable()
@@ -51,5 +59,28 @@ export class PrismaSleepRepository implements SleepRepositoryPort {
   async delete(id: string, userId: string): Promise<boolean> {
     const { count } = await this.prisma.sleepEntry.deleteMany({ where: { id, userId } });
     return count > 0;
+  }
+
+  async upsertBySource(entry: {
+    userId: string;
+    date: Date;
+    durationH: number;
+    score: number | null;
+    source: string;
+  }): Promise<SleepEntryEntity> {
+    await this.ensureUser(entry.userId);
+    const r = await this.prisma.sleepEntry.upsert({
+      where: { userId_date_source: { userId: entry.userId, date: entry.date, source: entry.source } },
+      update: { durationH: entry.durationH, score: entry.score },
+      create: {
+        userId: entry.userId,
+        date: entry.date,
+        durationH: entry.durationH,
+        score: entry.score,
+        source: entry.source,
+        quality: 3, // COROS doesn't provide the 1-5 manual `quality` scale; neutral default
+      },
+    });
+    return toEntity(r);
   }
 }

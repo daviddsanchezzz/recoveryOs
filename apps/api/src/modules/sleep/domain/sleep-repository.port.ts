@@ -7,4 +7,11 @@ export interface SleepRepositoryPort {
   findByUser(userId: string): Promise<SleepEntryEntity[]>;
   update(id: string, userId: string, data: Partial<{ date: Date; durationH: number; quality: number }>): Promise<SleepEntryEntity | null>;
   delete(id: string, userId: string): Promise<boolean>;
+  upsertBySource(entry: {
+    userId: string;
+    date: Date;
+    durationH: number;
+    score: number | null;
+    source: string;
+  }): Promise<SleepEntryEntity>;
 }

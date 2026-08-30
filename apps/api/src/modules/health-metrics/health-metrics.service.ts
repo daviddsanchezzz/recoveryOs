@@ -115,6 +115,48 @@ export class HealthMetricsService {
     return count > 0;
   }
 
+  async upsertFromCoros(
+    userId: string,
+    date: Date,
+    data: {
+      steps?: number | null;
+      activeCalories?: number | null;
+      restingHeartRate?: number | null;
+      hrv?: number | null;
+      avgHeartRate?: number | null;
+      stressAvg?: number | null;
+      recoveryPct?: number | null;
+    },
+  ) {
+    await this.ensureUser(userId);
+    const normalizedDate = startOfDay(date);
+
+    return this.prisma.dailyHealthMetric.upsert({
+      where: { userId_date_source: { userId, date: normalizedDate, source: 'coros' } },
+      update: {
+        ...(data.steps != null ? { steps: data.steps } : {}),
+        ...(data.activeCalories != null ? { activeCalories: data.activeCalories } : {}),
+        ...(data.restingHeartRate !== undefined ? { restingHeartRate: data.restingHeartRate } : {}),
+        ...(data.hrv !== undefined ? { hrv: data.hrv } : {}),
+        ...(data.avgHeartRate !== undefined ? { avgHeartRate: data.avgHeartRate } : {}),
+        ...(data.stressAvg !== undefined ? { stressAvg: data.stressAvg } : {}),
+        ...(data.recoveryPct !== undefined ? { recoveryPct: data.recoveryPct } : {}),
+      },
+      create: {
+        userId,
+        date: normalizedDate,
+        source: 'coros',
+        steps: data.steps ?? 0,
+        activeCalories: data.activeCalories ?? 0,
+        restingHeartRate: data.restingHeartRate ?? null,
+        hrv: data.hrv ?? null,
+        avgHeartRate: data.avgHeartRate ?? null,
+        stressAvg: data.stressAvg ?? null,
+        recoveryPct: data.recoveryPct ?? null,
+      },
+    });
+  }
+
   async getSummary(userId: string, from: Date, to: Date, source?: string) {
     const rows = await this.findRange(userId, from, to, source);
     const daysWithData = rows.length;
