@@ -29,6 +29,20 @@ Script standalone fuera de `apps/api` (p.ej. `scripts/coros-mcp-spike/`), no pro
 
 **Criterio de éxito para pasar a Fase 1**: el paso 4 funciona sin interacción humana. Si falla (DCR rechaza el cliente, no hay refresh token utilizable, o la sesión expira sin renovación), se reevalúa la vía de acceso (API de partners oficial u otra) antes de continuar — sin haber tocado el schema de producción.
 
+### Resultado del spike (completado)
+
+**Éxito.** La segunda ejecución de `query.ts`, en un proceso independiente del sistema operativo y sin abrir navegador, reutilizó exitosamente el `refresh_token` persistido y llamó a `queryDailyHealthData`, `querySleepData`, `querySleepHrv` y `queryRestingHeartRate` para el día anterior, obteniendo datos reales con `isError: false` en todos los casos. Fixtures guardadas localmente en `scripts/coros-mcp-spike/fixtures/` (no versionadas) para diseñar `CorosMapper` en la Fase 1.
+
+**Hallazgos de la ejecución:**
+
+1. **Fixes en Task 3 (interactivo `connect.ts`)**: 
+   - **URL regional**: el endpoint `https://mcp.coros.com/mcp` redirige cuentas UE a `https://mcpeu.coros.com/mcp` vía metadatos de recurso protegido; la configuración ahora apunta directamente al endpoint EU.
+   - **Transporte de un solo uso**: el SDK del MCP no permite invocar `start()` dos veces en la misma instancia de transport; el reintento post-`finishAuth()` crea una instancia de transport/client nueva. Esto implica que **Dynamic Client Registration funcionó exitosamente para un cliente propio no listado**, y se emitió un `refresh_token` real con scope `offline_access` y `expires_in` ~2,591,999 segundos (~30 días). Este es uno de los dos mayores riesgos iniciales: DCR se comporta como se esperaba para clientes custom.
+
+2. **Formato de respuestas (implicación crítica para Fase 1)**: Los tools de COROS MCP **devuelven texto formateado en lenguaje natural**, no JSON estructurado con campos. Ej: `"Steps: 11,358 | Calories: 472 kcal | Exercise: 5 min\nStress: Avg 29..."` en lugar de `{"steps": 11358, "calories": 472, "exercise": 5}`. La sección Fase 1 de este mismo documento describe `CorosMapper` como mapeador normalizado de "cada payload", asumiendo implícitamente campos JSON estructurados. En realidad, `CorosMapper` deberá **parsear texto con regex u otro método similar**, lo que es más frágil que field-mapping: cambios menores en la redacción de COROS podrían romper silenciosamente la extracción de valores. **Esta es una consideración crítica de diseño de Fase 1, no un detalle menor.**
+
+**Decisión**: proceder con la Fase 1 tal como está diseñada, usando COROS MCP como fuente de datos. Sin embargo, **el plan de implementación de Fase 1 debe elevar explícitamente la tarea de `CorosMapper` a prioridad crítica y documentar la estrategia de parsing de texto** (regex patterns por tool, fallbacks, manejo de cambios de formato) como línea base de robustez antes de activar el cron en producción. Considerar caching local de patrones parseados y test de regresión automatizado sobre los fixtures del spike.
+
 ## Fase 1 — Integración completa
 
 ### Arquitectura
