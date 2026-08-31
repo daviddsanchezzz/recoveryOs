@@ -24,11 +24,16 @@ function makeDeps() {
   return { corosRepo, sleepRepo, mcpClient, healthMetrics };
 }
 
+// Mocked tool responses use the real per-day formats confirmed against the live COROS MCP
+// server (see coros-mapper.ts and scripts/coros-mcp-spike/fixtures/*.json), dated to match
+// `dateStr` ('2026-08-29') that the use-case computes for `date` below — since all four tools
+// return a multi-day window and the mapper is now date-aware, an undated blob would no longer
+// parse.
 const OK_RESPONSES: Record<string, string> = {
-  queryDailyHealthData: 'Steps: 11,358 | Calories: 472 kcal | Exercise: 5 min\nStress: Avg 29',
-  querySleepData: 'Sleep Score: 82 | Duration: 7h 12m',
-  querySleepHrv: 'Overnight HRV: 45 ms',
-  queryRestingHeartRate: 'Resting HR: 52 bpm',
+  queryDailyHealthData: '--- 20260829 ---\nSteps: 11,358 | Calories: 472 kcal | Exercise: 5 min\nStress: Avg 29',
+  querySleepData: '2026-08-29\nSleep Score: 82\nMain Sleep: 7h 12min',
+  querySleepHrv: 'HRV Assessment — Last 7 days\n========================\n\n2026-08-29:\n  HRV Avg: 45 ms — Balanced',
+  queryRestingHeartRate: '2026-08-29: 52 bpm',
 };
 
 describe('SyncCorosUseCase', () => {

@@ -1,3 +1,15 @@
+/**
+ * All four COROS MCP tools (`queryDailyHealthData`, `querySleepData`, `querySleepHrv`,
+ * `queryRestingHeartRate`) ignore the `date`/`startDate`/`endDate` argument passed to them
+ * and always return a multi-day window (observed as the last 7 days) with one section per
+ * day, confirmed against real fixtures captured from the live server (see
+ * scripts/coros-mcp-spike/fixtures/*.json). Because of this, every parser below takes a
+ * `targetDate` (format `YYYY-MM-DD`, the same string `SyncCorosUseCase` computes as
+ * `dateStr`) and first extracts that day's section from the response text before running
+ * its field regexes — running the field regexes against the whole blob would silently pick
+ * whichever day happens to be listed first, not the day that was actually asked for.
+ */
+
 export interface ParsedDailyHealth {
   steps: number | null;
   activeCalories: number | null;
@@ -23,18 +35,22 @@ function parseIntLoose(raw: string | undefined): number | null {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
-// Verified against the real sample captured in the Fase 0 spike (see file-level note above).
-export function parseDailyHealthData(text: string): ParsedDailyHealth {
+// Day sections are delimited by "--- YYYYMMDD ---" (no dashes in the date), e.g. "--- 20260830 ---".
+export function parseDailyHealthData(text: string, targetDate: string): ParsedDailyHealth {
+  const compactDate = targetDate.replace(/-/g, ''); // '2026-08-30' -> '20260830'
+  const section = text.match(new RegExp(`--- ${compactDate} ---\\n([\\s\\S]*?)(?=\\n---|$)`))?.[1] ?? '';
   return {
-    steps: parseIntLoose(text.match(/Steps:\s*([\d,]+)/i)?.[1]),
-    activeCalories: parseIntLoose(text.match(/Calories:\s*([\d,]+)/i)?.[1]),
-    stressAvg: parseIntLoose(text.match(/Stress:\s*Avg\s*(\d+)/i)?.[1]),
+    steps: parseIntLoose(section.match(/Steps:\s*([\d,]+)/i)?.[1]),
+    activeCalories: parseIntLoose(section.match(/Calories:\s*([\d,]+)/i)?.[1]),
+    stressAvg: parseIntLoose(section.match(/Stress:\s*Avg\s*(\d+)/i)?.[1]),
   };
 }
 
-// UNVERIFIED (see file-level note) — assumed format: "Sleep Score: 82 | Duration: 7h 12m ...".
-export function parseSleepData(text: string): ParsedSleep {
-  const duration = text.match(/(\d+)\s*h(?:ours?)?\s*(\d+)?\s*m(?:in)?/i);
+// Day sections are a bare "YYYY-MM-DD" line, e.g. "2026-08-30", followed by fields including "Main Sleep: Xh Ymin".
+export function parseSleepData(text: string, targetDate: string): ParsedSleep {
+  const section =
+    text.match(new RegExp(`(?:^|\\n)${targetDate}\\n([\\s\\S]*?)(?=\\n\\d{4}-\\d{2}-\\d{2}\\n|$)`))?.[1] ?? '';
+  const duration = section.match(/Main Sleep:\s*(\d+)\s*h(?:ours?)?\s*(\d+)?\s*m(?:in)?/i);
   let durationH: number | null = null;
   if (duration) {
     const hours = Number(duration[1]);
@@ -43,19 +59,22 @@ export function parseSleepData(text: string): ParsedSleep {
   }
   return {
     durationH,
-    score: parseIntLoose(text.match(/Score:\s*(\d+)/i)?.[1]),
+    score: parseIntLoose(section.match(/Sleep Score:\s*(\d+)/i)?.[1]),
   };
 }
 
-// UNVERIFIED (see file-level note) — assumed format: "HRV: 45 ms" or "... 45ms ...".
-export function parseSleepHrv(text: string): ParsedHrv {
-  const match = text.match(/HRV:?\s*(\d+)\s*ms/i) ?? text.match(/(\d+)\s*ms/i);
-  return { hrv: parseIntLoose(match?.[1]) };
+// Response has an "HRV Assessment" section (what we want) followed by a much larger "Sleep HRV
+// Time Series" section (raw per-timestamp values) — only the Assessment section is searched.
+// Within it, each day is "YYYY-MM-DD:" followed by an indented "  HRV Avg: NN ms — ..." line, or
+// "  No data" when the day has no reading.
+export function parseSleepHrv(text: string, targetDate: string): ParsedHrv {
+  const assessmentSection = text.split(/Sleep HRV Time Series/i)[0];
+  const day = assessmentSection.match(new RegExp(`${targetDate}:\\n([\\s\\S]*?)(?=\\n\\d{4}-\\d{2}-\\d{2}:|$)`))?.[1] ?? '';
+  return { hrv: parseIntLoose(day.match(/HRV Avg:\s*(\d+)\s*ms/i)?.[1]) };
 }
 
-// UNVERIFIED (see file-level note) — assumed format: "Resting HR: 52 bpm" or "... 52 bpm resting ...".
-export function parseRestingHeartRate(text: string): ParsedRestingHeartRate {
-  const match =
-    text.match(/Resting(?:\s+Heart\s+Rate|\s+HR)?:?\s*(\d+)\s*bpm/i) ?? text.match(/(\d+)\s*bpm/i);
+// One line per day: "YYYY-MM-DD: NN bpm".
+export function parseRestingHeartRate(text: string, targetDate: string): ParsedRestingHeartRate {
+  const match = text.match(new RegExp(`${targetDate}:\\s*(\\d+)\\s*bpm`, 'i'));
   return { restingHeartRate: parseIntLoose(match?.[1]) };
 }

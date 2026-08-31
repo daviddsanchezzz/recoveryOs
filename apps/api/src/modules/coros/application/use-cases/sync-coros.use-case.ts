@@ -66,7 +66,7 @@ export class SyncCorosUseCase {
     try {
       const result = await this.mcpClient.callTool(userId, 'queryDailyHealthData', { date: dateStr });
       if (result.isError) throw new Error(result.text || 'queryDailyHealthData returned an error');
-      const parsed = parseDailyHealthData(result.text);
+      const parsed = parseDailyHealthData(result.text, dateStr);
       await this.healthMetrics.upsertFromCoros(userId, date, parsed);
       synced.push('dailyHealthData');
     } catch (error) {
@@ -83,7 +83,7 @@ export class SyncCorosUseCase {
     try {
       const result = await this.mcpClient.callTool(userId, 'querySleepData', { date: dateStr });
       if (result.isError) throw new Error(result.text || 'querySleepData returned an error');
-      const parsed = parseSleepData(result.text);
+      const parsed = parseSleepData(result.text, dateStr);
       durationH = parsed.durationH;
       score = parsed.score;
       sleepDataOk = true;
@@ -95,7 +95,7 @@ export class SyncCorosUseCase {
     try {
       const hrvResult = await this.mcpClient.callTool(userId, 'querySleepHrv', { date: dateStr });
       if (hrvResult.isError) throw new Error(hrvResult.text || 'querySleepHrv returned an error');
-      const parsed = parseSleepHrv(hrvResult.text);
+      const parsed = parseSleepHrv(hrvResult.text, dateStr);
       if (parsed.hrv != null) await this.healthMetrics.upsertFromCoros(userId, date, { hrv: parsed.hrv });
     } catch (error) {
       if (error instanceof UnauthorizedError) throw error;
@@ -108,7 +108,7 @@ export class SyncCorosUseCase {
         endDate: dateStr,
       });
       if (rhrResult.isError) throw new Error(rhrResult.text || 'queryRestingHeartRate returned an error');
-      const parsed = parseRestingHeartRate(rhrResult.text);
+      const parsed = parseRestingHeartRate(rhrResult.text, dateStr);
       if (parsed.restingHeartRate != null) {
         await this.healthMetrics.upsertFromCoros(userId, date, { restingHeartRate: parsed.restingHeartRate });
       }
