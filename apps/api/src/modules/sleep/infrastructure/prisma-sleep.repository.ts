@@ -29,13 +29,20 @@ export class PrismaSleepRepository implements SleepRepositoryPort {
 
   async create(entry: SleepEntryEntity): Promise<SleepEntryEntity> {
     await this.ensureUser(entry.userId);
-    const r = await this.prisma.sleepEntry.create({
-      data: {
+    const r = await this.prisma.sleepEntry.upsert({
+      where: { userId_date_source: { userId: entry.userId, date: entry.date, source: entry.source } },
+      update: {
+        durationH: entry.durationH,
+        quality: entry.quality,
+      },
+      create: {
         id: entry.id,
         userId: entry.userId,
         date: entry.date,
         durationH: entry.durationH,
         quality: entry.quality,
+        score: entry.score,
+        source: entry.source,
       },
     });
     return toEntity(r);

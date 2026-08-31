@@ -29,4 +29,9 @@ export interface CorosRepositoryPort {
   createOAuthState(state: string, userId: string): Promise<void>;
   saveCodeVerifierForState(state: string, codeVerifier: string): Promise<void>;
   consumeOAuthState(state: string): Promise<{ userId: string; codeVerifier: string | null } | null>;
+  /** Deletes expired OAuthState rows (5-minute TTL). Returns the count deleted, for logging. */
+  deleteExpiredOAuthStates(): Promise<number>;
+
+  // App-level OAuth client invalidation (used by the SDK's self-healing retry on 401/DCR failure)
+  deleteOAuthClient(): Promise<void>;
 }

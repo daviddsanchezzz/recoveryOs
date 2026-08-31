@@ -114,6 +114,16 @@ function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsG
   return { steps, kcal: Math.round(steps * 0.04), stepsGoal: 10000, kcalGoal: 500 };
 }
 
+// Manual entries win over COROS ones for the same day; COROS is only used as a fallback
+// when no manual entry exists for that day.
+function pickBySourcePrecedence<T extends { date: string; source?: string }>(
+  entries: T[],
+  date: string,
+): T | undefined {
+  const sameDayEntries = entries.filter((e) => sameDay(e.date, date));
+  return sameDayEntries.find((e) => (e.source ?? 'manual') === 'manual') ?? sameDayEntries[0];
+}
+
 function daysSince(isoDate?: string): number {
   if (!isoDate) return 0;
   return Math.max(0, Math.floor((Date.now() - new Date(isoDate + 'T12:00:00').getTime()) / 86400000));
@@ -252,9 +262,9 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const dayCheckIn    = checkIns.find((c) => sameDay(c.date, selectedDate));
   const dayActivities = activities.filter((a) => sameDay(a.date, selectedDate));
   const dayLogs       = injuryLogs.filter((l) => sameDay(l.date, selectedDate));
-  const todaySleep    = sleepEntries.find((s) => sameDay(s.date, selectedDate));
+  const todaySleep    = pickBySourcePrecedence(sleepEntries, selectedDate);
   const todayWeight   = weightEntries.find((w) => sameDay(w.date, selectedDate));
-  const todayMovement = dailyHealthMetrics.find((entry) => sameDay(entry.date, selectedDate));
+  const todayMovement = pickBySourcePrecedence(dailyHealthMetrics, selectedDate);
   const activeInjuries = injuries.filter((i) => i.status !== 'resolved');
   const hasRehab       = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
 

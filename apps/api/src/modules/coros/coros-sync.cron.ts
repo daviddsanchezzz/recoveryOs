@@ -14,6 +14,11 @@ export class CorosSyncCron {
 
   @Cron('0 8 * * *')
   async handleDailySync(): Promise<void> {
+    const deletedStates = await this.corosRepo.deleteExpiredOAuthStates();
+    if (deletedStates > 0) {
+      this.logger.log(`Cleaned up ${deletedStates} expired COROS OAuth state row(s)`);
+    }
+
     const userIds = await this.corosRepo.findAllConnectedUserIds();
     this.logger.log(`Starting daily COROS sync for ${userIds.length} user(s)`);
 

@@ -98,6 +98,59 @@ describe('SyncCorosUseCase', () => {
     expect(corosRepo.updateSyncStatus).toHaveBeenLastCalledWith('user-1', expect.objectContaining({ syncStatus: 'success' }));
   });
 
+  it('flags dailyHealthData as an error (not success) when the parser extracts no fields for the target date', async () => {
+    const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
+    mcpClient.callTool.mockImplementation(async (_userId, name) => {
+      if (name === 'queryDailyHealthData') {
+        // Only a different day's section is present — nothing matches `dateStr` ('2026-08-29').
+        return { text: '--- 20260101 ---\nSteps: 5,000 | Calories: 200 kcal\nStress: Avg 10', isError: false };
+      }
+      return { text: OK_RESPONSES[name], isError: false };
+    });
+    const useCase = new SyncCorosUseCase(corosRepo, sleepRepo, mcpClient, healthMetrics);
+
+    const result = await useCase.execute('user-1', date);
+
+    expect(result.synced).not.toContain('dailyHealthData');
+    expect(result.errors).toEqual(
+      expect.arrayContaining([expect.stringContaining('dailyHealthData: parser extracted no fields')]),
+    );
+    // Only the HRV and resting-heart-rate upserts happen — the dailyHealthData one is skipped entirely.
+    expect(healthMetrics.upsertFromCoros).toHaveBeenCalledTimes(2);
+    expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith('user-1', date, { hrv: 45 });
+    expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith('user-1', date, { restingHeartRate: 52 });
+  });
+
+  it('records an error (without upserting) when the sleep HRV or resting-heart-rate parse yields no value for the target date', async () => {
+    const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
+    mcpClient.callTool.mockImplementation(async (_userId, name) => {
+      if (name === 'querySleepHrv') {
+        return {
+          text: 'HRV Assessment — Last 7 days\n========================\n\n2026-01-01:\n  HRV Avg: 45 ms — Balanced',
+          isError: false,
+        };
+      }
+      if (name === 'queryRestingHeartRate') return { text: '2026-01-01: 52 bpm', isError: false };
+      return { text: OK_RESPONSES[name], isError: false };
+    });
+    const useCase = new SyncCorosUseCase(corosRepo, sleepRepo, mcpClient, healthMetrics);
+
+    const result = await useCase.execute('user-1', date);
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('sleepHrv: parser extracted no HRV value'),
+        expect.stringContaining('restingHeartRate: parser extracted no value'),
+      ]),
+    );
+    expect(healthMetrics.upsertFromCoros).not.toHaveBeenCalledWith('user-1', date, expect.objectContaining({ hrv: expect.anything() }));
+    expect(healthMetrics.upsertFromCoros).not.toHaveBeenCalledWith(
+      'user-1',
+      date,
+      expect.objectContaining({ restingHeartRate: expect.anything() }),
+    );
+  });
+
   it('marks the token reauth_required and rethrows on UnauthorizedError, without swallowing it', async () => {
     const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
     mcpClient.callTool.mockRejectedValue(new UnauthorizedError());

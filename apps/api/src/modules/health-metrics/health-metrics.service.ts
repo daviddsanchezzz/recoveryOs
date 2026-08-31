@@ -157,8 +157,25 @@ export class HealthMetricsService {
     });
   }
 
+  /** One row per day: prefers the 'manual' row for that day, else falls back to whichever other (coros) row exists. */
+  private dedupeBySourcePrecedence<T extends { date: Date; source: string }>(rows: T[]): T[] {
+    const byDate = new Map<string, T>();
+    for (const row of rows) {
+      const key = toIsoDate(row.date);
+      const existing = byDate.get(key);
+      if (!existing || (existing.source !== 'manual' && row.source === 'manual')) {
+        byDate.set(key, row);
+      }
+    }
+    return Array.from(byDate.values());
+  }
+
   async getSummary(userId: string, from: Date, to: Date, source?: string) {
-    const rows = await this.findRange(userId, from, to, source);
+    const rawRows = await this.findRange(userId, from, to, source);
+    // Without an explicit source filter, a day can legitimately have both a manual and a
+    // coros row. Dedupe to one row per day (manual wins, else coros) before summing —
+    // otherwise both totals and daysWithData double-count that day.
+    const rows = source ? rawRows : this.dedupeBySourcePrecedence(rawRows);
     const daysWithData = rows.length;
     const totalSteps = rows.reduce((sum, row) => sum + row.steps, 0);
     const totalActiveCalories = rows.reduce((sum, row) => sum + row.activeCalories, 0);

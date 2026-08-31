@@ -13,6 +13,8 @@ function mockRepo(): jest.Mocked<CorosRepositoryPort> {
     createOAuthState: jest.fn(),
     saveCodeVerifierForState: jest.fn(),
     consumeOAuthState: jest.fn(),
+    deleteExpiredOAuthStates: jest.fn(),
+    deleteOAuthClient: jest.fn(),
   };
 }
 
@@ -107,5 +109,37 @@ describe('createCorosOAuthProvider', () => {
     await provider.saveTokens({ access_token: 'new-access', token_type: 'Bearer' });
 
     expect(repo.saveToken).toHaveBeenCalledWith('user-1', expect.objectContaining({ accessToken: 'new-access', refreshToken: 'previously-stored-refresh' }));
+  });
+
+  describe('invalidateCredentials()', () => {
+    it("scope 'all' deletes both the OAuth client and the user's token", async () => {
+      const repo = mockRepo();
+      const provider = createCorosOAuthProvider({ userId: 'user-1', repo, redirectUri: 'https://api.example.com/coros/callback' });
+
+      await provider.invalidateCredentials!('all');
+
+      expect(repo.deleteOAuthClient).toHaveBeenCalledTimes(1);
+      expect(repo.deleteToken).toHaveBeenCalledWith('user-1');
+    });
+
+    it("scope 'client' deletes only the OAuth client", async () => {
+      const repo = mockRepo();
+      const provider = createCorosOAuthProvider({ userId: 'user-1', repo, redirectUri: 'https://api.example.com/coros/callback' });
+
+      await provider.invalidateCredentials!('client');
+
+      expect(repo.deleteOAuthClient).toHaveBeenCalledTimes(1);
+      expect(repo.deleteToken).not.toHaveBeenCalled();
+    });
+
+    it("scope 'tokens' deletes only the user's token", async () => {
+      const repo = mockRepo();
+      const provider = createCorosOAuthProvider({ userId: 'user-1', repo, redirectUri: 'https://api.example.com/coros/callback' });
+
+      await provider.invalidateCredentials!('tokens');
+
+      expect(repo.deleteToken).toHaveBeenCalledWith('user-1');
+      expect(repo.deleteOAuthClient).not.toHaveBeenCalled();
+    });
   });
 });

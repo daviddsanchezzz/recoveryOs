@@ -67,6 +67,10 @@ export class SyncCorosUseCase {
       const result = await this.mcpClient.callTool(userId, 'queryDailyHealthData', { date: dateStr });
       if (result.isError) throw new Error(result.text || 'queryDailyHealthData returned an error');
       const parsed = parseDailyHealthData(result.text, dateStr);
+      if (parsed.steps == null && parsed.activeCalories == null && parsed.stressAvg == null) {
+        errors.push('dailyHealthData: parser extracted no fields — COROS response format may have changed');
+        return;
+      }
       await this.healthMetrics.upsertFromCoros(userId, date, parsed);
       synced.push('dailyHealthData');
     } catch (error) {
@@ -96,7 +100,11 @@ export class SyncCorosUseCase {
       const hrvResult = await this.mcpClient.callTool(userId, 'querySleepHrv', { date: dateStr });
       if (hrvResult.isError) throw new Error(hrvResult.text || 'querySleepHrv returned an error');
       const parsed = parseSleepHrv(hrvResult.text, dateStr);
-      if (parsed.hrv != null) await this.healthMetrics.upsertFromCoros(userId, date, { hrv: parsed.hrv });
+      if (parsed.hrv != null) {
+        await this.healthMetrics.upsertFromCoros(userId, date, { hrv: parsed.hrv });
+      } else {
+        errors.push('sleepHrv: parser extracted no HRV value — COROS response format may have changed');
+      }
     } catch (error) {
       if (error instanceof UnauthorizedError) throw error;
       errors.push(`sleepHrv: ${(error as Error).message}`);
@@ -111,6 +119,8 @@ export class SyncCorosUseCase {
       const parsed = parseRestingHeartRate(rhrResult.text, dateStr);
       if (parsed.restingHeartRate != null) {
         await this.healthMetrics.upsertFromCoros(userId, date, { restingHeartRate: parsed.restingHeartRate });
+      } else {
+        errors.push('restingHeartRate: parser extracted no value — COROS response format may have changed');
       }
     } catch (error) {
       if (error instanceof UnauthorizedError) throw error;

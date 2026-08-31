@@ -58,6 +58,7 @@ type ServerSleepEntry = {
   date: string;
   durationH: number;
   quality: number;
+  source?: string;
 };
 
 type ServerHealthMetric = {
@@ -129,6 +130,7 @@ function mapServerSleep(s: ServerSleepEntry): SleepEntry {
     date: isoDate(s.date),
     durationH: s.durationH,
     quality: s.quality as SleepEntry['quality'],
+    source: s.source as SleepEntry['source'],
   };
 }
 
@@ -293,15 +295,18 @@ export const RecoveryService = {
   },
 
   // ─── Sleep ────────────────────────────────────────────────
-  logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; date?: string }) {
+  async logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; date?: string }) {
     const resolvedDate = data.date ?? todayIso();
     const id = crypto.randomUUID();
     const userId = useSessionStore.getState().user?.id;
 
-    // If replacing an existing entry for this date, delete it from the server first
-    const existing = useRecoveryStore.getState().sleepEntries.find((e) => sameDay(e.date, resolvedDate));
+    // If replacing an existing MANUAL entry for this date, delete it from the server first.
+    // COROS-sourced entries for the same day must be left alone — they live in a separate row.
+    const existing = useRecoveryStore.getState().sleepEntries.find(
+      (e) => sameDay(e.date, resolvedDate) && (e.source ?? 'manual') === 'manual',
+    );
     if (existing && userId) {
-      deleteJson(`/sleep/${existing.id}`).catch(() => {});
+      await deleteJson(`/sleep/${existing.id}`).catch(() => {});
     }
 
     useRecoveryStore.getState().saveSleep({ ...data, id, date: resolvedDate });

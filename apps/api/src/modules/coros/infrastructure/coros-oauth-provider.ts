@@ -88,5 +88,16 @@ export function createCorosOAuthProvider(opts: CorosOAuthProviderOptions): OAuth
       }
       return knownCodeVerifier;
     },
+    // Optional SDK hook — lets the built-in self-healing retry recover from a revoked/invalid
+    // DCR registration or expired tokens by wiping our persisted copy so the next auth() call
+    // re-registers / re-authorizes from scratch instead of retrying with stale credentials.
+    async invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery') {
+      if (scope === 'all' || scope === 'client') {
+        await repo.deleteOAuthClient();
+      }
+      if (scope === 'all' || scope === 'tokens') {
+        await repo.deleteToken(userId);
+      }
+    },
   };
 }

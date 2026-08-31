@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Inject, Logger, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { HandleCorosCallbackUseCase } from '../application/use-cases/handle-coros-callback.use-case';
 import { GetCorosStatusUseCase } from '../application/use-cases/get-coros-status.use-case';
@@ -10,6 +10,7 @@ import { CorosMcpClient } from '../infrastructure/coros-mcp.client';
 @Controller('coros')
 export class CorosController {
   private readonly frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+  private readonly logger = new Logger(CorosController.name);
 
   constructor(
     private readonly mcpClient: CorosMcpClient,
@@ -29,7 +30,8 @@ export class CorosController {
       const authorizationUrl = await this.mcpClient.getAuthorizationUrl(session.user.id);
       if (!authorizationUrl) return res.redirect(`${this.frontendUrl}/app?coros=connected`);
       return res.redirect(authorizationUrl);
-    } catch {
+    } catch (error) {
+      this.logger.error(`COROS connect failed: ${(error as Error).message}`, (error as Error).stack);
       return res.redirect(`${this.frontendUrl}/app?coros=error&reason=mcp`);
     }
   }
@@ -40,7 +42,8 @@ export class CorosController {
       if (!code || !state) return res.redirect(`${this.frontendUrl}/app?coros=error&reason=missing`);
       await this.handleCallback.execute(state, code);
       return res.redirect(`${this.frontendUrl}/app?coros=connected`);
-    } catch {
+    } catch (error) {
+      this.logger.error(`COROS callback failed: ${(error as Error).message}`, (error as Error).stack);
       return res.redirect(`${this.frontendUrl}/app?coros=error`);
     }
   }

@@ -39,14 +39,15 @@ export type WeightEntry = {
   weightKg: number;
 };
 
+export type HealthMetricSource = 'manual' | 'apple_health' | 'coros' | 'garmin' | 'mock';
+
 export type SleepEntry = {
   id: string;
   date: string;
   durationH: number;
   quality: 1 | 2 | 3 | 4 | 5;
+  source?: HealthMetricSource;
 };
-
-export type HealthMetricSource = 'manual' | 'apple_health' | 'coros' | 'garmin' | 'mock';
 
 export type DailyHealthMetricEntry = {
   id: string;

@@ -111,4 +111,13 @@ export class PrismaCorosRepository implements CorosRepositoryPort {
     if (record.expiresAt < new Date()) return null;
     return { userId: record.userId, codeVerifier: record.codeVerifier };
   }
+
+  async deleteExpiredOAuthStates(): Promise<number> {
+    const { count } = await this.prisma.corosOAuthState.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    return count;
+  }
+
+  async deleteOAuthClient(): Promise<void> {
+    await this.prisma.corosOAuthClient.deleteMany({});
+  }
 }
