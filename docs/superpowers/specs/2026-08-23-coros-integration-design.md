@@ -43,6 +43,19 @@ Script standalone fuera de `apps/api` (p.ej. `scripts/coros-mcp-spike/`), no pro
 
 **Decisión**: proceder con la Fase 1 tal como está diseñada, usando COROS MCP como fuente de datos. Sin embargo, **el plan de implementación de Fase 1 debe elevar explícitamente la tarea de `CorosMapper` a prioridad crítica y documentar la estrategia de parsing de texto** (regex patterns por tool, fallbacks, manejo de cambios de formato) como línea base de robustez antes de activar el cron en producción. Considerar caching local de patrones parseados y test de regresión automatizado sobre los fixtures del spike.
 
+### Validación de CorosMapper contra fixtures reales (Fase 1)
+
+**Completado.** El plan de Fase 1 (`docs/superpowers/plans/2026-08-30-coros-integration-fase1.md`) se implementó en 14 tareas vía subagent-driven-development; la Tarea 14 regeneró fixtures reales (`npm run connect && npm run query` en `scripts/coros-mcp-spike/`) y las comparó contra `CorosMapper`.
+
+**Hallazgo adicional, no anticipado por el spike de Fase 0**: los 4 tools de COROS MCP (`queryDailyHealthData`, `querySleepData`, `querySleepHrv`, `queryRestingHeartRate`) devuelven una **ventana de varios días** ("last 7 days") independientemente del argumento `date`/`startDate`+`endDate` pasado — no un solo día como asumía el diseño original. El mapper inicial (escrito antes de tener fixtures reales) tomaba el primer match de cada regex sobre todo el texto, lo que funcionaba por casualidad (capturaba el día más reciente) pero habría guardado silenciosamente el día equivocado en cada sync real, dado que `SyncCorosUseCase` siempre sincroniza "ayer". Se corrigió haciendo los 4 parsers conscientes de fecha (`targetDate` como segundo parámetro, extracción de la sección del día objetivo antes de aplicar los regex de campo), con tests reescritos usando texto real multi-día en vez de muestras sintéticas asumidas. Formatos reales confirmados y documentados en el código:
+
+- `queryDailyHealthData`: secciones `--- YYYYMMDD ---` (fecha sin guiones).
+- `querySleepData`: secciones `YYYY-MM-DD` (con guiones); el campo es `Main Sleep:`, no `Duration:` como se había asumido.
+- `querySleepHrv`: sección `HRV Assessment — Last 7 days` (la única relevante — hay una sección posterior `Sleep HRV Time Series` con datos crudos por timestamp que debe excluirse); el campo es `HRV Avg:`, no `HRV:`; un día puede indicar `No data`.
+- `queryRestingHeartRate`: líneas `YYYY-MM-DD: N bpm`.
+
+Las 3 funciones marcadas `UNVERIFIED` en la Tarea 6 del plan de Fase 1 quedan verificadas y ese marcador se retiró del código. Tests actualizados en `apps/api/src/modules/coros/application/coros-mapper.spec.ts` con texto real (valores redondeados donde correspondía por privacidad). `CorosSyncCron` (sync diario 08:00) queda desbloqueado para producción en cuanto a la fiabilidad del parseo de texto.
+
 ## Fase 1 — Integración completa
 
 ### Arquitectura
