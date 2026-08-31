@@ -69,7 +69,9 @@ export function parseSleepData(text: string, targetDate: string): ParsedSleep {
 // "  No data" when the day has no reading.
 export function parseSleepHrv(text: string, targetDate: string): ParsedHrv {
   const assessmentSection = text.split(/Sleep HRV Time Series/i)[0];
-  const day = assessmentSection.match(new RegExp(`${targetDate}:\\n([\\s\\S]*?)(?=\\n\\d{4}-\\d{2}-\\d{2}:|$)`))?.[1] ?? '';
+  const day =
+    assessmentSection.match(new RegExp(`(?:^|\\n)${targetDate}:\\n([\\s\\S]*?)(?=\\n\\d{4}-\\d{2}-\\d{2}:|$)`))?.[1] ??
+    '';
   return { hrv: parseIntLoose(day.match(/HRV Avg:\s*(\d+)\s*ms/i)?.[1]) };
 }
 
