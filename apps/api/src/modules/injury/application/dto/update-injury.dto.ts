@@ -1,25 +1,28 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateInjuryDto {
-  @IsOptional()
-  @IsString()
+  @IsOptional() @IsString()
   name?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsOptional() @IsString()
   bodyPart?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsOptional() @IsString()
   description?: string;
 
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
+  @IsOptional() @Type(() => Date) @IsDate()
   startDate?: Date;
 
-  @IsOptional()
-  @IsIn(['active', 'recovering', 'resolved'])
+  @IsOptional() @IsIn(['active', 'recovering', 'resolved'])
   status?: 'active' | 'recovering' | 'resolved';
+
+  @IsOptional() @IsString()
+  phaseLabel?: string | null;
+
+  @IsOptional() @Type(() => Date) @IsDate()
+  phaseStartDate?: Date | null;
+
+  @IsOptional() @IsInt() @Min(1)
+  phaseTargetSessions?: number | null;
 }

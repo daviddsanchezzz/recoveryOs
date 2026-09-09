@@ -15,6 +15,9 @@ export interface InjuryRepositoryPort {
       description: string;
       startDate: Date;
       status: InjuryStatus;
+      phaseLabel: string | null;
+      phaseStartDate: Date | null;
+      phaseTargetSessions: number | null;
     }>,
   ): Promise<InjuryEntity | null>;
   deleteInjury(id: string, userId: string): Promise<boolean>;
