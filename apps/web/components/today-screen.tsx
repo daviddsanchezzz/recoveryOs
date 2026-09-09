@@ -7,7 +7,7 @@ import {
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
   Bike, Waves, RefreshCw, SportShoe, Target, Clock,
-  UtensilsCrossed,
+  UtensilsCrossed, HeartPulse, Heart, Gauge,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -270,8 +270,16 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
 
   // ── Row values ───────────────────────────────────────────────────────────
   const sleepValue = todaySleep
-    ? `${fmtSleep(todaySleep.durationH)} · calidad ${todaySleep.quality}/5`
+    ? [
+        fmtSleep(todaySleep.durationH),
+        `calidad ${todaySleep.quality}/5`,
+        todaySleep.score != null ? `score ${todaySleep.score}` : null,
+      ].filter(Boolean).join(' · ')
     : null;
+
+  const hasRecoveryData =
+    todayMovement?.source === 'coros' &&
+    (todayMovement.hrv != null || todayMovement.restingHeartRate != null || todayMovement.stressAvg != null);
 
   const totalActMins  = dayActivities.reduce((s, a) => s + (a.durationMinutes ?? 0), 0);
   const activityValue = dayActivities.length > 0
@@ -600,6 +608,44 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
             </div>
           </button>
         </div>
+
+        {/* ── Recuperación (COROS) ──────────────────────────── */}
+        {hasRecoveryData && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Recuperación
+            </p>
+            <div className="rounded-4xl bg-white shadow-card px-5 py-4 flex items-center justify-between gap-2">
+              {todayMovement?.hrv != null && (
+                <div className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
+                    <HeartPulse size={15} className="text-moss" />
+                  </div>
+                  <p className="text-base font-bold text-ink leading-none">{todayMovement.hrv}</p>
+                  <p className="text-[10px] text-ink/40 leading-none">HRV (ms)</p>
+                </div>
+              )}
+              {todayMovement?.restingHeartRate != null && (
+                <div className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
+                    <Heart size={15} className="text-ember" />
+                  </div>
+                  <p className="text-base font-bold text-ink leading-none">{todayMovement.restingHeartRate}</p>
+                  <p className="text-[10px] text-ink/40 leading-none">FC reposo</p>
+                </div>
+              )}
+              {todayMovement?.stressAvg != null && (
+                <div className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
+                    <Gauge size={15} className="text-ink/50" />
+                  </div>
+                  <p className="text-base font-bold text-ink leading-none">{todayMovement.stressAvg}</p>
+                  <p className="text-[10px] text-ink/40 leading-none">Estrés</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Alimentación ──────────────────────────────────── */}
         <div className="space-y-2">

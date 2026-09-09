@@ -81,7 +81,10 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
                 <p className="text-4xl font-bold text-white mt-1 leading-none">
                   {fmtH(latest.durationH)}
                 </p>
-                <p className="text-xs text-white/40 mt-1">{relDate(latest.date)} · {QUALITY_LABELS[latest.quality]}</p>
+                <p className="text-xs text-white/40 mt-1">
+                  {relDate(latest.date)} · {QUALITY_LABELS[latest.quality]}
+                  {latest.score != null ? ` · score ${latest.score}` : ''}
+                </p>
               </div>
               {deltaH !== null && (
                 <div className="text-right">
@@ -133,7 +136,9 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${QUALITY_COLORS[entry.quality]}`}>{QUALITY_LABELS[entry.quality]}</p>
-                      <p className="text-xs text-ink/30">{entry.quality}/5</p>
+                      <p className="text-xs text-ink/30">
+                        {entry.quality}/5{entry.score != null ? ` · score ${entry.score}` : ''}
+                      </p>
                     </div>
                     <button
                       type="button"

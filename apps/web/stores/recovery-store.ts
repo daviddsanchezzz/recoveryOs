@@ -47,6 +47,7 @@ export type SleepEntry = {
   durationH: number;
   quality: 1 | 2 | 3 | 4 | 5;
   source?: HealthMetricSource;
+  score?: number | null;
 };
 
 export type DailyHealthMetricEntry = {
@@ -55,6 +56,9 @@ export type DailyHealthMetricEntry = {
   steps: number;
   activeCalories: number;
   source: HealthMetricSource;
+  hrv?: number | null;
+  restingHeartRate?: number | null;
+  stressAvg?: number | null;
 };
 
 export type MuscleGroup =

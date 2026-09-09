@@ -59,6 +59,7 @@ type ServerSleepEntry = {
   durationH: number;
   quality: number;
   source?: string;
+  score?: number | null;
 };
 
 type ServerHealthMetric = {
@@ -68,6 +69,9 @@ type ServerHealthMetric = {
   steps: number;
   activeCalories: number;
   source: string;
+  hrv?: number | null;
+  restingHeartRate?: number | null;
+  stressAvg?: number | null;
 };
 
 function mapServerActivity(a: ServerActivity): ActivityEntry {
@@ -131,6 +135,7 @@ function mapServerSleep(s: ServerSleepEntry): SleepEntry {
     durationH: s.durationH,
     quality: s.quality as SleepEntry['quality'],
     source: s.source as SleepEntry['source'],
+    score: s.score ?? null,
   };
 }
 
@@ -141,6 +146,9 @@ function mapServerHealthMetric(entry: ServerHealthMetric): DailyHealthMetricEntr
     steps: entry.steps,
     activeCalories: entry.activeCalories,
     source: entry.source as DailyHealthMetricEntry['source'],
+    hrv: entry.hrv ?? null,
+    restingHeartRate: entry.restingHeartRate ?? null,
+    stressAvg: entry.stressAvg ?? null,
   };
 }
 
