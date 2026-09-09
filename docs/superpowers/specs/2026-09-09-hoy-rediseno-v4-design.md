@@ -124,3 +124,13 @@ Todos los cambios en `apps/web/components/today-screen.tsx` salvo donde se indiq
 - El sheet de pasos muestra una línea de media de 7 días real (no decorativa).
 - El bloque "Tu día" reactivado no muestra ninguna referencia a prioridad, cena, ni objetivo de sueño.
 - Todo el sistema de puntuación es determinista y funciona sin conexión a ningún LLM.
+
+## Resultado
+
+Implementación completada el 9 de septiembre de 2026:
+
+- La suite completa de API pasa: 12 suites y 83 tests. El módulo `day-score` aporta 36 tests (27 de matemáticas, 5 de insights y 4 del caso de uso); la previsión inicial de 33 tests contenía un error de recuento.
+- `npx tsc --noEmit` mantiene únicamente el problema preexistente de tipos globales de Jest en archivos `*.spec.ts`; al excluir esos archivos no aparece ningún error de producción.
+- El build de producción de la web finaliza correctamente y prerenderiza todas las rutas previstas.
+- En "Tu día" se reutilizó el flujo activo `plannedActivityRows` y se eliminó el bloque muerto descrito originalmente. Ese bloque consultaba el campo inexistente `activityType`, duplicaba la interfaz y nunca podía marcar una actividad como completada.
+- Se verificaron los criterios de aceptación: el score y sus componentes respetan las fórmulas y datos ausentes; la tarjeta no aparece con `score = null`; el progreso de fase requiere `phaseLabel`; la media de pasos usa `averageValue={avg7d}`; "Tu día" no introduce prioridades ni tareas ficticias; y el módulo de puntuación no depende de OpenAI ni de otro LLM.
