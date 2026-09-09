@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { HeartPulse, RefreshCw, Unlink } from 'lucide-react';
+import { CorosBadge } from './brand-badges';
 import { useSessionStore } from '../stores/session-store';
 import { getJson, postJson, deleteJson } from '../lib/api';
 import { toast } from '../stores/toast-store';
@@ -90,11 +91,12 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
 
   return (
     <div className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-center gap-3">
-      <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-        status.connected ? 'bg-emerald-500/10' : 'bg-canvas'
-      }`}>
-        <HeartPulse size={16} className={status.connected ? 'text-emerald-600' : 'text-ink/30'} />
-      </div>
+      {status.connected
+        ? <CorosBadge size={36} />
+        : <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+            <HeartPulse size={16} className="text-ink/30" />
+          </div>
+      }
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-ink leading-snug">Coros</p>
