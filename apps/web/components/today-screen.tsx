@@ -253,6 +253,10 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const todayWeight   = weightEntries.find((w) => sameDay(w.date, selectedDate));
   const todayMovement = pickBySourcePrecedence(dailyHealthMetrics, selectedDate);
   const activeInjuries = injuries.filter((i) => i.status !== 'resolved');
+  const phaseInjury = activeInjuries.find((i) => i.phaseLabel);
+  const phaseCompletedSessions = phaseInjury
+    ? injuryLogs.filter((l) => l.injuryId === phaseInjury.id && l.didRehab && (!phaseInjury.phaseStartDate || l.date >= phaseInjury.phaseStartDate)).length
+    : 0;
   const hasRehab       = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
 
   // ── Row values ───────────────────────────────────────────────────────────
@@ -604,6 +608,40 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Lo que importa esta semana ───────────────────── */}
+        {phaseInjury && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Lo que importa esta semana
+            </p>
+            <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-base font-bold text-ink">{phaseInjury.name} · {phaseInjury.phaseLabel}</p>
+                {phaseInjury.phaseTargetSessions != null && (
+                  <p className="text-sm font-semibold text-ink/50">
+                    {phaseCompletedSessions}/{phaseInjury.phaseTargetSessions}
+                  </p>
+                )}
+              </div>
+              {phaseInjury.phaseTargetSessions != null && (
+                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                  <div
+                    className="bg-moss h-1.5 rounded-full"
+                    style={{ width: `${Math.min(100, Math.round((phaseCompletedSessions / phaseInjury.phaseTargetSessions) * 100))}%` }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-ink/40">
+                {phaseInjury.phaseTargetSessions != null && phaseCompletedSessions >= phaseInjury.phaseTargetSessions
+                  ? 'Fase completada.'
+                  : phaseInjury.phaseTargetSessions != null
+                    ? `Te quedan ${phaseInjury.phaseTargetSessions - phaseCompletedSessions} sesion${phaseInjury.phaseTargetSessions - phaseCompletedSessions === 1 ? '' : 'es'} para completar la fase.`
+                    : 'Sin objetivo de sesiones definido.'}
+              </p>
             </div>
           </div>
         )}

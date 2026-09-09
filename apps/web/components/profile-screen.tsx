@@ -76,6 +76,9 @@ export function ProfileScreen() {
       startDate: new Date().toISOString().slice(0, 10),
       status: 'active',
       description: undefined,
+      phaseLabel: null,
+      phaseStartDate: null,
+      phaseTargetSessions: null,
     });
     setNewInjuryName('');
     setNewInjuryBodyPart('');

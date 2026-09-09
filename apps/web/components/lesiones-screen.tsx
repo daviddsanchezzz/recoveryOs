@@ -181,6 +181,8 @@ export function LesionesScreen({ onClose }: { onClose: () => void }) {
         defaultBodyPart={editInjury?.bodyPart}
         defaultStartDate={editInjury?.startDate}
         defaultStatus={editInjury?.status}
+        defaultPhaseLabel={editInjury?.phaseLabel ?? ''}
+        defaultPhaseTargetSessions={editInjury?.phaseTargetSessions != null ? String(editInjury.phaseTargetSessions) : ''}
       />
 
       <DolorSheet

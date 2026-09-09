@@ -21,18 +21,23 @@ interface LesionSheetProps {
   defaultBodyPart?: string;
   defaultStartDate?: string;
   defaultStatus?: InjuryStatus;
+  defaultPhaseLabel?: string;
+  defaultPhaseTargetSessions?: string;
   editId?: string;
 }
 
 export function LesionSheet({
   isOpen, onClose,
   defaultName = '', defaultBodyPart = '', defaultStartDate, defaultStatus = 'active',
+  defaultPhaseLabel = '', defaultPhaseTargetSessions = '',
   editId,
 }: LesionSheetProps) {
   const [name,      setName]      = useState(defaultName);
   const [bodyPart,  setBodyPart]  = useState(defaultBodyPart);
   const [startDate, setStartDate] = useState(defaultStartDate ?? todayIso());
   const [status,    setStatus]    = useState<InjuryStatus>(defaultStatus);
+  const [phaseLabel, setPhaseLabel] = useState(defaultPhaseLabel);
+  const [phaseTargetSessions, setPhaseTargetSessions] = useState(defaultPhaseTargetSessions);
   const [saved,     setSaved]     = useState(false);
 
   useEffect(() => {
@@ -41,14 +46,21 @@ export function LesionSheet({
       setBodyPart(defaultBodyPart);
       setStartDate(defaultStartDate ?? todayIso());
       setStatus(defaultStatus);
+      setPhaseLabel(defaultPhaseLabel);
+      setPhaseTargetSessions(defaultPhaseTargetSessions);
       setSaved(false);
     }
-  }, [isOpen, defaultName, defaultBodyPart, defaultStartDate, defaultStatus]);
+  }, [isOpen, defaultName, defaultBodyPart, defaultStartDate, defaultStatus, defaultPhaseLabel, defaultPhaseTargetSessions]);
 
   function handleSave() {
     if (!name.trim()) return;
     if (editId) {
       RecoveryService.updateInjuryStatus(editId, status);
+      RecoveryService.updateInjuryPhase(editId, {
+        phaseLabel: phaseLabel.trim() || null,
+        phaseStartDate: phaseLabel.trim() ? todayIso() : null,
+        phaseTargetSessions: phaseTargetSessions ? Number(phaseTargetSessions) : null,
+      });
     } else {
       RecoveryService.createInjury({ name: name.trim(), bodyPart: bodyPart || undefined, startDate, status });
     }
@@ -149,6 +161,30 @@ export function LesionSheet({
               ))}
             </div>
           </div>
+
+          {editId && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest text-ink/40">Fase de rehabilitación (opcional)</label>
+              <input
+                type="text"
+                value={phaseLabel}
+                onChange={(e) => setPhaseLabel(e.target.value)}
+                placeholder="ej. Fase 2"
+                className="w-full rounded-2xl bg-canvas px-4 py-3 text-sm font-medium text-ink placeholder:text-ink/25 outline-none"
+              />
+              <input
+                type="number"
+                min={1}
+                value={phaseTargetSessions}
+                onChange={(e) => setPhaseTargetSessions(e.target.value)}
+                placeholder="Sesiones objetivo (ej. 9)"
+                className="w-full rounded-2xl bg-canvas px-4 py-3 text-sm font-medium text-ink placeholder:text-ink/25 outline-none"
+              />
+              <p className="text-[11px] text-ink/30 px-1">
+                Guardar un nombre de fase reinicia el contador de sesiones desde hoy.
+              </p>
+            </div>
+          )}
 
           {/* Save */}
           <button
