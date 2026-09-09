@@ -646,6 +646,17 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           </div>
         )}
 
+        {/* ── Lo que he visto ───────────────────────────────── */}
+        <div className="rounded-4xl bg-ink p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-xl bg-white/10 flex items-center justify-center">
+              <Sparkles size={14} className="text-white" />
+            </div>
+            <p className="text-xs font-semibold text-white/50 uppercase tracking-widest">Lo que he visto</p>
+          </div>
+          <p className="text-sm text-white/90 leading-relaxed">{insight}</p>
+        </div>
+
         {/* ── Activities detail ─────────────────────────────── */}
         {dayActivities.length > 0 && planEntries.length === 0 && (
           <div className="space-y-2">
@@ -753,16 +764,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           </div>
         )}
 
-        {/* ── Insight ───────────────────────────────────────── */}
-        <div className="rounded-4xl bg-ink p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-xl bg-white/10 flex items-center justify-center">
-              <Sparkles size={14} className="text-white" />
-            </div>
-            <p className="text-xs font-semibold text-white/50 uppercase tracking-widest">Insight</p>
-          </div>
-          <p className="text-sm text-white/90 leading-relaxed">{insight}</p>
-        </div>
       </div>
 
       {/* ── Sheets ───────────────────────────────────────────── */}
