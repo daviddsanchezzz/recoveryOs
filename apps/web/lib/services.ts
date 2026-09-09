@@ -39,6 +39,9 @@ type ServerInjury = {
   description?: string | null;
   startDate: string;
   status: string;
+  phaseLabel?: string | null;
+  phaseStartDate?: string | null;
+  phaseTargetSessions?: number | null;
   logs?: ServerInjuryLog[];
 };
 
@@ -121,6 +124,9 @@ function mapServerInjury(i: ServerInjury): Injury {
     description: i.description ?? undefined,
     startDate: isoDate(i.startDate),
     status: i.status as InjuryStatus,
+    phaseLabel: i.phaseLabel ?? null,
+    phaseStartDate: i.phaseStartDate ? isoDate(i.phaseStartDate) : null,
+    phaseTargetSessions: i.phaseTargetSessions ?? null,
   };
 }
 
@@ -275,7 +281,7 @@ export const RecoveryService = {
   createInjury(data: { name: string; bodyPart?: string; description?: string; startDate: string; status?: InjuryStatus }) {
     const id = crypto.randomUUID();
     const status = data.status ?? 'active';
-    useRecoveryStore.getState().addInjury({ ...data, status, id });
+    useRecoveryStore.getState().addInjury({ ...data, status, id, phaseLabel: null, phaseStartDate: null, phaseTargetSessions: null });
     toast.success('Lesión registrada');
     const userId = useSessionStore.getState().user?.id;
     if (userId) {
@@ -291,6 +297,15 @@ export const RecoveryService = {
     if (userId) {
       patchJson(`/injuries/${id}`, { status })
         .catch(() => toast.error('No se pudo actualizar el estado de la lesión.'));
+    }
+  },
+
+  updateInjuryPhase(id: string, data: { phaseLabel: string | null; phaseStartDate: string | null; phaseTargetSessions: number | null }) {
+    useRecoveryStore.getState().updateInjury(id, data);
+    const userId = useSessionStore.getState().user?.id;
+    if (userId) {
+      patchJson(`/injuries/${id}`, data)
+        .catch(() => toast.error('No se pudo actualizar la fase de rehabilitación.'));
     }
   },
 

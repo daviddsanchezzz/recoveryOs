@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import type { ChartPoint } from '../lib/progress-metrics';
 
@@ -15,13 +15,14 @@ interface ProgressChartProps {
   color: string;
   formatValue?: (v: number) => string;
   formatYTick?: (v: number) => string;
+  averageValue?: number;
 }
 
 function defaultYFmt(v: number): string {
   return v % 1 === 0 ? String(v) : v.toFixed(1);
 }
 
-export function ProgressChart({ data, type, color, formatValue, formatYTick }: ProgressChartProps) {
+export function ProgressChart({ data, type, color, formatValue, formatYTick, averageValue }: ProgressChartProps) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
@@ -50,6 +51,7 @@ export function ProgressChart({ data, type, color, formatValue, formatYTick }: P
   if (!ready) return <div style={{ height: HEIGHT }} />;
 
   const validValues = data.filter((p) => p.value != null).map((p) => Number(p.value));
+  if (averageValue != null) validValues.push(averageValue);
   const dataMin = validValues.length > 0 ? Math.min(...validValues) : 0;
   const dataMax = validValues.length > 0 ? Math.max(...validValues) : 100;
   const pad     = Math.max((dataMax - dataMin) * 0.4, type === 'line' ? 0.5 : 1);
@@ -75,6 +77,9 @@ export function ProgressChart({ data, type, color, formatValue, formatYTick }: P
             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
             <YAxis domain={[0, yDomain[1]]} {...yAxisProps} />
             <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
+            {averageValue != null && (
+              <ReferenceLine y={averageValue} stroke="#13201a" strokeOpacity={0.25} strokeDasharray="4 4" />
+            )}
             <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -89,6 +94,9 @@ export function ProgressChart({ data, type, color, formatValue, formatYTick }: P
           <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
           <YAxis domain={yDomain} {...yAxisProps} />
           <Tooltip content={tooltipContent} cursor={false} />
+          {averageValue != null && (
+            <ReferenceLine y={averageValue} stroke="#13201a" strokeOpacity={0.25} strokeDasharray="4 4" />
+          )}
           <Line
             type="monotone"
             dataKey="value"

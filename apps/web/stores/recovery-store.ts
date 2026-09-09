@@ -22,6 +22,9 @@ export type Injury = {
   bodyPart?: string;
   startDate: string;
   status: InjuryStatus;
+  phaseLabel: string | null;
+  phaseStartDate: string | null;
+  phaseTargetSessions: number | null;
 };
 
 export type InjuryLog = {

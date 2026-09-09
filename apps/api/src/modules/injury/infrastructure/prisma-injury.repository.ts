@@ -12,8 +12,22 @@ function toEntity(r: {
   description: string | null;
   startDate: Date;
   status: string;
+  phaseLabel: string | null;
+  phaseStartDate: Date | null;
+  phaseTargetSessions: number | null;
 }): InjuryEntity {
-  return new InjuryEntity(r.id, r.userId, r.name, r.startDate, r.status as InjuryStatus, r.bodyPart ?? undefined, r.description ?? undefined);
+  return new InjuryEntity(
+    r.id,
+    r.userId,
+    r.name,
+    r.startDate,
+    r.status as InjuryStatus,
+    r.bodyPart ?? undefined,
+    r.description ?? undefined,
+    r.phaseLabel,
+    r.phaseStartDate,
+    r.phaseTargetSessions,
+  );
 }
 
 function toLogEntity(r: {
@@ -51,6 +65,9 @@ export class PrismaInjuryRepository implements InjuryRepositoryPort {
         description: injury.description,
         startDate: injury.startDate,
         status: injury.status,
+        phaseLabel: injury.phaseLabel,
+        phaseStartDate: injury.phaseStartDate,
+        phaseTargetSessions: injury.phaseTargetSessions,
       },
     });
     return toEntity(r);
@@ -65,7 +82,20 @@ export class PrismaInjuryRepository implements InjuryRepositoryPort {
     return rows.map((r) => Object.assign(toEntity(r), { logs: r.logs.map(toLogEntity) }));
   }
 
-  async updateInjury(id: string, userId: string, data: Partial<{ name: string; bodyPart: string; description: string; startDate: Date; status: InjuryStatus }>): Promise<InjuryEntity | null> {
+  async updateInjury(
+    id: string,
+    userId: string,
+    data: Partial<{
+      name: string;
+      bodyPart: string;
+      description: string;
+      startDate: Date;
+      status: InjuryStatus;
+      phaseLabel: string | null;
+      phaseStartDate: Date | null;
+      phaseTargetSessions: number | null;
+    }>,
+  ): Promise<InjuryEntity | null> {
     const { count } = await this.prisma.injury.updateMany({ where: { id, userId }, data });
     if (count === 0) return null;
     const r = await this.prisma.injury.findUnique({ where: { id } });

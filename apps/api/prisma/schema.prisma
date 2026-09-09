@@ -93,17 +93,20 @@ model WeightEntry {
 }
 
 model Injury {
-  id          String      @id @default(cuid())
-  userId      String
-  name        String
-  bodyPart    String?
-  description String?
-  startDate   DateTime
-  status      String      @default("active") // active | recovering | resolved
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  logs        InjuryLog[]
+  id                  String      @id @default(cuid())
+  userId              String
+  name                String
+  bodyPart            String?
+  description         String?
+  startDate           DateTime
+  status              String      @default("active") // active | recovering | resolved
+  phaseLabel          String?
+  phaseStartDate      DateTime?
+  phaseTargetSessions Int?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs                InjuryLog[]
 
   @@index([userId])
 }
