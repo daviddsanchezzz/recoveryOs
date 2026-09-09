@@ -516,7 +516,7 @@ export function ActivityCard({
           </div>
         </div>
 
-        {/* Simplified stats: only duration, kcal, avg HR */}
+        {/* Compact stats: prioritize activity output over heart rate */}
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {act.durationMinutes && (
             <Stat icon={Clock} value={fmtDuration(act.durationMinutes)} />
@@ -524,8 +524,11 @@ export function ActivityCard({
           {act.kcal && (
             <Stat icon={Flame} value={act.kcal} unit="kcal" color="text-orange-400" />
           )}
-          {act.avgHeartRateBpm && (
-            <Stat icon={Heart} value={act.avgHeartRateBpm} unit="bpm" color="text-red-400" />
+          {act.distanceKm && (
+            <Stat icon={Gauge} value={act.distanceKm.toLocaleString('es-ES', { maximumFractionDigits: 2 })} unit="km" color="text-moss" />
+          )}
+          {isGym && act.totalVolumeKg && (
+            <Stat icon={Dumbbell} value={act.totalVolumeKg.toLocaleString('es-ES')} unit="kg" color="text-moss" />
           )}
         </div>
       </div>
