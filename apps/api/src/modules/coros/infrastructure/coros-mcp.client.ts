@@ -18,6 +18,20 @@ export interface CorosToolResult {
   isError: boolean;
 }
 
+// COROS currently wraps tool output in a JSON-encoded string. Decode it so
+// downstream parsers receive real line breaks instead of literal "\\n" text.
+export function normalizeCorosToolText(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('"')) return text;
+
+  try {
+    const decoded: unknown = JSON.parse(trimmed);
+    return typeof decoded === 'string' ? decoded : text;
+  } catch {
+    return text;
+  }
+}
+
 @Injectable()
 export class CorosMcpClient {
   constructor(@Inject(COROS_REPOSITORY) private readonly repo: CorosRepositoryPort) {}
@@ -100,8 +114,8 @@ export class CorosMcpClient {
     try {
       const result = await client.callTool({ name, arguments: args });
       const first = Array.isArray(result.content) ? result.content[0] : undefined;
-      const text = first && (first as { type?: string }).type === 'text' ? (first as { text: string }).text : '';
-      return { text, isError: Boolean(result.isError) };
+      const rawText = first && (first as { type?: string }).type === 'text' ? (first as { text: string }).text : '';
+      return { text: normalizeCorosToolText(rawText), isError: Boolean(result.isError) };
     } finally {
       await client.close();
     }

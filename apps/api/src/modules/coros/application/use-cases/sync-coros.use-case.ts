@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { COROS_REPOSITORY, CorosRepositoryPort } from '../../domain/coros-repository.port';
 import { CorosMcpClient } from '../../infrastructure/coros-mcp.client';
@@ -24,6 +24,8 @@ function toDateOnly(date: Date): string {
 
 @Injectable()
 export class SyncCorosUseCase {
+  private readonly logger = new Logger(SyncCorosUseCase.name);
+
   constructor(
     @Inject(COROS_REPOSITORY) private readonly corosRepo: CorosRepositoryPort,
     @Inject(SLEEP_REPOSITORY) private readonly sleepRepo: SleepRepositoryPort,
@@ -46,6 +48,7 @@ export class SyncCorosUseCase {
       await this.syncSleep(userId, date, dateStr, synced, errors);
     } catch (error) {
       const reauth = error instanceof UnauthorizedError;
+      this.logger.error(`COROS sync failed for ${dateStr}: ${(error as Error).message}`);
       await this.corosRepo.updateSyncStatus(userId, {
         syncStatus: reauth ? 'reauth_required' : 'error',
         syncError: reauth ? 'COROS session expired — user must reconnect' : (error as Error).message,
@@ -58,6 +61,10 @@ export class SyncCorosUseCase {
       syncError: errors.length > 0 ? errors.join('; ') : null,
       ...(errors.length === 0 ? { lastSuccessfulSyncAt: new Date() } : {}),
     });
+
+    this.logger.log(
+      `COROS sync ${dateStr}: synced=[${synced.join(', ')}] errors=[${errors.join('; ')}]`,
+    );
 
     return { synced, errors };
   }
