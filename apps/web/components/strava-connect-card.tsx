@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { RefreshCw, Unlink, X, Zap } from 'lucide-react';
-import { StravaBadge } from './brand-badges';
 import { useSessionStore } from '../stores/session-store';
 import { getJson, postJson, deleteJson } from '../lib/api';
 import { toast } from '../stores/toast-store';
@@ -104,13 +103,12 @@ export function StravaConnectCard({
 
   return (
     <div className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-center gap-3">
-      {/* Strava logo / icon */}
-      {status.connected
-        ? <StravaBadge size={36} />
-        : <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-            <Zap size={16} className="text-ink/30" />
-          </div>
-      }
+      {/* Strava logo */}
+      <img
+        src="/logos/strava.png"
+        alt="Strava"
+        className={`h-9 w-9 object-contain flex-shrink-0 transition-opacity ${status.connected ? '' : 'opacity-35'}`}
+      />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-ink leading-snug">Strava</p>

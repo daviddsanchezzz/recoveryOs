@@ -4,7 +4,6 @@ import { X, Link2 } from 'lucide-react';
 import { Portal } from './portal';
 import { StravaConnectCard } from './strava-connect-card';
 import { CorosConnectCard } from './coros-connect-card';
-import { OpenAiBadge } from './brand-badges';
 
 export function ConexionesScreen({ onClose }: { onClose: () => void }) {
   return (
@@ -41,7 +40,7 @@ export function ConexionesScreen({ onClose }: { onClose: () => void }) {
             Inteligencia artificial
           </p>
           <div className="rounded-3xl bg-white shadow-card px-4 py-3.5 flex items-center gap-3 opacity-60">
-            <OpenAiBadge size={36} muted />
+            <img src="/logos/openai.png" alt="OpenAI" className="h-9 w-9 object-contain flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-ink leading-snug">OpenAI</p>
               <p className="text-[11px] text-ink/40 mt-0.5">Insights generados con IA real</p>
