@@ -21,7 +21,7 @@ export const useChatStore = create<ChatState>()(
         {
           role: 'assistant',
           content:
-            'Prueba comandos rapidos como "peso 70.2", "dolor 2", "rehab hecha" o "30 min bici".',
+            'Puedo analizar tu sueño, recuperación, actividad, lesiones y nutrición. Pregúntame “¿cómo estoy hoy y qué debería hacer?”.',
         },
       ],
       addMessage: (message) =>
@@ -34,7 +34,7 @@ export const useChatStore = create<ChatState>()(
             {
               role: 'assistant',
               content:
-                'Prueba comandos rapidos como "peso 70.2", "dolor 2", "rehab hecha" o "30 min bici".',
+                'Puedo analizar tu sueño, recuperación, actividad, lesiones y nutrición. Pregúntame “¿cómo estoy hoy y qué debería hacer?”.',
             },
           ],
         }),

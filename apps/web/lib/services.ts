@@ -74,6 +74,13 @@ type ServerHealthMetric = {
   stressAvg?: number | null;
 };
 
+export type HealthAdviceResponse = {
+  reply: string;
+  provider: 'openai' | 'local';
+  date: string;
+  missingData: string[];
+};
+
 function mapServerActivity(a: ServerActivity): ActivityEntry {
   return {
     id:               a.id,
@@ -153,6 +160,12 @@ function mapServerHealthMetric(entry: ServerHealthMetric): DailyHealthMetricEntr
 }
 
 export const RecoveryService = {
+  async askHealthAgent(message: string, date = todayIso()): Promise<HealthAdviceResponse> {
+    const userId = useSessionStore.getState().user?.id;
+    if (!userId) throw new Error('User session is required');
+    return postJson<HealthAdviceResponse>('/chat/advice', { message, date });
+  },
+
   // ─── Weight ───────────────────────────────────────────────
   logWeight(kg: number, date = todayIso()) {
     const id = crypto.randomUUID();

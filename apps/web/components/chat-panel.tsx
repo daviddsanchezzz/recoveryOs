@@ -15,7 +15,7 @@ function parseMessage(
   message: string,
   firstInjuryId: string | null,
   firstInjuryName: string | null,
-): { action: () => void; reply: string } | null {
+): { action: () => void | Promise<unknown>; reply: string } | null {
   const raw = message.trim();
   const txt = raw.toLowerCase();
   const today = todayIso();
@@ -172,16 +172,21 @@ export function ChatPanel() {
 
     if (parsed) {
       try {
-        parsed.action();
+        await parsed.action();
         addMessage({ role: 'assistant', content: parsed.reply });
       } catch {
         addMessage({ role: 'assistant', content: 'Algo fue mal al guardar. Inténtalo de nuevo.' });
       }
     } else {
-      addMessage({
-        role: 'assistant',
-        content: 'No he entendido ese comando. Prueba: "peso 78", "dolor 3", "rehab hecha", "30 min bici", "gym pecho".',
-      });
+      try {
+        const advice = await RecoveryService.askHealthAgent(message, selectedDate);
+        addMessage({ role: 'assistant', content: advice.reply });
+      } catch {
+        addMessage({
+          role: 'assistant',
+          content: 'No he podido analizar tus datos ahora mismo. Inténtalo de nuevo en unos segundos.',
+        });
+      }
     }
 
     setIsSubmitting(false);
@@ -199,7 +204,7 @@ export function ChatPanel() {
       {/* Header */}
       <div className="px-5 pt-4 pb-4 bg-canvas">
         <h1 className="text-2xl font-bold text-ink">Chat</h1>
-        <p className="text-sm text-ink/40 mt-0.5">Registra en lenguaje natural</p>
+        <p className="text-sm text-ink/40 mt-0.5">Tu agente personal de salud y rendimiento</p>
       </div>
 
       {/* Date context banner */}
@@ -233,14 +238,14 @@ export function ChatPanel() {
       <div className="flex-1 overflow-y-auto px-4 space-y-3 scroll-smooth-ios no-scrollbar pb-4 bg-canvas">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-48 space-y-2 text-center">
-            <p className="text-sm text-ink/30">Escribe algo para empezar</p>
-            <p className="text-xs text-ink/20">Ej: "peso 78.2" · "30 min bici" · "rehab hecha"</p>
+            <p className="text-sm text-ink/30">Pregúntame cómo estás hoy</p>
+            <p className="text-xs text-ink/20">También puedes registrar peso, dolor, comidas o actividades</p>
           </div>
         )}
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
-              className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
+              className={`max-w-[82%] whitespace-pre-wrap rounded-3xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-ink text-white rounded-br-lg'
                   : 'bg-white text-ink shadow-card rounded-bl-lg'

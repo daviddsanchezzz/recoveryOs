@@ -55,6 +55,11 @@ import { NutritionController } from './presentation/nutrition.controller';
           : new MockNutritionAiParser(),
     },
   ],
-  exports: [NUTRITION_REPOSITORY, LogMealUseCase, GetNutritionSummaryUseCase],
+  exports: [
+    NUTRITION_REPOSITORY,
+    NUTRITION_GOAL_REPOSITORY,
+    LogMealUseCase,
+    GetNutritionSummaryUseCase,
+  ],
 })
 export class NutritionModule {}
