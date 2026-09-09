@@ -73,6 +73,8 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
       const result = await postJson<{ synced: string[]; errors: string[] }>('/coros/sync', {});
       if (result.errors.length > 0) {
         toast.error(`Coros sincronizado con avisos: ${result.errors.join('; ')}`);
+      } else if (result.synced.length === 0) {
+        toast.error('COROS no devolvió datos para ayer');
       } else {
         toast.success('Coros sincronizado');
       }
@@ -111,11 +113,13 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
     setSyncProgress({ current: 0, total: dates.length });
     let warningCount = 0;
     let completed = 0;
+    let daysWithData = 0;
 
     try {
       for (const [index, date] of dates.entries()) {
         const result = await postJson<{ synced: string[]; errors: string[] }>('/coros/sync', { date });
         warningCount += result.errors.length;
+        if (result.synced.length > 0) daysWithData += 1;
         completed = index + 1;
         setSyncProgress({ current: completed, total: dates.length });
       }
@@ -123,7 +127,7 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
       if (warningCount > 0) {
         toast.error(`Historial sincronizado con ${warningCount} avisos`);
       } else {
-        toast.success(`${completed} días de COROS sincronizados`);
+        toast.success(`${daysWithData} días con datos · ${completed - daysWithData} sin datos en COROS`);
       }
       await refreshSyncedData();
     } catch {

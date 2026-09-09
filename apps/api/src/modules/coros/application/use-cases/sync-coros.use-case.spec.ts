@@ -98,7 +98,7 @@ describe('SyncCorosUseCase', () => {
     expect(corosRepo.updateSyncStatus).toHaveBeenLastCalledWith('user-1', expect.objectContaining({ syncStatus: 'success' }));
   });
 
-  it('flags dailyHealthData as an error (not success) when the parser extracts no fields for the target date', async () => {
+  it('treats a missing daily-health date as no data instead of a parser error', async () => {
     const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
     mcpClient.callTool.mockImplementation(async (_userId, name) => {
       if (name === 'queryDailyHealthData') {
@@ -112,16 +112,14 @@ describe('SyncCorosUseCase', () => {
     const result = await useCase.execute('user-1', date);
 
     expect(result.synced).not.toContain('dailyHealthData');
-    expect(result.errors).toEqual(
-      expect.arrayContaining([expect.stringContaining('dailyHealthData: parser extracted no fields')]),
-    );
+    expect(result.errors).toEqual([]);
     // Only the HRV and resting-heart-rate upserts happen — the dailyHealthData one is skipped entirely.
     expect(healthMetrics.upsertFromCoros).toHaveBeenCalledTimes(2);
     expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith('user-1', date, { hrv: 45 });
     expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith('user-1', date, { restingHeartRate: 52 });
   });
 
-  it('records an error (without upserting) when the sleep HRV or resting-heart-rate parse yields no value for the target date', async () => {
+  it('treats missing HRV and resting-heart-rate dates as no data instead of parser errors', async () => {
     const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
     mcpClient.callTool.mockImplementation(async (_userId, name) => {
       if (name === 'querySleepHrv') {
@@ -137,12 +135,7 @@ describe('SyncCorosUseCase', () => {
 
     const result = await useCase.execute('user-1', date);
 
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('sleepHrv: parser extracted no HRV value'),
-        expect.stringContaining('restingHeartRate: parser extracted no value'),
-      ]),
-    );
+    expect(result.errors).toEqual([]);
     expect(healthMetrics.upsertFromCoros).not.toHaveBeenCalledWith('user-1', date, expect.objectContaining({ hrv: expect.anything() }));
     expect(healthMetrics.upsertFromCoros).not.toHaveBeenCalledWith(
       'user-1',
