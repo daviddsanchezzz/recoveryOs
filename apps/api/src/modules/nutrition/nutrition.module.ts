@@ -15,7 +15,6 @@ import { UpdateNutritionGoalUseCase } from './application/use-cases/update-nutri
 import { NUTRITION_AI_PARSER } from './domain/nutrition-ai-parser.port';
 import { NUTRITION_GOAL_REPOSITORY } from './domain/nutrition-goal-repository.port';
 import { NUTRITION_REPOSITORY } from './domain/nutrition-repository.port';
-import { MockNutritionAiParser } from './infrastructure/mock-nutrition-ai-parser';
 import { OpenAiNutritionParser } from './infrastructure/openai-nutrition-parser';
 import { PrismaNutritionGoalRepository } from './infrastructure/prisma-nutrition-goal.repository';
 import { PrismaNutritionRepository } from './infrastructure/prisma-nutrition.repository';
@@ -46,13 +45,10 @@ import { NutritionController } from './presentation/nutrition.controller';
     PrismaNutritionGoalRepository,
     { provide: NUTRITION_GOAL_REPOSITORY, useExisting: PrismaNutritionGoalRepository },
 
-    // AI Parser — OpenAI if key present, mock otherwise
+    OpenAiNutritionParser,
     {
       provide: NUTRITION_AI_PARSER,
-      useFactory: () =>
-        process.env.OPENAI_API_KEY
-          ? new OpenAiNutritionParser()
-          : new MockNutritionAiParser(),
+      useExisting: OpenAiNutritionParser,
     },
   ],
   exports: [

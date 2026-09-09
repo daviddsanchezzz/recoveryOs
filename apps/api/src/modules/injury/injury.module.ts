@@ -23,6 +23,6 @@ import { InjuryController } from './presentation/injury.controller';
     PrismaInjuryRepository,
     { provide: INJURY_REPOSITORY, useExisting: PrismaInjuryRepository },
   ],
-  exports: [INJURY_REPOSITORY, GetUserInjuriesUseCase],
+  exports: [INJURY_REPOSITORY, GetUserInjuriesUseCase, LogPainUseCase],
 })
 export class InjuryModule {}

@@ -6,7 +6,7 @@ import { getJson } from '../lib/api';
 
 type OpenAiStatus = {
   configured: boolean;
-  provider: 'openai' | 'local';
+  provider: 'openai' | 'unavailable';
   model: string | null;
 };
 
@@ -16,7 +16,7 @@ export function OpenAiStatusCard() {
   useEffect(() => {
     getJson<OpenAiStatus>('/chat/status')
       .then(setStatus)
-      .catch(() => setStatus({ configured: false, provider: 'local', model: null }));
+      .catch(() => setStatus({ configured: false, provider: 'unavailable', model: null }));
   }, []);
 
   return (
@@ -33,7 +33,7 @@ export function OpenAiStatusCard() {
             ? 'Comprobando configuración…'
             : status.configured
               ? `OpenAI activo${status.model ? ` · ${status.model}` : ''}`
-              : 'Asesor local activo · configura OpenAI para análisis avanzados'}
+              : 'Configura OPENAI_API_KEY para activar el agente'}
         </p>
       </div>
       <span
@@ -42,7 +42,7 @@ export function OpenAiStatusCard() {
         }`}
       >
         {status?.configured ? <CheckCircle2 size={11} /> : <BrainCircuit size={11} />}
-        {status?.configured ? 'Activo' : 'Local'}
+        {status?.configured ? 'Activo' : 'Sin configurar'}
       </span>
     </div>
   );

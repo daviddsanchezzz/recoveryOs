@@ -1,295 +1,277 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Send, Scale, Zap, CheckCircle, Bike, Dumbbell, Footprints } from 'lucide-react';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import {
+  Activity,
+  ArrowUp,
+  CalendarDays,
+  Dumbbell,
+  HeartPulse,
+  MoonStar,
+  RotateCcw,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react';
 import { todayIso } from '../lib/date';
+import { getJson } from '../lib/api';
 import { RecoveryService } from '../lib/services';
 import { useChatStore } from '../stores/chat-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
-import type { ActivityType } from '../stores/recovery-store';
 
-// ─── NLP Parser ──────────────────────────────────────────────────────────────
-
-function parseMessage(
-  message: string,
-  firstInjuryId: string | null,
-  firstInjuryName: string | null,
-): { action: () => void | Promise<unknown>; reply: string } | null {
-  const raw = message.trim();
-  const txt = raw.toLowerCase();
-  const today = todayIso();
-
-  // peso X.X
-  const weightMatch = txt.match(/peso\s+(\d{1,3}(?:[.,]\d+)?)/);
-  if (weightMatch) {
-    const kg = parseFloat(weightMatch[1].replace(',', '.'));
-    return {
-      action: () => RecoveryService.logWeight(kg, today),
-      reply: `Peso guardado: ${kg.toFixed(1)} kg ✓`,
-    };
-  }
-
-  // "he pesado X" / "pesé X"
-  const weightMatch2 = txt.match(/(?:he?\s+pes[aoe]d?o?|pesé)\s+(\d{1,3}(?:[.,]\d+)?)/);
-  if (weightMatch2) {
-    const kg = parseFloat(weightMatch2[1].replace(',', '.'));
-    return {
-      action: () => RecoveryService.logWeight(kg, today),
-      reply: `Peso guardado: ${kg.toFixed(1)} kg ✓`,
-    };
-  }
-
-  // dolor X / me duele X / duele X
-  const painMatch = txt.match(/(?:dolor|me\s+duele?|duele?)\s+(\d{1,2})/);
-  if (painMatch && firstInjuryId) {
-    const level = Math.min(10, parseInt(painMatch[1]));
-    return {
-      action: () =>
-        RecoveryService.logPain({ injuryId: firstInjuryId, painLevel: level, didRehab: false }),
-      reply: `Dolor ${level}/10 registrado para ${firstInjuryName ?? 'lesión'} ✓`,
-    };
-  }
-
-  // rehab hecha / he hecho la rehab / rehab ok / hice rehab
-  const rehabMatch = txt.match(/(?:rehab\s*(?:hecha|ok|done|listo|bien)|he?\s+hecho?\s+(?:la\s+)?rehab|hice\s+(?:la\s+)?rehab)/);
-  if (rehabMatch && firstInjuryId) {
-    return {
-      action: () => {
-        RecoveryService.logPain({ injuryId: firstInjuryId, painLevel: 0, didRehab: true });
-        RecoveryService.saveCheckIn({
-          date: today,
-          activities: [],
-          injuryLogs: [{ injuryId: firstInjuryId, painLevel: 0, didRehab: true }],
-          habits: { rehab: true, mobility: false, stretching: false, goodNutrition: false, enoughProtein: false },
-        });
-      },
-      reply: 'Rehab completada para hoy ✓',
-    };
-  }
-
-  // X min TYPE / he hecho X min de TYPE / he caminado X min / TYPE X min
-  const activityPatterns: [RegExp, ActivityType][] = [
-    [/(?:he?\s+)?(?:caminad?o?|walk(?:ed)?)\s+(\d+)\s*(?:min|minutos?)?/, 'walk'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:caminar|caminado|walk)/, 'walk'],
-    [/(?:he?\s+)?(?:corrido|run(?:ned)?)\s+(\d+)\s*(?:min|minutos?)?/, 'run'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:correr|run)/, 'run'],
-    [/(?:he?\s+)?(?:nadado|swim(?:med)?)\s+(\d+)\s*(?:min|minutos?)?/, 'swim'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:nadar|swim)/, 'swim'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:bici|bike|ciclismo)/, 'bike'],
-    [/(?:he?\s+)?(?:ido\s+en\s+)?bici\s+(\d+)\s*(?:min|minutos?)?/, 'bike'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(?:gym|pesas|fuerza)/, 'gym'],
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?mobilidad/, 'mobility'],
-    // generic: X min TYPE
-    [/(\d+)\s*(?:min|minutos?)?\s*(?:de\s+)?(\w+)/, null as unknown as ActivityType],
-  ];
-
-  for (const [regex, type] of activityPatterns) {
-    if (type === null) break; // generic handled below
-    const match = txt.match(regex);
-    if (match) {
-      const mins = parseInt(match[1]);
-      return {
-        action: () => RecoveryService.logActivity({ type, durationMinutes: mins, date: today }),
-        reply: `Actividad guardada: ${mins} min de ${type} ✓`,
-      };
-    }
-  }
-
-  // generic "X min TYPE" or "TYPE X min"
-  const genericActivity = txt.match(/(\d+)\s*(?:min|minutos?)\s+(?:de\s+)?(\w+)/);
-  if (genericActivity) {
-    const mins = parseInt(genericActivity[1]);
-    const typeMap: Record<string, ActivityType> = {
-      bici: 'bike', bike: 'bike', gym: 'gym', pesas: 'gym', caminar: 'walk', caminata: 'walk',
-      correr: 'run', carrera: 'run', nadar: 'swim', piscina: 'swim',
-      movilidad: 'mobility', mobility: 'mobility', walk: 'walk', run: 'run', swim: 'swim',
-    };
-    const rawType = genericActivity[2];
-    const mappedType: ActivityType = typeMap[rawType] ?? 'other';
-    return {
-      action: () => RecoveryService.logActivity({ type: mappedType, durationMinutes: mins, notes: rawType !== mappedType ? rawType : undefined, date: today }),
-      reply: `Actividad guardada: ${mins} min (${rawType}) ✓`,
-    };
-  }
-
-  // "gym pecho tríceps" / "hice gym" / "gym hoy"
-  const gymMatch = txt.match(/(?:gym|pesas|fuerza)\s*(.*)?/);
-  if (gymMatch) {
-    const note = gymMatch[1]?.trim() || undefined;
-    return {
-      action: () => RecoveryService.logActivity({ type: 'gym', durationMinutes: 45, notes: note, date: today }),
-      reply: `Sesión de gym registrada${note ? ` · ${note}` : ''} ✓`,
-    };
-  }
-
-  return null;
-}
-
-// ─── Quick Action Chips ───────────────────────────────────────────────────────
-
-const QUICK_ACTIONS = [
-  { label: 'Peso', example: 'peso 78.0', icon: Scale },
-  { label: 'Dolor', example: 'dolor 2', icon: Zap },
-  { label: 'Rehab', example: 'rehab hecha', icon: CheckCircle },
-  { label: 'Bici', example: '30 min bici', icon: Bike },
-  { label: 'Gym', example: 'gym pecho', icon: Dumbbell },
-  { label: 'Caminar', example: 'he caminado 40 min', icon: Footprints },
+const SUGGESTIONS = [
+  { label: 'Mi estado hoy', prompt: '¿Cómo estoy hoy y qué debería hacer?', icon: HeartPulse },
+  { label: 'Entrenamiento', prompt: '¿Me conviene entrenar fuerte hoy?', icon: Dumbbell },
+  { label: 'Última semana', prompt: 'Resume mi última semana y dime qué mejorarías', icon: TrendingUp },
+  { label: 'Sueño', prompt: 'Analiza cómo estoy durmiendo últimamente', icon: MoonStar },
 ] as const;
 
-// ─── Chat Panel ───────────────────────────────────────────────────────────────
+type AgentStatus = { configured: boolean; provider: 'openai' | 'unavailable'; model: string | null };
 
 export function ChatPanel() {
   const [input, setInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, addMessage } = useChatStore();
-  const user = useSessionStore((s) => s.user);
-  const firstActiveInjury = useRecoveryStore((s) =>
-    s.injuries.find((i) => i.status !== 'resolved') ?? null,
-  );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { messages, addMessage, resetMessages } = useChatStore();
+  const user = useSessionStore((state) => state.user);
+  const selectedDate = useRecoveryStore((state) => state.selectedDate);
+  const today = todayIso();
+  const isToday = selectedDate === today;
+  const dateLabel = isToday
+    ? 'Hoy'
+    : new Date(`${selectedDate}T12:00:00`).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+      });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isSubmitting]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const message = input.trim();
-    if (!message || isSubmitting || !user) return;
+  useEffect(() => {
+    window.localStorage.removeItem('recoveryos-chat-v1');
+    getJson<AgentStatus>('/chat/status')
+      .then(setAgentStatus)
+      .catch(() => setAgentStatus({ configured: false, provider: 'unavailable', model: null }));
+  }, []);
 
-    addMessage({ role: 'user', content: message });
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = '0px';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 104)}px`;
+  }, [input]);
+
+  async function sendMessage(message: string) {
+    const content = message.trim();
+    if (!content || isSubmitting || !user || !agentStatus?.configured) return;
+
+    addMessage({ role: 'user', content });
     setInput('');
     setIsSubmitting(true);
 
-    await new Promise((r) => setTimeout(r, 250));
-
-    const parsed = parseMessage(
-      message,
-      firstActiveInjury?.id ?? null,
-      firstActiveInjury?.name ?? null,
-    );
-
-    if (parsed) {
-      try {
-        await parsed.action();
-        addMessage({ role: 'assistant', content: parsed.reply });
-      } catch {
-        addMessage({ role: 'assistant', content: 'Algo fue mal al guardar. Inténtalo de nuevo.' });
-      }
-    } else {
-      try {
-        const advice = await RecoveryService.askHealthAgent(message, selectedDate);
-        addMessage({ role: 'assistant', content: advice.reply });
-      } catch {
-        addMessage({
-          role: 'assistant',
-          content: 'No he podido analizar tus datos ahora mismo. Inténtalo de nuevo en unos segundos.',
-        });
-      }
+    try {
+      const response = await RecoveryService.sendToHealthAgent(content, selectedDate);
+      addMessage({ role: 'assistant', content: response.reply });
+    } catch {
+      addMessage({
+        role: 'assistant',
+        content: 'No he podido conectar con OpenAI. Revisa la configuración e inténtalo de nuevo.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   }
 
-  const selectedDate  = useRecoveryStore((s) => s.selectedDate);
-  const today         = todayIso();
-  const isToday       = selectedDate === today;
-  const dateLabel     = isToday
-    ? 'Hoy'
-    : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void sendMessage(input);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void sendMessage(input);
+    }
+  }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-5 pt-4 pb-4 bg-canvas">
-        <h1 className="text-2xl font-bold text-ink">Chat</h1>
-        <p className="text-sm text-ink/40 mt-0.5">Tu agente personal de salud y rendimiento</p>
-      </div>
-
-      {/* Date context banner */}
-      <div className="px-4 pb-3 bg-canvas">
-        <div className="flex items-center gap-2 rounded-2xl bg-canvas-light border border-sand/40 px-4 py-2.5">
-          <span className="text-xs text-ink/40">Registrando para:</span>
-          <span className={`text-xs font-semibold ${isToday ? 'text-moss' : 'text-ember'}`}>
-            {dateLabel}
-          </span>
+    <div className="flex h-[calc(100dvh-9.5rem)] min-h-0 flex-col overflow-hidden bg-canvas">
+      <section className="px-4 pb-3 pt-3">
+        <div className="relative overflow-hidden rounded-[28px] bg-ink px-5 py-4 text-white shadow-card-lg">
+          <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-moss/35 blur-2xl" />
+          <div className="relative flex items-start gap-3.5">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+              <Sparkles size={20} className="text-sand" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-[17px] font-semibold tracking-tight">Recovery Agent</h1>
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    agentStatus?.configured
+                      ? 'bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.12)]'
+                      : 'bg-white/30'
+                  }`}
+                />
+              </div>
+              <p className="mt-0.5 text-xs leading-relaxed text-white/55">
+                {agentStatus === null
+                  ? 'Comprobando conexión…'
+                  : agentStatus.configured
+                    ? 'Analiza tus datos y te ayuda a decidir mejor'
+                    : 'OpenAI todavía no está configurado'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1.5 text-[10px] font-medium text-white/65 ring-1 ring-white/10">
+              <CalendarDays size={11} />
+              {dateLabel}
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Quick Action Chips */}
-      <div className="px-4 pb-3 bg-canvas">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {QUICK_ACTIONS.map(({ label, example, icon: Icon }) => (
+      <div className="px-4 pb-3">
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {SUGGESTIONS.map(({ label, prompt, icon: Icon }) => (
             <button
               key={label}
               type="button"
-              onClick={() => setInput(example)}
-              className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-white border border-ink/8 px-3.5 py-2 shadow-card"
+              onClick={() => void sendMessage(prompt)}
+              disabled={isSubmitting || !user || !agentStatus?.configured}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-ink/7 bg-white px-3.5 py-2 text-xs font-medium text-ink/70 shadow-card transition-all active:scale-[0.97] disabled:opacity-40"
             >
               <Icon size={13} className="text-moss" />
-              <span className="text-xs font-medium text-ink">{label}</span>
+              {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 space-y-3 scroll-smooth-ios no-scrollbar pb-4 bg-canvas">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-48 space-y-2 text-center">
-            <p className="text-sm text-ink/30">Pregúntame cómo estás hoy</p>
-            <p className="text-xs text-ink/20">También puedes registrar peso, dolor, comidas o actividades</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[82%] whitespace-pre-wrap rounded-3xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-ink text-white rounded-br-lg'
-                  : 'bg-white text-ink shadow-card rounded-bl-lg'
-              }`}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
-        {isSubmitting && (
-          <div className="flex justify-start">
-            <div className="bg-white shadow-card rounded-3xl rounded-bl-lg px-4 py-3">
-              <div className="flex gap-1 items-center h-4">
-                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:0ms]" />
-                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:150ms]" />
-                <span className="h-2 w-2 rounded-full bg-ink/20 animate-bounce [animation-delay:300ms]" />
+      <div className="relative min-h-0 flex-1">
+        <div className="h-full overflow-y-auto px-4 pb-5 scroll-smooth-ios no-scrollbar">
+          {!agentStatus?.configured && agentStatus !== null ? (
+            <div className="flex min-h-full flex-col items-center justify-center px-6 pb-10 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-ember/10 text-ember">
+                <Sparkles size={22} />
               </div>
+              <h2 className="text-base font-semibold text-ink">Falta conectar OpenAI</h2>
+              <p className="mt-2 max-w-[290px] text-sm leading-relaxed text-ink/45">
+                Añade una clave real en <span className="font-medium text-ink/65">OPENAI_API_KEY</span> y reinicia la API. No se usarán respuestas simuladas.
+              </p>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          ) : messages.length === 0 ? (
+            <div className="flex min-h-full flex-col items-center justify-center px-5 pb-10 text-center">
+              <div className="relative mb-5">
+                <div className="absolute inset-0 rounded-full bg-moss/15 blur-xl" />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-[22px] bg-white shadow-card ring-1 ring-ink/5">
+                  <Activity size={25} className="text-moss" />
+                </div>
+              </div>
+              <h2 className="text-lg font-semibold tracking-tight text-ink">¿Qué quieres saber?</h2>
+              <p className="mt-2 max-w-[285px] text-sm leading-relaxed text-ink/45">
+                Puedo cruzar sueño, recuperación, actividad, nutrición, peso y lesiones para darte una respuesta personal.
+              </p>
+              <button
+                type="button"
+                onClick={() => void sendMessage(SUGGESTIONS[0].prompt)}
+                className="mt-5 rounded-2xl bg-moss/10 px-4 py-2.5 text-xs font-semibold text-moss transition-transform active:scale-95"
+              >
+                Analizar mi día
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-1">
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={resetMessages}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-medium text-ink/35 transition-colors hover:bg-white hover:text-ink/60"
+                >
+                  <RotateCcw size={11} />
+                  Nueva conversación
+                </button>
+              </div>
+
+              {messages.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`flex items-end gap-2.5 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.role === 'assistant' && (
+                    <div className="mb-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl bg-moss text-white shadow-sm">
+                      <Sparkles size={13} />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[84%] whitespace-pre-wrap px-4 py-3 text-[13px] leading-[1.55] ${
+                      message.role === 'user'
+                        ? 'rounded-[22px] rounded-br-md bg-ink text-white shadow-sm'
+                        : 'rounded-[22px] rounded-bl-md border border-ink/5 bg-white text-ink/85 shadow-card'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+
+              {isSubmitting && (
+                <div className="flex items-end gap-2.5">
+                  <div className="mb-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl bg-moss text-white shadow-sm">
+                    <Sparkles size={13} />
+                  </div>
+                  <div className="rounded-[22px] rounded-bl-md border border-ink/5 bg-white px-4 py-3 shadow-card">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {[0, 1, 2].map((dot) => (
+                          <span
+                            key={dot}
+                            className="h-1.5 w-1.5 animate-bounce rounded-full bg-moss/55"
+                            style={{ animationDelay: `${dot * 140}ms` }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-ink/40">Analizando tus datos</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-canvas to-transparent" />
       </div>
 
-      {/* Input */}
-      <div
-        className="px-4 py-3 bg-canvas border-t border-ink/6"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-      >
-        <form onSubmit={onSubmit} className="flex gap-2 items-center">
-          <input
+      <div className="border-t border-ink/5 bg-canvas/95 px-4 pt-3 backdrop-blur-md">
+        <form
+          onSubmit={onSubmit}
+          className="flex items-end gap-2 rounded-[24px] border border-ink/8 bg-white p-1.5 pl-4 shadow-card-lg transition-shadow focus-within:ring-2 focus-within:ring-moss/10"
+        >
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={!user}
-            placeholder='Escribe algo...'
-            className="flex-1 rounded-2xl bg-white border border-ink/8 px-4 py-3 text-sm text-ink placeholder:text-ink/30 outline-none shadow-card"
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={onKeyDown}
+            disabled={!user || isSubmitting || !agentStatus?.configured}
+            rows={1}
+            placeholder="Pregunta o registra algo…"
+            className="max-h-[104px] min-h-[42px] flex-1 resize-none bg-transparent py-2.5 text-sm leading-5 text-ink outline-none placeholder:text-ink/30 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={isSubmitting || !input.trim() || !user}
-            className="h-11 w-11 flex-shrink-0 rounded-2xl bg-ink flex items-center justify-center disabled:opacity-30 transition-opacity"
+            aria-label="Enviar mensaje"
+            disabled={isSubmitting || !input.trim() || !user || !agentStatus?.configured}
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-ink text-white shadow-sm transition-all active:scale-95 disabled:bg-ink/20 disabled:shadow-none"
           >
-            <Send size={16} className="text-white" />
+            <ArrowUp size={18} strokeWidth={2.5} />
           </button>
         </form>
+        <p className="py-2 text-center text-[9px] text-ink/25">
+          Orientación basada en tus datos · No sustituye consejo médico
+        </p>
       </div>
     </div>
   );

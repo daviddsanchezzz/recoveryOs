@@ -74,11 +74,11 @@ type ServerHealthMetric = {
   stressAvg?: number | null;
 };
 
-export type HealthAdviceResponse = {
+export type HealthAgentResponse = {
+  intent: 'advice' | 'clarification' | 'weight' | 'injury' | 'nutrition' | 'activity';
   reply: string;
-  provider: 'openai' | 'local';
-  date: string;
-  missingData: string[];
+  provider: 'openai';
+  record: unknown;
 };
 
 function mapServerActivity(a: ServerActivity): ActivityEntry {
@@ -160,10 +160,21 @@ function mapServerHealthMetric(entry: ServerHealthMetric): DailyHealthMetricEntr
 }
 
 export const RecoveryService = {
-  async askHealthAgent(message: string, date = todayIso()): Promise<HealthAdviceResponse> {
+  async sendToHealthAgent(message: string, date = todayIso()): Promise<HealthAgentResponse> {
     const userId = useSessionStore.getState().user?.id;
     if (!userId) throw new Error('User session is required');
-    return postJson<HealthAdviceResponse>('/chat/advice', { message, date });
+    const response = await postJson<HealthAgentResponse>('/chat', { message, date });
+
+    if (response.record) {
+      useRecoveryStore.getState().resetActivitiesCache();
+      await Promise.allSettled([
+        RecoveryService.loadTodayData(userId, date),
+        NutritionService.fetchMealsForDate(date),
+        NutritionService.fetchDailySummary(userId, date),
+      ]);
+    }
+
+    return response;
   },
 
   // ─── Weight ───────────────────────────────────────────────

@@ -17,28 +17,13 @@ type ChatState = {
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
-      messages: [
-        {
-          role: 'assistant',
-          content:
-            'Puedo analizar tu sueño, recuperación, actividad, lesiones y nutrición. Pregúntame “¿cómo estoy hoy y qué debería hacer?”.',
-        },
-      ],
+      messages: [],
       addMessage: (message) =>
         set((state) => ({
           messages: [...state.messages, message],
         })),
-      resetMessages: () =>
-        set({
-          messages: [
-            {
-              role: 'assistant',
-              content:
-                'Puedo analizar tu sueño, recuperación, actividad, lesiones y nutrición. Pregúntame “¿cómo estoy hoy y qué debería hacer?”.',
-            },
-          ],
-        }),
+      resetMessages: () => set({ messages: [] }),
     }),
-    { name: 'recoveryos-chat-v1' },
+    { name: 'recoveryos-chat-v2' },
   ),
 );

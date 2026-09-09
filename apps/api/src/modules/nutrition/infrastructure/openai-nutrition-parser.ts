@@ -1,17 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import OpenAI from 'openai';
+import { getOpenAiApiKey } from '../../../shared/infrastructure/openai/openai-config';
 import { Confidence, MealType, Quality } from '../domain/meal-types';
 import { NutritionAiParserPort, ParsedMealResult } from '../domain/nutrition-ai-parser.port';
 
 @Injectable()
 export class OpenAiNutritionParser implements NutritionAiParserPort {
-  private readonly client: OpenAI;
+  private readonly client: OpenAI | null;
 
   constructor() {
-    this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const apiKey = getOpenAiApiKey();
+    this.client = apiKey ? new OpenAI({ apiKey }) : null;
   }
 
   async parseMeal(text: string, date: Date): Promise<ParsedMealResult> {
+    if (!this.client) throw new ServiceUnavailableException('OpenAI no está configurado');
     const hour = date.getHours();
     const timeHint =
       hour < 10 ? 'mañana (desayuno)' :
