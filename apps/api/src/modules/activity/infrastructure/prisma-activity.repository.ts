@@ -53,7 +53,7 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
       ? await this.prisma.activity.upsert({
           where:  { stravaId: p.stravaId },
           update: {
-            type: p.type, durationMin: p.durationMin, calories: p.calories,
+            type: p.type, performedAt: p.performedAt, durationMin: p.durationMin, calories: p.calories,
             avgHeartRate: p.avgHeartRate, maxHeartRate: p.maxHeartRate, notes: p.notes,
             distanceKm: p.distanceKm, elevationGainM: p.elevationGainM,
             avgPaceSecPerKm: p.avgPaceSecPerKm, avgCadenceSpm: p.avgCadenceSpm,
@@ -73,8 +73,19 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
             stravaId: p.stravaId, stravaName: p.stravaName, isRace: p.isRace ?? false,
           },
         })
-      : await this.prisma.activity.create({
-          data: {
+      : await this.prisma.activity.upsert({
+          where: { id: p.id },
+          update: {
+            type: p.type, performedAt: p.performedAt, durationMin: p.durationMin, calories: p.calories,
+            avgHeartRate: p.avgHeartRate, maxHeartRate: p.maxHeartRate, notes: p.notes,
+            distanceKm: p.distanceKm, elevationGainM: p.elevationGainM,
+            avgPaceSecPerKm: p.avgPaceSecPerKm, avgCadenceSpm: p.avgCadenceSpm,
+            avgSpeedKmh: p.avgSpeedKmh, avgPowerW: p.avgPowerW, avgCadenceRpm: p.avgCadenceRpm,
+            kilojoules: p.kilojoules, distanceM: p.distanceM, avgPace100mSec: p.avgPace100mSec,
+            muscleGroups: p.muscleGroups, totalVolumeKg: p.totalVolumeKg, stravaName: p.stravaName,
+            isRace: p.isRace ?? false,
+          },
+          create: {
             id: p.id, userId: p.userId, type: p.type, source: p.source, performedAt: p.performedAt,
             durationMin: p.durationMin, calories: p.calories, avgHeartRate: p.avgHeartRate,
             maxHeartRate: p.maxHeartRate, notes: p.notes, distanceKm: p.distanceKm,

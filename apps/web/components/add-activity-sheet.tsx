@@ -103,6 +103,7 @@ export function AddActivitySheet({
   const [pace100,    setPace100]    = useState('');
   const [muscles,    setMuscles]    = useState<MuscleGroup[]>([]);
   const [volumeKg,   setVolumeKg]   = useState('');
+  const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
 
   const totalDurationMin =
@@ -157,13 +158,14 @@ export function AddActivitySheet({
     setSpeedKmh(''); setPowerW(''); setCadRpm('');
     setDistM(''); setPace100('');
     setMuscles([]); setVolumeKg('');
-    setSaved(false);
+    setSaving(false); setSaved(false);
   }
 
-  function handleSave() {
-    if (!type) return;
+  async function handleSave() {
+    if (!type || saving) return;
+    setSaving(true);
 
-    RecoveryService.logActivity({
+    const didSave = await RecoveryService.logActivity({
       id:              editActivity?.id,
       type,
       date,
@@ -198,6 +200,8 @@ export function AddActivitySheet({
         totalVolumeKg: volumeKg ? parseFloat(volumeKg) : undefined,
       } : {}),
     });
+    setSaving(false);
+    if (!didSave) return;
     setSaved(true);
     setTimeout(() => { reset(); onClose(); }, 800);
   }
@@ -366,14 +370,14 @@ export function AddActivitySheet({
               </>
             )}
 
-            <button type="button" onClick={handleSave} disabled={!type || saved}
+            <button type="button" onClick={handleSave} disabled={!type || saving || saved}
               className={`w-full rounded-3xl py-4 text-base font-semibold transition-all ${
                 saved
                   ? 'bg-moss text-white'
                   : 'bg-ink text-white active:scale-[0.98] disabled:opacity-30'
               }`}
             >
-              {saved ? '¡Guardado! ✓' : isEditing ? 'Guardar cambios' : 'Guardar actividad'}
+              {saved ? '¡Guardado! ✓' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Guardar actividad'}
             </button>
           </div>
         </div>

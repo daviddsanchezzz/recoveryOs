@@ -176,15 +176,21 @@ export const RecoveryService = {
   },
 
   // ─── Activity ─────────────────────────────────────────────
-  logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { id?: string; date?: string }) {
+  async logActivity(data: Omit<ActivityEntry, 'id' | 'date'> & { id?: string; date?: string }): Promise<boolean> {
     const resolvedDate = data.date ?? todayIso();
     const id = data.id ?? crypto.randomUUID();
-    useRecoveryStore.getState().addActivity({ ...data, id, date: resolvedDate });
-    toast.success('Actividad guardada');
+    const store = useRecoveryStore.getState();
+    const previous = store.activities.find((activity) => activity.id === id);
+    store.addActivity({ ...data, id, date: resolvedDate });
 
     const userId = useSessionStore.getState().user?.id;
-    if (userId) {
-      postJson('/activities', {
+    if (!userId) {
+      toast.success('Actividad guardada');
+      return true;
+    }
+
+    try {
+      await postJson('/activities', {
         id,
         userId,
         type:            data.type,
@@ -210,7 +216,15 @@ export const RecoveryService = {
         stravaId:        data.stravaId ? String(data.stravaId) : undefined,
         stravaName:      data.stravaName,
         isRace:          data.isRace ?? false,
-      }).catch(() => toast.error('No se pudo guardar la actividad. Inténtalo de nuevo.'));
+      });
+      toast.success('Actividad guardada');
+      return true;
+    } catch {
+      const currentStore = useRecoveryStore.getState();
+      if (previous) currentStore.addActivity(previous);
+      else currentStore.removeActivity(id);
+      toast.error('No se pudo guardar la actividad. Inténtalo de nuevo.');
+      return false;
     }
   },
 

@@ -530,6 +530,9 @@ export function ActivityCard({
           {isGym && act.totalVolumeKg && (
             <Stat icon={Dumbbell} value={act.totalVolumeKg.toLocaleString('es-ES')} unit="kg" color="text-moss" />
           )}
+          {!act.distanceKm && !(isGym && act.totalVolumeKg) && act.avgHeartRateBpm && (
+            <Stat icon={Heart} value={act.avgHeartRateBpm} unit="bpm" color="text-red-400" />
+          )}
         </div>
       </div>
     </div>
