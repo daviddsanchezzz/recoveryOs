@@ -20,6 +20,7 @@ import { DolorSheet }       from './dolor-sheet';
 import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
+import { DayScoreCard } from './day-score-card';
 import { sleepScore } from '../lib/sleep';
 import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
@@ -135,15 +136,6 @@ function sinceLabel(days: number): string {
   if (days < 30)  return `${Math.floor(days / 7)} semana${Math.floor(days / 7) === 1 ? '' : 's'}`;
   if (days < 365) return `${Math.floor(days / 30)} mes${Math.floor(days / 30) === 1 ? '' : 'es'}`;
   return `${Math.floor(days / 365)} año${Math.floor(days / 365) === 1 ? '' : 's'}`;
-}
-
-function calcDayScore(hasSleep: boolean, hasActivity: boolean, hasWeight: boolean, avgPain: number | null): number {
-  let score = 25;
-  if (hasSleep)    score += 20;
-  if (hasActivity) score += 25;
-  if (hasWeight)   score += 10;
-  score += avgPain === null ? 10 : Math.round(Math.max(0, (10 - avgPain) / 10 * 20));
-  return score;
 }
 
 // ── Reusable daily-log row ────────────────────────────────────────────────────
@@ -297,19 +289,6 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
     ? `${avgPainToday ?? '--'}/10 · ${hasRehab ? '✓' : '✗'}`
     : null;
 
-  // ── Day score ────────────────────────────────────────────────────────────
-  const dayScore = calcDayScore(
-    !!todaySleep,
-    dayActivities.length > 0,
-    !!todayWeight,
-    avgPainToday ? parseFloat(avgPainToday) : null,
-  );
-  const scoreConfig =
-    dayScore >= 85 ? { label: 'Excelente',    color: 'text-moss' }
-    : dayScore >= 65 ? { label: 'Buen estado',  color: 'text-moss' }
-    : dayScore >= 45 ? { label: 'Progresando',  color: 'text-ember' }
-    :                  { label: 'Día tranquilo', color: 'text-ink/40' };
-
   // MOCK – sustituir por Apple Health
   const movementSteps = todayMovement?.steps ?? 0;
   const movementActiveCalories = todayMovement?.activeCalories ?? 0;
@@ -361,16 +340,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         </div>
 
         {/* ── Estado de hoy ─────────────────────────────────── */}
-        <div className="rounded-4xl bg-white shadow-card px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Estado de hoy</p>
-            <p className={`text-base font-bold mt-0.5 ${scoreConfig.color}`}>{scoreConfig.label}</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold leading-none ${scoreConfig.color}`}>{dayScore}</p>
-            <p className="text-[10px] text-ink/30 mt-0.5">/ 100</p>
-          </div>
-        </div>
+        <DayScoreCard selectedDate={selectedDate} />
 
         {/* ── Plan del día ──────────────────────────────────── */}
         {false && planEntries.length > 0 && (
