@@ -12,6 +12,7 @@ import { LesionesScreen } from './lesiones-screen';
 import { SuenoScreen } from './sueno-screen';
 import { WeightSheet } from './weight-sheet';
 import { SleepSheet } from './sleep-sheet';
+import { sleepScore } from '../lib/sleep';
 import { DolorSheet } from './dolor-sheet';
 import { AddActivitySheet } from './add-activity-sheet';
 import { ActivityDetailSheet } from './actividades-screen';
@@ -137,7 +138,7 @@ function CalendarDayDetail({ tab, date, data }: {
         <p className="text-sm text-ink/50">Sueño registrado</p>
         <div className="text-right">
           <p className="text-base font-bold text-ink">{fmtSleepH(entry.durationH)}</p>
-          <p className="text-xs text-ink/40">calidad {entry.quality}/5</p>
+          <p className="text-xs text-ink/40">puntuación {sleepScore(entry)}/100</p>
         </div>
       </div>
     ) : <p className="text-sm text-ink/30">Sin registro de sueño</p>;

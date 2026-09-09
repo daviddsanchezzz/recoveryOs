@@ -8,11 +8,14 @@ import { Portal } from './portal';
 import { ProgressChart } from './progress-chart';
 import { SleepSheet } from './sleep-sheet';
 import type { SleepEntry } from '../stores/recovery-store';
+import { sleepScore, sleepScoreLabel } from '../lib/sleep';
 
-const QUALITY_LABELS: Record<number, string> = { 1: 'Mala', 2: 'Regular', 3: 'Normal', 4: 'Buena', 5: 'Óptima' };
-const QUALITY_COLORS: Record<number, string> = {
-  1: 'text-red-400', 2: 'text-ember', 3: 'text-ink/50', 4: 'text-moss', 5: 'text-moss',
-};
+function scoreColor(score: number): string {
+  if (score >= 70) return 'text-moss';
+  if (score >= 50) return 'text-ink/50';
+  if (score >= 30) return 'text-ember';
+  return 'text-red-400';
+}
 
 function relDate(iso: string): string {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -82,8 +85,7 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
                   {fmtH(latest.durationH)}
                 </p>
                 <p className="text-xs text-white/40 mt-1">
-                  {relDate(latest.date)} · {QUALITY_LABELS[latest.quality]}
-                  {latest.score != null ? ` · score ${latest.score}` : ''}
+                  {relDate(latest.date)} · puntuación {sleepScore(latest)}/100
                 </p>
               </div>
               {deltaH !== null && (
@@ -135,9 +137,9 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className={`text-sm font-semibold ${QUALITY_COLORS[entry.quality]}`}>{QUALITY_LABELS[entry.quality]}</p>
+                      <p className={`text-sm font-semibold ${scoreColor(sleepScore(entry))}`}>{sleepScoreLabel(sleepScore(entry))}</p>
                       <p className="text-xs text-ink/30">
-                        {entry.quality}/5{entry.score != null ? ` · score ${entry.score}` : ''}
+                        {sleepScore(entry)}/100
                       </p>
                     </div>
                     <button

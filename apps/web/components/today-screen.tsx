@@ -20,6 +20,7 @@ import { DolorSheet }       from './dolor-sheet';
 import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
+import { sleepScore } from '../lib/sleep';
 import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { usePlanStore }     from '../stores/plan-store';
@@ -272,8 +273,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
   const sleepValue = todaySleep
     ? [
         fmtSleep(todaySleep.durationH),
-        `calidad ${todaySleep.quality}/5`,
-        todaySleep.score != null ? `score ${todaySleep.score}` : null,
+        `puntuación ${sleepScore(todaySleep)}/100`,
       ].filter(Boolean).join(' · ')
     : null;
 

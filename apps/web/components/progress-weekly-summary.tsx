@@ -3,6 +3,7 @@
 import { Plus, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { todayIso } from '../lib/date';
 import type { WeeklySummary } from '../lib/progress-metrics';
+import { sleepScoreLabel } from '../lib/sleep';
 
 function daysSince(date: string): number {
   const today = new Date(todayIso() + 'T12:00:00');
@@ -244,8 +245,7 @@ export function ProgressWeeklySummary({
   // ── Sueño ──────────────────────────────────────────────────────────────────
   if (summary.tab === 'sueno') {
     const { avgH, totalH, avgQuality, prevAvgH, prevAvgQuality } = summary;
-    const qualityLabels = ['', 'Mala', 'Regular', 'Normal', 'Buena', 'Óptima'];
-    const qualLabel = avgQuality != null ? qualityLabels[Math.round(avgQuality)] ?? null : null;
+    const qualLabel = avgQuality != null ? sleepScoreLabel(avgQuality) : null;
     const deltaMinH = avgH != null && prevAvgH != null ? Math.round((avgH - prevAvgH) * 60) : null;
     const deltaQual = avgQuality != null && prevAvgQuality != null
       ? Number((avgQuality - prevAvgQuality).toFixed(1)) : null;
@@ -265,10 +265,10 @@ export function ProgressWeeklySummary({
           {avgQuality != null && (
             <div className="flex flex-col items-end flex-shrink-0 rounded-2xl px-3 py-2 bg-ink/5">
               <span className="text-xl font-black leading-none text-ink">
-                {avgQuality.toFixed(1)}
-                <span className="text-sm font-semibold text-ink/30">/5</span>
+                {Math.round(avgQuality)}
+                <span className="text-sm font-semibold text-ink/30">/100</span>
               </span>
-              <span className="text-[10px] text-ink/40 font-medium mt-0.5">{qualLabel ?? 'Calidad'}</span>
+              <span className="text-[10px] text-ink/40 font-medium mt-0.5">{qualLabel ?? 'Puntuación'}</span>
             </div>
           )}
         </div>
@@ -278,7 +278,7 @@ export function ProgressWeeklySummary({
             <div className="flex items-center gap-1.5 flex-1">
               <span className="text-xs text-ink/40">Total semana</span>
               <span className="text-sm font-bold text-ink">{fmtHours(totalH)}</span>
-              {deltaQual !== null && deltaQual !== 0 && <Chip value={deltaQual} suffix=" cal." />}
+              {deltaQual !== null && deltaQual !== 0 && <Chip value={deltaQual} suffix=" ptos." />}
             </div>
           )}
           <div className={totalH != null ? '' : 'flex-1'} />

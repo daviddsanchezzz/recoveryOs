@@ -1,6 +1,7 @@
 import type { ActivityEntry, ActivityType, DailyCheckIn, DailyHealthMetricEntry, InjuryLog, SleepEntry, WeightEntry } from '../stores/recovery-store';
 import { addDays, startOfWeekIso, todayIso, weekDates } from './date';
 import { ACTIVE_CALORIES_GOAL, STEPS_GOAL } from './health-metrics';
+import { sleepScore } from './sleep';
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export const CHART_METRIC_OPTIONS: Record<ProgressTab, ChartMetricOption[]> = {
   ],
   sueno: [
     { key: 'horas',   label: 'Horas',   chartType: 'bar',  formatValue: (v) => `${v}h`  },
-    { key: 'calidad', label: 'Calidad', chartType: 'line', formatValue: (v) => `${v}/5` },
+    { key: 'calidad', label: 'Puntuación', chartType: 'line', formatValue: (v) => `${Math.round(v)}/100` },
   ],
 };
 
@@ -300,9 +301,9 @@ export function getWeeklySummary(
       const entries     = data.sleepEntries.filter((s) => s.date >= wStart && s.date <= wEnd);
       const prevEntries = data.sleepEntries.filter((s) => s.date >= pwStart && s.date <= pwEnd);
       const avgHVal    = avg(entries.map((e) => e.durationH));
-      const avgQualVal = avg(entries.map((e) => e.quality));
+      const avgQualVal = avg(entries.map(sleepScore));
       const prevAvgHVal  = avg(prevEntries.map((e) => e.durationH));
-      const prevAvgQVal  = avg(prevEntries.map((e) => e.quality));
+      const prevAvgQVal  = avg(prevEntries.map(sleepScore));
       return {
         tab: 'sueno',
         avgH:           avgHVal,
@@ -343,7 +344,7 @@ export function get12WeekChartData(
       case 'sueno': {
         const se = data.sleepEntries.filter((s) => s.date >= start && s.date <= end);
         if (metric === 'horas')   value = avg(se.map((e) => e.durationH));
-        if (metric === 'calidad') value = avg(se.map((e) => e.quality));
+        if (metric === 'calidad') value = avg(se.map(sleepScore));
         break;
       }
     }

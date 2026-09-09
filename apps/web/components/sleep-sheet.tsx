@@ -108,7 +108,7 @@ export function SleepSheet({
 
           {/* Quality */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 text-center">Calidad</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 text-center">Puntuación / 100</p>
             <div className="flex gap-2">
               {([1, 2, 3, 4, 5] as const).map((q) => (
                 <button
@@ -119,7 +119,7 @@ export function SleepSheet({
                     quality === q ? 'bg-ink text-white' : 'bg-canvas text-ink/50'
                   }`}
                 >
-                  <p className="text-lg font-bold leading-none">{q}</p>
+                  <p className="text-lg font-bold leading-none">{q * 20}</p>
                   <p className="text-[9px] mt-0.5 leading-none font-medium opacity-70">{QUALITY_LABELS[q]}</p>
                 </button>
               ))}

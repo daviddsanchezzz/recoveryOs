@@ -4,6 +4,7 @@ import { Flame, Footprints, Moon, Scale, Dumbbell, Zap } from 'lucide-react';
 import { sameDay } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, STEPS_GOAL } from '../lib/health-metrics';
 import type { ProgressStoreData } from '../lib/progress-metrics';
+import { sleepScore } from '../lib/sleep';
 
 function fmtSleepH(h: number): string {
   const total = Math.round(h * 60);
@@ -41,7 +42,7 @@ export function ProgressDaySummary({ date, data }: { date: string; data: Progres
       icon: Moon,
       rowLabel: 'Sueño',
       value: sleepEntry
-        ? `${fmtSleepH(sleepEntry.durationH)} · calidad ${sleepEntry.quality}/5`
+        ? `${fmtSleepH(sleepEntry.durationH)} · puntuación ${sleepScore(sleepEntry)}/100`
         : null,
       color: 'text-sand',
     },
