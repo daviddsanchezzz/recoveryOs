@@ -82,11 +82,13 @@ export function AddActivitySheet({
   const isEditing = !!editActivity;
 
   const [type, setType] = useState<ActivityType | null>(null);
+  const [name,        setName]        = useState('');
   const [durH,       setDurH]       = useState('');
   const [durM,       setDurM]       = useState('');
   const [durS,       setDurS]       = useState('');
   const [kcal,       setKcal]       = useState('');
   const [avgHr,      setAvgHr]      = useState('');
+  const [maxHr,      setMaxHr]      = useState('');
   const [notes,      setNotes]      = useState('');
   const [date,       setDate]       = useState(todayIso);
   const [distKm,     setDistKm]     = useState('');
@@ -111,6 +113,7 @@ export function AddActivitySheet({
     if (!isOpen) return;
     if (editActivity) {
       setType(editActivity.type);
+      setName(editActivity.stravaName ?? '');
       const totalSec = Math.round((editActivity.durationMinutes ?? 0) * 60);
       const dmH = Math.floor(totalSec / 3600);
       const dmM = Math.floor((totalSec % 3600) / 60);
@@ -120,6 +123,7 @@ export function AddActivitySheet({
       setDurS(dmS > 0 ? String(dmS) : '');
       setKcal(editActivity.kcal ? String(editActivity.kcal) : '');
       setAvgHr(editActivity.avgHeartRateBpm ? String(editActivity.avgHeartRateBpm) : '');
+      setMaxHr(editActivity.maxHeartRateBpm ? String(editActivity.maxHeartRateBpm) : '');
       setNotes(editActivity.notes ?? '');
       setDate(editActivity.date);
       setDistKm(editActivity.distanceKm ? String(editActivity.distanceKm) : '');
@@ -148,7 +152,7 @@ export function AddActivitySheet({
 
   function reset() {
     setType(null);
-    setDurH(''); setDurM(''); setDurS(''); setKcal(''); setAvgHr(''); setNotes(''); setDate(todayIso());
+    setName(''); setDurH(''); setDurM(''); setDurS(''); setKcal(''); setAvgHr(''); setMaxHr(''); setNotes(''); setDate(todayIso());
     setDistKm(''); setPaceMm(''); setPaceSs(''); setElevGain(''); setCadSpm('');
     setSpeedKmh(''); setPowerW(''); setCadRpm('');
     setDistM(''); setPace100('');
@@ -166,9 +170,12 @@ export function AddActivitySheet({
       durationMinutes: totalDurationMin > 0 ? totalDurationMin : undefined,
       kcal:            kcal     ? parseInt(kcal, 10)     : undefined,
       avgHeartRateBpm: avgHr    ? parseInt(avgHr, 10)    : undefined,
+      maxHeartRateBpm: maxHr    ? parseInt(maxHr, 10)    : undefined,
       notes:           notes.trim() || undefined,
       stravaId:        editActivity?.stravaId,
-      stravaName:      editActivity?.stravaName,
+      stravaName:      name.trim() || undefined,
+      kilojoules:      editActivity?.kilojoules,
+      isRace:          editActivity?.isRace,
       ...(type === 'run' || type === 'walk' ? {
         distanceKm:      distKm   ? parseFloat(distKm)         : undefined,
         avgPaceSecPerKm: paceToSec(paceMm, paceSs),
@@ -242,6 +249,14 @@ export function AddActivitySheet({
 
             {type && (
               <>
+                <Field
+                  label="Nombre"
+                  value={name}
+                  onChange={setName}
+                  placeholder="Nombre de la actividad"
+                  type="text"
+                />
+
                 {isGym && (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-ink/50">Grupos musculares</p>
@@ -333,9 +348,10 @@ export function AddActivitySheet({
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Field label="Calorías" unit="kcal" value={kcal} onChange={setKcal} placeholder="400" />
                   <Field label="FC media" unit="bpm" value={avgHr} onChange={setAvgHr} placeholder="145" />
+                  <Field label="FC máxima" unit="bpm" value={maxHr} onChange={setMaxHr} placeholder="180" />
                 </div>
 
                 <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
