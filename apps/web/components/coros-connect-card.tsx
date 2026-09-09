@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CalendarDays, HeartPulse, RefreshCw, Unlink } from 'lucide-react';
 import { useSessionStore } from '../stores/session-store';
 import { getJson, postJson, deleteJson } from '../lib/api';
+import { RecoveryService } from '../lib/services';
 import { toast } from '../stores/toast-store';
 
 type CorosStatus = {
@@ -34,7 +35,7 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
   const [status, setStatus] = useState<CorosStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [fromDate, setFromDate] = useState(() => isoDaysAgo(30));
+  const [fromDate, setFromDate] = useState(() => isoDaysAgo(6));
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
 
   async function loadStatus() {
@@ -75,7 +76,7 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
       } else {
         toast.success('Coros sincronizado');
       }
-      await loadStatus();
+      await refreshSyncedData();
     } catch {
       toast.error('Error al sincronizar con Coros');
     } finally {
@@ -83,13 +84,21 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
     }
   }
 
+  async function refreshSyncedData() {
+    await loadStatus();
+    if (user) {
+      await RecoveryService.loadTodayData(user.id, new Date().toISOString().slice(0, 10));
+    }
+  }
+
   async function handleHistorySync() {
     const today = new Date().toISOString().slice(0, 10);
+    const earliestAvailable = isoDaysAgo(6);
     const start = new Date(`${fromDate}T00:00:00.000Z`);
     const end = new Date(`${today}T00:00:00.000Z`);
 
-    if (!fromDate || Number.isNaN(start.getTime()) || start > end) {
-      toast.error('Selecciona una fecha inicial válida');
+    if (!fromDate || Number.isNaN(start.getTime()) || start > end || fromDate < earliestAvailable) {
+      toast.error('COROS solo permite recuperar los últimos 7 días');
       return;
     }
 
@@ -116,10 +125,10 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
       } else {
         toast.success(`${completed} días de COROS sincronizados`);
       }
-      await loadStatus();
+      await refreshSyncedData();
     } catch {
       toast.error(`Sincronización detenida tras ${completed} de ${dates.length} días`);
-      await loadStatus();
+      await refreshSyncedData();
     } finally {
       setSyncing(false);
       setSyncProgress(null);
@@ -228,11 +237,13 @@ export function CorosConnectCard({ hideIfSynced }: { hideIfSynced?: boolean }) {
             <input
               type="date"
               value={fromDate}
+              min={isoDaysAgo(6)}
               max={new Date().toISOString().slice(0, 10)}
               onChange={(event) => setFromDate(event.target.value)}
               disabled={syncing}
               className="w-full rounded-xl bg-canvas border border-ink/8 px-3 py-2 text-xs text-ink outline-none disabled:opacity-50"
             />
+            <span className="block text-[10px] text-ink/35 mt-1">COROS ofrece los últimos 7 días</span>
           </label>
           <button
             type="button"
