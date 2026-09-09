@@ -7,7 +7,7 @@ import {
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
   Bike, Waves, RefreshCw, SportShoe, Target, Clock,
-  UtensilsCrossed, HeartPulse, Heart, Gauge,
+  UtensilsCrossed, HeartPulse, Heart, Gauge, Pencil,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -21,6 +21,7 @@ import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { DayScoreCard } from './day-score-card';
+import { PasosDetailSheet } from './pasos-detail-sheet';
 import { sleepScore } from '../lib/sleep';
 import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
@@ -30,7 +31,7 @@ import { useSessionStore }  from '../stores/session-store';
 import { RecoveryService, NutritionService } from '../lib/services';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
-import { ACTIVE_CALORIES_GOAL, getMovementPercent, STEPS_GOAL } from '../lib/health-metrics';
+import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 
 const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
@@ -114,16 +115,6 @@ function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsG
   const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const steps = 3500 + ((seed * 2654435761) >>> 0) % 7501;
   return { steps, kcal: Math.round(steps * 0.04), stepsGoal: 10000, kcalGoal: 500 };
-}
-
-// Manual entries win over COROS ones for the same day; COROS is only used as a fallback
-// when no manual entry exists for that day.
-function pickBySourcePrecedence<T extends { date: string; source?: string }>(
-  entries: T[],
-  date: string,
-): T | undefined {
-  const sameDayEntries = entries.filter((e) => sameDay(e.date, date));
-  return sameDayEntries.find((e) => (e.source ?? 'manual') === 'manual') ?? sameDayEntries[0];
 }
 
 function daysSince(isoDate?: string): number {
@@ -222,6 +213,7 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
   const [showMovementSheet,  setShowMovementSheet]  = useState(false);
+  const [showPasosSheet,     setShowPasosSheet]     = useState(false);
   const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
@@ -525,27 +517,28 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
           </div>
         </div>
 
-        {/* ── Movimiento de hoy (MOCK — sustituir por Apple Health) ── */}
+        {/* ── Movimiento de hoy ─────────────────────────────── */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
             Movimiento de hoy
           </p>
-          <button
-            type="button"
-            onClick={() => setShowMovementSheet(true)}
-            className="w-full rounded-4xl bg-white shadow-card px-5 py-4 space-y-4 text-left"
-          >
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-base font-bold text-ink">Movimiento hoy</p>
                 <p className="text-xs text-ink/40 mt-0.5">{overallPct}% objetivo diario</p>
               </div>
-              <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
-                <ChevronRight size={16} className="text-ink/35" />
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowMovementSheet(true)}
+                className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0"
+                aria-label="Editar movimiento"
+              >
+                <Pencil size={14} className="text-ink/35" />
+              </button>
             </div>
-            {/* Pasos */}
-            <div className="space-y-1.5">
+            {/* Pasos — tap abre historial */}
+            <button type="button" onClick={() => setShowPasosSheet(true)} className="w-full space-y-1.5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Footprints size={13} className="text-ink/40" />
@@ -559,7 +552,7 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
               <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
                 <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
               </div>
-            </div>
+            </button>
             {/* Calorías */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -576,7 +569,7 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
                 <div className="bg-ember h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
               </div>
             </div>
-          </button>
+          </div>
         </div>
 
         {/* ── Recuperación (COROS) ──────────────────────────── */}
@@ -867,6 +860,13 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
         defaultSteps={todayMovement?.steps}
         defaultActiveCalories={todayMovement?.activeCalories}
         editId={todayMovement?.id}
+      />
+      <PasosDetailSheet
+        isOpen={showPasosSheet}
+        onClose={() => setShowPasosSheet(false)}
+        healthMetrics={dailyHealthMetrics}
+        selectedDate={selectedDate}
+        onNavToProgreso={onNavToProgreso}
       />
       <DolorSheet
         isOpen={showDolorSheet}
