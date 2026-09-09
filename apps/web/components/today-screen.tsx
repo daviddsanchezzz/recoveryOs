@@ -887,6 +887,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         defaultDate={selectedDate}
         defaultDurationH={todaySleep?.durationH}
         defaultQuality={todaySleep?.quality}
+        defaultScore={todaySleep?.score}
         editId={todaySleep?.id}
       />
       <MovementSheet

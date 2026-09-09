@@ -18,4 +18,10 @@ export class UpdateSleepDto {
   @Min(1)
   @Max(5)
   quality?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  score?: number;
 }

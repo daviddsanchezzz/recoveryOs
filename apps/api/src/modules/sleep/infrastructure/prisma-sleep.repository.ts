@@ -34,6 +34,7 @@ export class PrismaSleepRepository implements SleepRepositoryPort {
       update: {
         durationH: entry.durationH,
         quality: entry.quality,
+        score: entry.score,
       },
       create: {
         id: entry.id,
@@ -56,7 +57,7 @@ export class PrismaSleepRepository implements SleepRepositoryPort {
     return rows.map(toEntity);
   }
 
-  async update(id: string, userId: string, data: Partial<{ date: Date; durationH: number; quality: number }>): Promise<SleepEntryEntity | null> {
+  async update(id: string, userId: string, data: Partial<{ date: Date; durationH: number; quality: number; score: number }>): Promise<SleepEntryEntity | null> {
     const { count } = await this.prisma.sleepEntry.updateMany({ where: { id, userId }, data });
     if (count === 0) return null;
     const r = await this.prisma.sleepEntry.findUnique({ where: { id } });

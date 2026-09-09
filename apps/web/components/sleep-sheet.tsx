@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react';
 import { X, Moon } from 'lucide-react';
 import { RecoveryService } from '../lib/services';
 import { todayIso } from '../lib/date';
+import { sleepScoreLabel } from '../lib/sleep';
 import { Portal } from './portal';
-
-const QUALITY_LABELS: Record<number, string> = { 1: 'Mala', 2: 'Regular', 3: 'Normal', 4: 'Buena', 5: 'Óptima' };
 
 function toHoursMinutes(durationH: number): { h: string; m: string } {
   const totalMin = Math.round(durationH * 60);
@@ -19,17 +18,18 @@ interface SleepSheetProps {
   defaultDate?: string;
   defaultDurationH?: number;
   defaultQuality?: 1 | 2 | 3 | 4 | 5;
+  defaultScore?: number | null;
   editId?: string;
 }
 
 export function SleepSheet({
   isOpen, onClose,
-  defaultDate, defaultDurationH, defaultQuality = 3, editId,
+  defaultDate, defaultDurationH, defaultQuality = 3, defaultScore, editId,
 }: SleepSheetProps) {
   const init = defaultDurationH !== undefined ? toHoursMinutes(defaultDurationH) : { h: '', m: '' };
   const [h,       setH]       = useState(init.h);
   const [m,       setM]       = useState(init.m);
-  const [quality, setQuality] = useState<1 | 2 | 3 | 4 | 5>(defaultQuality);
+  const [score,   setScore]   = useState(defaultScore ?? defaultQuality * 20);
   const [date,    setDate]    = useState(defaultDate ?? todayIso());
   const [saved,   setSaved]   = useState(false);
 
@@ -38,21 +38,22 @@ export function SleepSheet({
       const parsed = defaultDurationH !== undefined ? toHoursMinutes(defaultDurationH) : { h: '', m: '' };
       setH(parsed.h);
       setM(parsed.m);
-      setQuality(defaultQuality);
+      setScore(defaultScore ?? defaultQuality * 20);
       setDate(defaultDate ?? todayIso());
       setSaved(false);
     }
-  }, [isOpen, defaultDate, defaultDurationH, defaultQuality]);
+  }, [isOpen, defaultDate, defaultDurationH, defaultQuality, defaultScore]);
 
   const totalH   = (parseInt(h || '0') * 60 + parseInt(m || '0')) / 60;
   const isValid  = totalH > 0;
 
   function handleSave() {
     if (!isValid) return;
+    const quality = Math.max(1, Math.ceil(score / 20)) as 1 | 2 | 3 | 4 | 5;
     if (editId) {
-      RecoveryService.updateSleep(editId, { durationH: totalH, quality, date });
+      RecoveryService.updateSleep(editId, { durationH: totalH, quality, score, date });
     } else {
-      RecoveryService.logSleep({ durationH: totalH, quality, date });
+      RecoveryService.logSleep({ durationH: totalH, quality, score, date });
     }
     setSaved(true);
     setTimeout(onClose, 600);
@@ -106,24 +107,36 @@ export function SleepSheet({
             <span className="text-3xl font-bold text-ink/30 pb-1">min</span>
           </div>
 
-          {/* Quality */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 text-center">Puntuación / 100</p>
-            <div className="flex gap-2">
-              {([1, 2, 3, 4, 5] as const).map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setQuality(q)}
-                  className={`flex-1 rounded-xl py-3 text-center transition-all ${
-                    quality === q ? 'bg-ink text-white' : 'bg-canvas text-ink/50'
-                  }`}
-                >
-                  <p className="text-lg font-bold leading-none">{q * 20}</p>
-                  <p className="text-[9px] mt-0.5 leading-none font-medium opacity-70">{QUALITY_LABELS[q]}</p>
-                </button>
-              ))}
+          {/* Score */}
+          <div className="rounded-2xl bg-canvas px-4 py-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-ink/40">Puntuación</p>
+                <p className="text-xs text-ink/35 mt-0.5">{sleepScoreLabel(score)}</p>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100}
+                  value={score}
+                  onChange={(e) => setScore(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  className="w-16 bg-white rounded-xl border border-ink/8 px-2 py-2 text-xl font-bold text-ink text-center outline-none"
+                />
+                <span className="text-xs font-semibold text-ink/35">/100</span>
+              </div>
             </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={score}
+              onChange={(e) => setScore(Number(e.target.value))}
+              className="w-full accent-ink"
+              aria-label="Puntuación del sueño"
+            />
           </div>
 
           {/* Date */}

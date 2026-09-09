@@ -317,7 +317,7 @@ export const RecoveryService = {
   },
 
   // ─── Sleep ────────────────────────────────────────────────
-  async logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; date?: string }) {
+  async logSleep(data: { durationH: number; quality: 1 | 2 | 3 | 4 | 5; score?: number; date?: string }) {
     const resolvedDate = data.date ?? todayIso();
     const id = crypto.randomUUID();
     const userId = useSessionStore.getState().user?.id;
@@ -334,12 +334,12 @@ export const RecoveryService = {
     useRecoveryStore.getState().saveSleep({ ...data, id, date: resolvedDate });
     toast.success('Sueño registrado');
     if (userId) {
-      postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality })
+      postJson('/sleep', { id, userId, date: resolvedDate, durationH: data.durationH, quality: data.quality, score: data.score })
         .catch(() => toast.error('No se pudo guardar el sueño. Inténtalo de nuevo.'));
     }
   },
 
-  updateSleep(id: string, data: { durationH?: number; quality?: 1 | 2 | 3 | 4 | 5; date?: string }) {
+  updateSleep(id: string, data: { durationH?: number; quality?: 1 | 2 | 3 | 4 | 5; score?: number; date?: string }) {
     useRecoveryStore.getState().updateSleepEntry(id, data);
     toast.success('Sueño actualizado');
     const userId = useSessionStore.getState().user?.id;

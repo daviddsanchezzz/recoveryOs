@@ -182,6 +182,7 @@ export function SuenoScreen({ onClose }: { onClose: () => void }) {
         defaultDate={editEntry?.date}
         defaultDurationH={editEntry?.durationH}
         defaultQuality={editEntry?.quality}
+        defaultScore={editEntry?.score}
       />
     </Portal>
   );
