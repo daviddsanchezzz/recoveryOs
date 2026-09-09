@@ -22,6 +22,7 @@ import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { DayScoreCard } from './day-score-card';
 import { PasosDetailSheet } from './pasos-detail-sheet';
+import { AlimentacionDetailSheet } from './alimentacion-detail-sheet';
 import { sleepScore } from '../lib/sleep';
 import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
@@ -219,6 +220,7 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
   const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
   const [showAddMeal,        setShowAddMeal]        = useState(false);
+  const [showAlimentacionSheet, setShowAlimentacionSheet] = useState(false);
   const [editActivity,       setEditActivity]       = useState<ActivityEntry | undefined>(undefined);
   const [detailActivity,     setDetailActivity]     = useState<ActivityEntry | null>(null);
   const [prefillActivity,    setPrefillActivity]    = useState<{ type: ActivityType; muscleGroups?: MuscleGroup[] } | undefined>(undefined);
@@ -631,8 +633,14 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
               </button>
             </div>
 
-            {dailyNutrition ? (
-              <>
+            <button
+              type="button"
+              onClick={() => setShowAlimentacionSheet(true)}
+              disabled={!dailyNutrition}
+              className="w-full text-left space-y-3 disabled:cursor-default"
+            >
+              {dailyNutrition ? (
+                <>
                 {/* Kcal progress */}
                 <div className="space-y-1">
                   <div className="flex items-baseline justify-between">
@@ -684,13 +692,14 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
                     );
                   })}
                 </div>
-              </>
-            ) : (
-              <div className="py-2 text-center">
-                <p className="text-sm text-ink/30">Sin registros hoy</p>
-                <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="py-2 text-center">
+                  <p className="text-sm text-ink/30">Sin registros hoy</p>
+                  <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
+                </div>
+              )}
+            </button>
           </div>
         </div>
 
@@ -868,6 +877,15 @@ export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToAc
         selectedDate={selectedDate}
         onNavToProgreso={onNavToProgreso}
       />
+      {dailyNutrition && (
+        <AlimentacionDetailSheet
+          isOpen={showAlimentacionSheet}
+          onClose={() => setShowAlimentacionSheet(false)}
+          dailyNutrition={dailyNutrition}
+          activeCalories={movementActiveCalories}
+          selectedDate={selectedDate}
+        />
+      )}
       <DolorSheet
         isOpen={showDolorSheet}
         onClose={() => setShowDolorSheet(false)}
