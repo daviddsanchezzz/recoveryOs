@@ -216,7 +216,7 @@ function DailyRow({
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
-export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () => void } = {}) {
+export function TodayScreen({ onNavToActividades, onNavToProgreso }: { onNavToActividades?: () => void; onNavToProgreso?: () => void } = {}) {
   const [showMonthly,        setShowMonthly]        = useState(false);
   const [showWeightSheet,    setShowWeightSheet]    = useState(false);
   const [showWeightScreen,   setShowWeightScreen]   = useState(false);
@@ -340,7 +340,7 @@ export function TodayScreen({ onNavToActividades }: { onNavToActividades?: () =>
         </div>
 
         {/* ── Estado de hoy ─────────────────────────────────── */}
-        <DayScoreCard selectedDate={selectedDate} />
+        <DayScoreCard selectedDate={selectedDate} onNavToProgreso={onNavToProgreso} />
 
         {/* ── Plan del día ──────────────────────────────────── */}
         {false && planEntries.length > 0 && (
