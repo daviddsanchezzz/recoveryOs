@@ -152,4 +152,38 @@ describe('SyncCorosUseCase', () => {
     await expect(useCase.execute('user-1', date)).rejects.toBeInstanceOf(UnauthorizedError);
     expect(corosRepo.updateSyncStatus).toHaveBeenLastCalledWith('user-1', expect.objectContaining({ syncStatus: 'reauth_required' }));
   });
+
+  it('with no date given (cron / manual Sync / auto-sync), syncs both yesterday and today', async () => {
+    const { corosRepo, sleepRepo, mcpClient, healthMetrics } = makeDeps();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterdayStr = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+    mcpClient.callTool.mockImplementation(async (_userId, name) => {
+      if (name === 'queryDailyHealthData') {
+        return {
+          text:
+            `--- ${yesterdayStr.replace(/-/g, '')} ---\nSteps: 5,000 | Calories: 200 kcal\nStress: Avg 10\n\n` +
+            `--- ${todayStr.replace(/-/g, '')} ---\nSteps: 900 | Calories: 60 kcal\nStress: Avg 20`,
+          isError: false,
+        };
+      }
+      // No sleep/HRV/RHR data for either day in this fixture — keep the test focused on daily health data.
+      return { text: '', isError: false };
+    });
+    const useCase = new SyncCorosUseCase(corosRepo, sleepRepo, mcpClient, healthMetrics);
+
+    const result = await useCase.execute('user-1');
+
+    expect(result.synced).toEqual(['dailyHealthData', 'dailyHealthData']);
+    expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ toISOString: expect.any(Function) }),
+      { steps: 5000, activeCalories: 200, stressAvg: 10 },
+    );
+    expect(healthMetrics.upsertFromCoros).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ toISOString: expect.any(Function) }),
+      { steps: 900, activeCalories: 60, stressAvg: 20 },
+    );
+  });
 });
