@@ -520,7 +520,7 @@ export const RecoveryService = {
 
 // ─── Coros ───────────────────────────────────────────────────────────────────
 
-const COROS_STALE_MS = 60 * 60 * 1000;
+const COROS_STALE_MS = 15 * 60 * 1000;
 
 type CorosStatus = {
   connected: boolean;
@@ -530,8 +530,9 @@ type CorosStatus = {
 };
 
 export const CorosService = {
-  /** Called on app open: if COROS is connected and hasn't synced in over an hour
-   *  (e.g. the daily cron failed silently), triggers a sync in the background. */
+  /** Called on app open: if COROS is connected and hasn't synced in over 15 minutes
+   *  (e.g. the daily cron failed silently, or steps/kcal have just gone stale), triggers
+   *  a sync in the background. */
   async syncIfStale(userId: string): Promise<void> {
     try {
       const status = await getJson<CorosStatus>(`/coros/${userId}/status`);
