@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { Portal } from './portal';
 import { ProgressChart } from './progress-chart';
 import { pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
-import { addDays } from '../lib/date';
+import { addDays, dayInitial, formatShortDate } from '../lib/date';
 import type { DailyHealthMetricEntry } from '../stores/recovery-store';
 
 export function PasosDetailSheet({
@@ -25,10 +25,7 @@ export function PasosDetailSheet({
   const last7Dates = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i - 6));
   const chartData = last7Dates.map((date) => {
     const entry = pickBySourcePrecedence(healthMetrics, date);
-    const d = new Date(date + 'T12:00:00');
-    const day = String(d.getDate()).padStart(2, '0');
-    const mon = String(d.getMonth() + 1).padStart(2, '0');
-    return { label: `${day}/${mon}`, rangeLabel: `${day}/${mon}`, value: entry?.steps ?? 0, weekStart: date };
+    return { label: dayInitial(date), rangeLabel: formatShortDate(date), value: entry?.steps ?? 0, weekStart: date };
   });
 
   const todaySteps = chartData[chartData.length - 1]?.value ?? 0;
@@ -67,6 +64,7 @@ export function PasosDetailSheet({
                 color="#54715a"
                 averageValue={avg7d}
                 formatValue={(v) => `${v.toLocaleString('es-ES')} pasos`}
+                xAxisInterval={0}
               />
             </div>
 

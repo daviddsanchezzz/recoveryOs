@@ -1,14 +1,7 @@
 'use client';
 
 import { DailyCheckIn, InjuryLog, WeightEntry, ActivityEntry, DailyHealthMetricEntry } from '../stores/recovery-store';
-import { weekDates } from '../lib/date';
-
-const DAY_INITIALS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-
-function getDayInitial(dateStr: string) {
-  const date = new Date(dateStr + 'T12:00:00');
-  return DAY_INITIALS[date.getDay()];
-}
+import { weekDates, dayInitial } from '../lib/date';
 
 function isToday(dateStr: string) {
   return dateStr === new Date().toISOString().slice(0, 10);
@@ -73,7 +66,7 @@ export function WeeklyCalendar({
                 isSelected ? 'text-white/60' : today ? 'text-ember/70' : 'text-ink/30'
               }`}
             >
-              {getDayInitial(date)}
+              {dayInitial(date)}
             </span>
 
             <span

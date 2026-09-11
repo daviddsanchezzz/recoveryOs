@@ -16,13 +16,14 @@ interface ProgressChartProps {
   formatValue?: (v: number) => string;
   formatYTick?: (v: number) => string;
   averageValue?: number;
+  xAxisInterval?: number;
 }
 
 function defaultYFmt(v: number): string {
   return v % 1 === 0 ? String(v) : v.toFixed(1);
 }
 
-export function ProgressChart({ data, type, color, formatValue, formatYTick, averageValue }: ProgressChartProps) {
+export function ProgressChart({ data, type, color, formatValue, formatYTick, averageValue, xAxisInterval = 2 }: ProgressChartProps) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
@@ -74,7 +75,7 @@ export function ProgressChart({ data, type, color, formatValue, formatYTick, ave
       <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
         <ResponsiveContainer width="100%" height={HEIGHT}>
           <BarChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }} barCategoryGap="32%">
-            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={xAxisInterval} />
             <YAxis domain={[0, yDomain[1]]} {...yAxisProps} />
             <Tooltip content={tooltipContent} cursor={{ fill: '#13201a', fillOpacity: 0.04 }} />
             {averageValue != null && (
@@ -91,7 +92,7 @@ export function ProgressChart({ data, type, color, formatValue, formatYTick, ave
     <div className="[&_svg]:outline-none [&_svg]:focus:outline-none">
       <ResponsiveContainer width="100%" height={HEIGHT}>
         <LineChart data={data} margin={{ top: 6, right: 4, left: 0, bottom: 0 }}>
-          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={2} />
+          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} interval={xAxisInterval} />
           <YAxis domain={yDomain} {...yAxisProps} />
           <Tooltip content={tooltipContent} cursor={false} />
           {averageValue != null && (

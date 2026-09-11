@@ -7,7 +7,7 @@ import {
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
   Bike, Waves, RefreshCw, SportShoe, Target,
-  UtensilsCrossed, HeartPulse, Heart, Gauge, Pencil,
+  UtensilsCrossed, HeartPulse, Heart, Gauge, Pencil, Equal,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -30,12 +30,14 @@ import { usePlanStore }     from '../stores/plan-store';
 import { useNutritionStore } from '../stores/nutrition-store';
 import { useSessionStore }  from '../stores/session-store';
 import { RecoveryService, NutritionService } from '../lib/services';
+import { PlanService } from '../lib/plan-service';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
+import type { ActivityPlanEntry, PlanActivityType, TaskPlanEntry } from '../stores/plan-store';
 
-const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
+const PLAN_ICONS: Record<PlanActivityType, React.ElementType> = {
   gym:      Dumbbell,
   bike:     Bike,
   run:      SportShoe,
@@ -43,6 +45,7 @@ const PLAN_ICONS: Record<ActivityType, React.ElementType> = {
   swim:     Waves,
   mobility: RefreshCw,
   other:    Target,
+  rehab:    HeartPulse,
 };
 
 const MUSCLE_LABELS: Record<string, string> = {
@@ -89,18 +92,17 @@ function formatActivitySummary(activity: ActivityEntry): string {
   return parts.join(' · ');
 }
 
-function matchesPlanEntry(entry: { type: ActivityType; muscleGroups?: MuscleGroup[] }, activity: ActivityEntry): boolean {
+function matchesPlanEntry(entry: ActivityPlanEntry, activity: ActivityEntry): boolean {
   return activity.type === entry.type;
 }
 
-function getPlannedActivityMatches(
-  entries: Array<{ type: ActivityType; label: string; time?: string; muscleGroups?: MuscleGroup[] }>,
-  activities: ActivityEntry[],
-) {
+function getPlannedActivityMatches(entries: ActivityPlanEntry[], activities: ActivityEntry[]) {
   const usedIds = new Set<string>();
 
   return entries.map((entry) => {
-    const matchedActivity = activities.find((activity) => {
+    // Rehab entries never match a logged Activity — completion comes from today's
+    // InjuryLog.didRehab (see hasRehab), not from the Activities list.
+    const matchedActivity = entry.type === 'rehab' ? null : activities.find((activity) => {
       if (usedIds.has(activity.id)) return false;
       return matchesPlanEntry(entry, activity);
     }) ?? null;
@@ -128,6 +130,41 @@ function sinceLabel(days: number): string {
   if (days < 30)  return `${Math.floor(days / 7)} semana${Math.floor(days / 7) === 1 ? '' : 's'}`;
   if (days < 365) return `${Math.floor(days / 30)} mes${Math.floor(days / 30) === 1 ? '' : 'es'}`;
   return `${Math.floor(days / 365)} año${Math.floor(days / 365) === 1 ? '' : 's'}`;
+}
+
+function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
+  avgPain: number | null;
+  painDiff: number | null;
+  trend: 'mejorando' | 'empeorando' | null;
+} {
+  const recent = [...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
+  const avgPain = recent.length > 0
+    ? Number((recent.reduce((s, l) => s + l.painLevel, 0) / recent.length).toFixed(1))
+    : null;
+
+  const weekMs   = 7 * 86400000;
+  const nowMs    = Date.now();
+  const thisWeek = logs.filter((l) => nowMs - new Date(l.date + 'T12:00:00').getTime() < weekMs);
+  const lastWeek = logs.filter((l) => {
+    const ms = nowMs - new Date(l.date + 'T12:00:00').getTime();
+    return ms >= weekMs && ms < 2 * weekMs;
+  });
+  const thisAvg  = thisWeek.length ? thisWeek.reduce((s, l) => s + l.painLevel, 0) / thisWeek.length : null;
+  const prevAvg  = lastWeek.length ? lastWeek.reduce((s, l) => s + l.painLevel, 0) / lastWeek.length : null;
+  const painDiff = thisAvg !== null && prevAvg !== null ? +(thisAvg - prevAvg).toFixed(1) : null;
+
+  let trend: 'mejorando' | 'empeorando' | null = null;
+  if (painDiff !== null) {
+    trend = painDiff < 0 ? 'mejorando' : painDiff > 0 ? 'empeorando' : null;
+  } else if (recent.length >= 4) {
+    const half  = Math.floor(recent.length / 2);
+    const newer = recent.slice(0, half).reduce((s, l) => s + l.painLevel, 0) / half;
+    const older = recent.slice(half).reduce((s, l) => s + l.painLevel, 0) / half;
+    if (newer < older - 0.5)      trend = 'mejorando';
+    else if (newer > older + 0.5) trend = 'empeorando';
+  }
+
+  return { avgPain, painDiff, trend };
 }
 
 // ── Reusable daily-log row ────────────────────────────────────────────────────
@@ -240,7 +277,12 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   }, [selectedDate, userId]);
 
   const weekPlan   = usePlanStore((s) => s.weekPlan);
+  const activeProgram = usePlanStore((s) => s.program);
   const planEntries = weekPlan[selectedDate] ?? [];
+  const activityPlanEntries = planEntries.filter((e): e is ActivityPlanEntry => e.kind !== 'task');
+  const taskRows = planEntries
+    .map((entry, index) => ({ entry, index }))
+    .filter((row): row is { entry: TaskPlanEntry; index: number } => row.entry.kind === 'task');
 
   const today   = todayIso();
   const isToday = sameDay(selectedDate, today);
@@ -257,7 +299,19 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const phaseCompletedSessions = phaseInjury
     ? injuryLogs.filter((l) => l.injuryId === phaseInjury.id && l.didRehab && (!phaseInjury.phaseStartDate || l.date >= phaseInjury.phaseStartDate)).length
     : 0;
+  const phaseInjuryPainTrend = phaseInjury
+    ? computePainTrend(injuryLogs.filter((l) => l.injuryId === phaseInjury.id))
+    : null;
   const hasRehab       = !!(dayCheckIn?.habits.rehab || dayLogs.some((l) => l.didRehab));
+
+  const painQualifier = phaseInjuryPainTrend?.trend === 'mejorando' ? ', con el dolor mejorando'
+    : phaseInjuryPainTrend?.trend === 'empeorando' ? ', con el dolor empeorando'
+    : phaseInjuryPainTrend?.avgPain != null ? ', con el dolor estable'
+    : '';
+  const phaseTipText = !phaseInjury ? ''
+    : phaseInjury.phaseTargetSessions == null ? 'Sin objetivo de sesiones definido.'
+    : phaseCompletedSessions >= phaseInjury.phaseTargetSessions ? 'Fase completada.'
+    : `Te quedan ${phaseInjury.phaseTargetSessions - phaseCompletedSessions} sesion${phaseInjury.phaseTargetSessions - phaseCompletedSessions === 1 ? '' : 'es'} para completar la fase${painQualifier}.`;
 
   // ── Row values ───────────────────────────────────────────────────────────
   const sleepValue = todaySleep
@@ -271,7 +325,8 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     todayMovement?.source === 'coros' &&
     (todayMovement.hrv != null || todayMovement.restingHeartRate != null || todayMovement.stressAvg != null);
 
-  const plannedActivityRows = getPlannedActivityMatches(planEntries, dayActivities);
+  const plannedActivityRows = getPlannedActivityMatches(activityPlanEntries, dayActivities);
+  const rehabPlanEntry = activityPlanEntries.find((e) => e.type === 'rehab');
   const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
 
   const avgPainToday = dayLogs.length > 0
@@ -285,7 +340,8 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   // MOCK – sustituir por Apple Health
   const movementSteps = todayMovement?.steps ?? 0;
   const movementActiveCalories = todayMovement?.activeCalories ?? 0;
-  const { stepsPct, activeCaloriesPct, overallPct } = getMovementPercent(movementSteps, movementActiveCalories);
+  const { stepsPct, activeCaloriesPct } = getMovementPercent(movementSteps, movementActiveCalories);
+  const nutritionBalance = dailyNutrition ? dailyNutrition.totalCalories - movementActiveCalories : 0;
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -378,54 +434,44 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
         {/* ── Movimiento de hoy ─────────────────────────────── */}
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Movimiento de hoy
-          </p>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
+              Movimiento de hoy
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowMovementSheet(true)}
+              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center flex-shrink-0"
+              aria-label="Editar movimiento"
+            >
+              <Pencil size={11} className="text-ink/35" />
+            </button>
+          </div>
           <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-bold text-ink">Movimiento hoy</p>
-                <p className="text-xs text-ink/40 mt-0.5">{overallPct}% objetivo diario</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowMovementSheet(true)}
-                className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0"
-                aria-label="Editar movimiento"
-              >
-                <Pencil size={14} className="text-ink/35" />
-              </button>
-            </div>
-            {/* Pasos — tap abre historial */}
-            <button type="button" onClick={() => setShowPasosSheet(true)} className="w-full space-y-1.5 text-left">
-              <div className="flex items-center justify-between">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Pasos — tap abre historial */}
+              <button type="button" onClick={() => setShowPasosSheet(true)} className="space-y-1.5 text-left">
                 <div className="flex items-center gap-1.5">
                   <Footprints size={13} className="text-ink/40" />
                   <span className="text-xs text-ink/50">Pasos</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
-                  <span className="text-[10px] text-ink/30">/ {STEPS_GOAL.toLocaleString('es-ES')}</span>
+                <span className="text-lg font-bold text-ink block">{movementSteps.toLocaleString('es-ES')}</span>
+                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                  <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
                 </div>
-              </div>
-              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
-              </div>
-            </button>
-            {/* Calorías */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')} · {stepsPct}%</p>
+              </button>
+              {/* Calorías */}
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <Flame size={13} className="text-ember" />
                   <span className="text-xs text-ink/50">Calorías</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-bold text-ink">{movementActiveCalories}</span>
-                  <span className="text-[10px] text-ink/30">/ {ACTIVE_CALORIES_GOAL} kcal</span>
+                <span className="text-lg font-bold text-ink block">{movementActiveCalories}</span>
+                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                  <div className="bg-ember h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
                 </div>
-              </div>
-              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                <div className="bg-ember h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
+                <p className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL} · {activeCaloriesPct}%</p>
               </div>
             </div>
           </div>
@@ -471,25 +517,20 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
         {/* ── Alimentación ──────────────────────────────────── */}
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Alimentación
-          </p>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
+              Alimentación
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowAddMeal(true)}
+              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center flex-shrink-0"
+              aria-label="Añadir comida"
+            >
+              <Plus size={11} className="text-ink/35" />
+            </button>
+          </div>
           <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed size={15} className={dailyNutrition ? 'text-moss' : 'text-ink/35'} />
-                <p className="text-sm font-bold text-ink">Alimentación</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddMeal(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-canvas text-xs font-semibold text-ink/60 active:scale-95 transition-transform"
-              >
-                <Plus size={11} />
-                Añadir
-              </button>
-            </div>
-
             <button
               type="button"
               onClick={() => setShowAlimentacionSheet(true)}
@@ -497,59 +538,32 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
               className="w-full text-left space-y-3 disabled:cursor-default"
             >
               {dailyNutrition ? (
-                <>
-                {/* Kcal progress */}
-                <div className="space-y-1">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-2xl font-bold text-ink">
-                      {dailyNutrition.totalCalories.toLocaleString('es')}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <UtensilsCrossed size={13} className="text-ink/40" />
+                      <span className="text-xs text-ink/50">Consumidas</span>
+                    </div>
+                    <span className="text-lg font-bold text-ink block">
+                      {dailyNutrition.totalCalories.toLocaleString('es-ES')} <span className="text-[10px] font-normal text-ink/30">kcal</span>
                     </span>
-                    <span className="text-xs text-ink/40">/ {dailyNutrition.caloriesTarget.toLocaleString('es')} kcal</span>
+                    <p className="text-[10px] text-ink/30 mt-0.5">
+                      de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo
+                    </p>
                   </div>
-                  <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-ember transition-all"
-                      style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Protein progress */}
-                <div className="space-y-1">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-base font-semibold text-ink">
-                      {dailyNutrition.totalProtein}g
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Equal size={13} className="text-ink/40" />
+                      <span className="text-xs text-ink/50">Equilibrio</span>
+                    </div>
+                    <span className={`text-lg font-bold block ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
+                      {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance} <span className="text-[10px] font-normal text-ink/30">kcal</span>
                     </span>
-                    <span className="text-xs text-ink/40">/ {dailyNutrition.proteinTarget}g proteína</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-canvas overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-moss transition-all"
-                      style={{ width: `${Math.min(dailyNutrition.proteinProgressPercent, 100)}%` }}
-                    />
+                    <p className="text-[10px] text-ink/30 mt-0.5">
+                      {movementActiveCalories.toLocaleString('es-ES')} kcal gastadas
+                    </p>
                   </div>
                 </div>
-
-                {/* Meal type checkmarks */}
-                <div className="flex gap-3 pt-1 flex-wrap">
-                  {(['breakfast', 'lunch', 'snack', 'dinner'] as const).map((type) => {
-                    const labels: Record<string, string> = {
-                      breakfast: 'Desayuno', lunch: 'Comida', snack: 'Merienda', dinner: 'Cena',
-                    };
-                    const done = (dailyNutrition.mealsByType[type]?.length ?? 0) > 0;
-                    return (
-                      <div key={type} className="flex items-center gap-1">
-                        <div className={`h-4 w-4 rounded-full flex items-center justify-center ${done ? 'bg-moss' : 'border border-ink/15'}`}>
-                          {done && <Check size={9} strokeWidth={2.5} className="text-white" />}
-                        </div>
-                        <span className={`text-xs ${done ? 'text-ink/70 font-medium' : 'text-ink/30'}`}>
-                          {labels[type]}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                </>
               ) : (
                 <div className="py-2 text-center">
                   <p className="text-sm text-ink/30">Sin registros hoy</p>
@@ -561,33 +575,36 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         </div>
 
         {/* ── Tu día ────────────────────────────────────────── */}
-        {planEntries.length > 0 && (
+        {(plannedActivityRows.length > 0 || taskRows.length > 0) && (
           <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
               Tu día
             </p>
-            <div className="rounded-4xl bg-white shadow-card overflow-hidden">
+            <div className="space-y-1.5">
               {plannedActivityRows.map(({ entry, matchedActivity }, index) => {
                 const Icon = PLAN_ICONS[entry.type] ?? Target;
-                const isDone = !!matchedActivity;
+                const isDone = entry.type === 'rehab' ? hasRehab : !!matchedActivity;
+                const isPriority = entry.type === 'rehab' && !!phaseInjury;
+                const isAuto = matchedActivity?.stravaId != null;
                 const summary = matchedActivity ? formatActivitySummary(matchedActivity) : null;
                 const details = [entry.time, entry.muscleGroups?.map((g) => MUSCLE_LABELS[g] ?? g).join(' · ')]
                   .filter(Boolean).join(' · ');
 
                 return (
                   <button
-                    key={`${entry.type}-${entry.label}-${index}`}
+                    key={`activity-${entry.type}-${entry.label}-${index}`}
                     type="button"
                     onClick={() => {
                       if (matchedActivity) { setDetailActivity(matchedActivity); return; }
+                      if (entry.type === 'rehab') { setShowDolorSheet(true); return; }
                       setEditActivity(undefined);
                       setDetailActivity(null);
                       setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
                       setShowAddActivity(true);
                     }}
-                    className={`w-full flex items-center gap-3 px-5 py-4 text-left ${
-                      index < plannedActivityRows.length - 1 ? 'border-b border-ink/5' : ''
-                    } ${isDone ? '' : 'active:bg-canvas-light'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-3xl transition-all ${
+                      isPriority ? 'bg-white shadow-card' : 'border-b border-ink/5 last:border-b-0'
+                    }`}
                   >
                     <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 ${
                       isDone ? 'bg-moss' : 'border-[1.5px] border-ink/15'
@@ -598,16 +615,50 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                       <Icon size={15} className={isDone ? 'text-moss' : 'text-ink/40'} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold leading-snug ${isDone ? 'text-ink' : 'text-ink/70'}`}>
-                        {entry.label}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-sm font-semibold leading-snug ${isDone ? 'text-ink' : 'text-ink/70'}`}>
+                          {entry.label}
+                        </p>
+                        {isPriority && (
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-ember bg-ember/10 rounded-full px-1.5 py-0.5 flex-shrink-0">
+                            Prioridad
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-ink/40 mt-0.5">
                         {isDone ? [summary, 'hecho'].filter(Boolean).join(' · ') : (details || 'Sin hora fijada')}
                       </p>
                     </div>
+                    {isAuto && <span className="text-[10px] text-ink/25 flex-shrink-0">auto</span>}
                   </button>
                 );
               })}
+
+              {taskRows.map(({ entry, index }) => (
+                <button
+                  key={`task-${entry.id}`}
+                  type="button"
+                  onClick={() => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-3xl border-b border-ink/5 last:border-b-0"
+                >
+                  <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 ${
+                    entry.completed ? 'bg-moss' : 'border-[1.5px] border-ink/15'
+                  }`}>
+                    {entry.completed && <Check size={11} strokeWidth={2.5} className="text-white" />}
+                  </div>
+                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
+                    <Check size={15} className={entry.completed ? 'text-moss' : 'text-ink/40'} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold leading-snug ${entry.completed ? 'text-ink' : 'text-ink/70'}`}>
+                      {entry.label}
+                    </p>
+                    <p className="text-xs text-ink/40 mt-0.5">
+                      {[entry.time, entry.subtitle].filter(Boolean).join(' · ') || 'Sin hora fijada'}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -620,7 +671,14 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
             </p>
             <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-base font-bold text-ink">{phaseInjury.name} · {phaseInjury.phaseLabel}</p>
+                <div>
+                  <p className="text-base font-bold text-ink">{phaseInjury.name} · {phaseInjury.phaseLabel}</p>
+                  {activeProgram && (
+                    <p className="text-xs text-ink/40 mt-0.5">
+                      Semana {activeProgram.currentWeek} de {activeProgram.totalWeeks}
+                    </p>
+                  )}
+                </div>
                 {phaseInjury.phaseTargetSessions != null && (
                   <p className="text-sm font-semibold text-ink/50">
                     {phaseCompletedSessions}/{phaseInjury.phaseTargetSessions}
@@ -628,20 +686,28 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 )}
               </div>
               {phaseInjury.phaseTargetSessions != null && (
-                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                  <div
-                    className="bg-moss h-1.5 rounded-full"
-                    style={{ width: `${Math.min(100, Math.round((phaseCompletedSessions / phaseInjury.phaseTargetSessions) * 100))}%` }}
-                  />
+                <div className="flex gap-1">
+                  {Array.from({ length: phaseInjury.phaseTargetSessions }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`flex-1 h-1.5 rounded-full ${i < phaseCompletedSessions ? 'bg-moss' : 'bg-ember/30'}`}
+                    />
+                  ))}
                 </div>
               )}
-              <p className="text-xs text-ink/40">
-                {phaseInjury.phaseTargetSessions != null && phaseCompletedSessions >= phaseInjury.phaseTargetSessions
-                  ? 'Fase completada.'
-                  : phaseInjury.phaseTargetSessions != null
-                    ? `Te quedan ${phaseInjury.phaseTargetSessions - phaseCompletedSessions} sesion${phaseInjury.phaseTargetSessions - phaseCompletedSessions === 1 ? '' : 'es'} para completar la fase.`
-                    : 'Sin objetivo de sesiones definido.'}
-              </p>
+              {rehabPlanEntry && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-ink/50">
+                    Próxima: {rehabPlanEntry.label}{rehabPlanEntry.time ? ` · hoy ${rehabPlanEntry.time}` : ''}
+                  </span>
+                  {phaseInjury.phaseTargetSessions != null && (
+                    <span className="text-ink/50 font-semibold">
+                      {Math.round((phaseCompletedSessions / phaseInjury.phaseTargetSessions) * 100)}%
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-ink/40">{phaseTipText}</p>
             </div>
           </div>
         )}
@@ -684,38 +750,13 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
               Lesiones activas
             </p>
             {activeInjuries.map((injury) => {
-              const logs   = injuryLogs.filter((l) => l.injuryId === injury.id);
-              const recent = [...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
-              const avgPain = recent.length > 0
-                ? Number((recent.reduce((s, l) => s + l.painLevel, 0) / recent.length).toFixed(1))
-                : null;
+              const logs = injuryLogs.filter((l) => l.injuryId === injury.id);
+              const { avgPain, painDiff, trend } = computePainTrend(logs);
               const painColor =
                 avgPain === null ? 'text-ink/30'
                 : avgPain <= 3  ? 'text-moss'
                 : avgPain <= 6  ? 'text-ember'
                 : 'text-red-500';
-
-              // Week-over-week pain diff
-              const weekMs   = 7 * 86400000;
-              const nowMs    = Date.now();
-              const thisWeek = logs.filter((l) => nowMs - new Date(l.date + 'T12:00:00').getTime() < weekMs);
-              const lastWeek = logs.filter((l) => {
-                const ms = nowMs - new Date(l.date + 'T12:00:00').getTime();
-                return ms >= weekMs && ms < 2 * weekMs;
-              });
-              const thisAvg  = thisWeek.length ? thisWeek.reduce((s, l) => s + l.painLevel, 0) / thisWeek.length : null;
-              const prevAvg  = lastWeek.length ? lastWeek.reduce((s, l) => s + l.painLevel, 0) / lastWeek.length : null;
-              const painDiff = thisAvg !== null && prevAvg !== null ? +(thisAvg - prevAvg).toFixed(1) : null;
-
-              // Trend fallback when no week-over-week data
-              let trend: 'mejorando' | 'empeorando' | null = null;
-              if (painDiff === null && recent.length >= 4) {
-                const half  = Math.floor(recent.length / 2);
-                const newer = recent.slice(0, half).reduce((s, l) => s + l.painLevel, 0) / half;
-                const older = recent.slice(half).reduce((s, l) => s + l.painLevel, 0) / half;
-                if (newer < older - 0.5)      trend = 'mejorando';
-                else if (newer > older + 0.5) trend = 'empeorando';
-              }
 
               const ageDays = daysSince(injury.startDate);
 

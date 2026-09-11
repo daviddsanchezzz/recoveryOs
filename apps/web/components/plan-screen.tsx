@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState, type ElementType, type ReactNode } from '
 import {
   Bike,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
   Dumbbell,
   Flame,
   Footprints,
+  HeartPulse,
   Layers,
   Moon,
   Pencil,
@@ -27,23 +29,24 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { usePlanStore } from '../stores/plan-store';
 import { Portal } from './portal';
-import type { ActivityType, MuscleGroup } from '../stores/recovery-store';
-import type { PlanEntry, StructuredGoal, StructuredGoalType } from '../stores/plan-store';
+import type { MuscleGroup } from '../stores/recovery-store';
+import type { PlanEntry, PlanActivityType, ActivityPlanEntry, TaskPlanEntry, StructuredGoal, StructuredGoalType } from '../stores/plan-store';
 
 const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const WEEK_OPTIONS = [4, 6, 8, 10, 12, 16];
 
-const ACTIVITY_OPTIONS: { id: ActivityType; label: string; Icon: ElementType }[] = [
+const ACTIVITY_OPTIONS: { id: PlanActivityType; label: string; Icon: ElementType }[] = [
   { id: 'gym', label: 'Gym', Icon: Dumbbell },
   { id: 'bike', label: 'Bici', Icon: Bike },
   { id: 'run', label: 'Correr', Icon: SportShoe },
   { id: 'walk', label: 'Caminar', Icon: Footprints },
   { id: 'swim', label: 'Nadar', Icon: Waves },
   { id: 'mobility', label: 'Movilidad', Icon: RefreshCw },
+  { id: 'rehab', label: 'Rehab', Icon: HeartPulse },
 ];
 
-const ACTIVITY_ICONS: Record<ActivityType, ElementType> = {
+const ACTIVITY_ICONS: Record<PlanActivityType, ElementType> = {
   gym: Dumbbell,
   bike: Bike,
   run: SportShoe,
@@ -51,9 +54,10 @@ const ACTIVITY_ICONS: Record<ActivityType, ElementType> = {
   swim: Waves,
   mobility: RefreshCw,
   other: Target,
+  rehab: HeartPulse,
 };
 
-const DOT_COLOR: Record<ActivityType, string> = {
+const DOT_COLOR: Record<PlanActivityType, string> = {
   gym: 'bg-moss',
   bike: 'bg-ember',
   run: 'bg-moss',
@@ -61,6 +65,7 @@ const DOT_COLOR: Record<ActivityType, string> = {
   swim: 'bg-ink/40',
   mobility: 'bg-moss/60',
   other: 'bg-ink/20',
+  rehab: 'bg-red-400',
 };
 
 const MUSCLE_GROUPS: { id: MuscleGroup; label: string }[] = [
@@ -130,7 +135,9 @@ function dayFullLabel(dateStr: string) {
 function formatEntrySubtitle(entry: PlanEntry) {
   const parts: string[] = [];
   if (entry.time) parts.push(entry.time);
-  if (entry.muscleGroups?.length) {
+  if (entry.kind === 'task') {
+    if (entry.subtitle) parts.push(entry.subtitle);
+  } else if (entry.muscleGroups?.length) {
     parts.push(
       entry.muscleGroups
         .map((group) => MUSCLE_GROUPS.find((item) => item.id === group)?.label ?? group)
@@ -181,16 +188,16 @@ function ActivityPicker({
   submitLabel = 'Añadir',
 }: {
   onConfirm: (entry: PlanEntry) => void;
-  initial?: PlanEntry;
+  initial?: ActivityPlanEntry;
   submitLabel?: string;
 }) {
-  const [type, setType] = useState<ActivityType>(initial?.type ?? 'gym');
+  const [type, setType] = useState<PlanActivityType>(initial?.type ?? 'gym');
   const [label, setLabel] = useState(initial?.label ?? 'Gym');
   const [time, setTime] = useState(initial?.time ?? '');
   const [muscles, setMuscles] = useState<MuscleGroup[]>(initial?.muscleGroups ?? []);
   const [labelEdited, setLabelEdited] = useState(Boolean(initial));
 
-  function handleTypeSelect(nextType: ActivityType, defaultLabel: string) {
+  function handleTypeSelect(nextType: PlanActivityType, defaultLabel: string) {
     setType(nextType);
     setLabel(defaultLabel);
     setTime('');
@@ -285,6 +292,66 @@ function ActivityPicker({
   );
 }
 
+function TaskForm({
+  onConfirm,
+  submitLabel = 'Añadir',
+}: {
+  onConfirm: (entry: PlanEntry) => void;
+  submitLabel?: string;
+}) {
+  const [label, setLabel] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [time, setTime] = useState('');
+
+  function handleConfirm() {
+    if (!label.trim()) return;
+    const entry: TaskPlanEntry = {
+      kind: 'task',
+      id: crypto.randomUUID(),
+      label: label.trim(),
+      subtitle: subtitle.trim() || undefined,
+      time: time || undefined,
+      completed: false,
+    };
+    onConfirm(entry);
+  }
+
+  return (
+    <div className="space-y-4 rounded-3xl bg-canvas p-4">
+      <input
+        type="text"
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+        placeholder="Ej: Cena, Objetivo de sueño..."
+        className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-card outline-none placeholder:text-ink/30"
+      />
+      <input
+        type="text"
+        value={subtitle}
+        onChange={(event) => setSubtitle(event.target.value)}
+        placeholder="Detalle (opcional)"
+        className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-card outline-none placeholder:text-ink/30"
+      />
+      <div className="flex gap-2">
+        <input
+          type="time"
+          value={time}
+          onChange={(event) => setTime(event.target.value)}
+          className="w-[120px] flex-shrink-0 rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-card outline-none"
+        />
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!label.trim()}
+          className="flex-1 rounded-2xl bg-ink py-3 text-sm font-semibold text-white disabled:opacity-30"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AddPlanEntrySheet({
   isOpen,
   dateStr,
@@ -294,14 +361,40 @@ function AddPlanEntrySheet({
   dateStr: string;
   onClose: () => void;
 }) {
+  const [mode, setMode] = useState<'activity' | 'task'>('activity');
+
+  useEffect(() => {
+    if (isOpen) setMode('activity');
+  }, [isOpen]);
+
+  function handleConfirm(entry: PlanEntry) {
+    PlanService.addPlanEntry(dateStr, entry);
+    onClose();
+  }
+
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Añadir actividad" subtitle={cap(dayFullLabel(dateStr))}>
-      <ActivityPicker
-        onConfirm={(entry) => {
-          PlanService.addPlanEntry(dateStr, entry);
-          onClose();
-        }}
-      />
+    <Sheet isOpen={isOpen} onClose={onClose} title="Añadir al día" subtitle={cap(dayFullLabel(dateStr))}>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('activity')}
+          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'activity' ? 'bg-ink text-white' : 'bg-canvas text-ink/50'}`}
+        >
+          Actividad
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('task')}
+          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'task' ? 'bg-ink text-white' : 'bg-canvas text-ink/50'}`}
+        >
+          Tarea
+        </button>
+      </div>
+      {mode === 'activity' ? (
+        <ActivityPicker onConfirm={handleConfirm} />
+      ) : (
+        <TaskForm onConfirm={handleConfirm} />
+      )}
     </Sheet>
   );
 }
@@ -547,7 +640,7 @@ function DayCell({
           entries.slice(0, 3).map((entry, index) => (
             <div
               key={index}
-              className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white/60' : DOT_COLOR[entry.type]}`}
+              className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white/60' : entry.kind === 'task' ? 'bg-ink/30' : DOT_COLOR[entry.type]}`}
             />
           ))
         )}
@@ -561,11 +654,13 @@ function DayDetail({
   entries,
   onAdd,
   onRemove,
+  onToggleTask,
 }: {
   dateStr: string;
   entries: PlanEntry[];
   onAdd: () => void;
   onRemove: (index: number) => void;
+  onToggleTask: (index: number, entry: TaskPlanEntry) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -597,15 +692,28 @@ function DayDetail({
       ) : (
         <div className="space-y-2">
           {entries.map((entry, index) => {
-            const Icon = ACTIVITY_ICONS[entry.type] ?? Target;
+            const isTask = entry.kind === 'task';
+            const Icon = isTask ? Check : ACTIVITY_ICONS[entry.type] ?? Target;
 
             return (
               <div key={`${entry.label}-${index}`} className="group flex items-start gap-3 rounded-2xl bg-canvas px-3 py-2.5">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
-                  <Icon size={15} className="text-moss" />
-                </div>
+                {isTask ? (
+                  <button
+                    type="button"
+                    onClick={() => onToggleTask(index, entry)}
+                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl shadow-card ${entry.completed ? 'bg-moss' : 'bg-white'}`}
+                  >
+                    <Icon size={15} className={entry.completed ? 'text-white' : 'text-ink/20'} />
+                  </button>
+                ) : (
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
+                    <Icon size={15} className="text-moss" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug text-ink">{entry.label}</p>
+                  <p className={`text-sm font-medium leading-snug ${isTask && entry.completed ? 'text-ink/40 line-through' : 'text-ink'}`}>
+                    {entry.label}
+                  </p>
                   {formatEntrySubtitle(entry) ? (
                     <p className="mt-0.5 text-xs text-ink/35">{formatEntrySubtitle(entry)}</p>
                   ) : null}
@@ -790,6 +898,7 @@ export function PlanScreen() {
               entries={dayEntries}
               onAdd={() => setShowAddEntry(true)}
               onRemove={(index) => PlanService.removePlanEntry(selectedDate, index)}
+              onToggleTask={(index, entry) => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
             />
           </div>
         </div>

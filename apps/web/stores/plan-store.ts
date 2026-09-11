@@ -32,12 +32,30 @@ export type ActiveProgram = {
   currentWeek: number;
 };
 
-export type PlanEntry = {
-  type: ActivityType;
+// 'rehab' only applies to planned entries (this union), never to logged Activities —
+// rehab completion is derived from today's InjuryLog.didRehab, not from an Activity match.
+export type PlanActivityType = ActivityType | 'rehab';
+
+export type ActivityPlanEntry = {
+  kind?: undefined;
+  type: PlanActivityType;
   label: string;
   time?: string;
   muscleGroups?: MuscleGroup[];
 };
+
+// A standalone checklist item ("Cena", "Objetivo de sueño", or anything custom) — its
+// completion is a plain stored flag, not derived from matching another record.
+export type TaskPlanEntry = {
+  kind: 'task';
+  id: string;
+  label: string;
+  subtitle?: string;
+  time?: string;
+  completed: boolean;
+};
+
+export type PlanEntry = ActivityPlanEntry | TaskPlanEntry;
 
 type PlanState = {
   goals: Goal[];
@@ -61,6 +79,7 @@ type PlanState = {
   setWeekPlan: (data: Record<string, PlanEntry[]>) => void;
   addPlanEntry: (date: string, entry: PlanEntry) => void;
   removePlanEntry: (date: string, index: number) => void;
+  updatePlanEntry: (date: string, index: number, entry: PlanEntry) => void;
 
   setTemplate: (data: Record<number, PlanEntry[]>) => void;
   addTemplateEntry: (dayIndex: number, entry: PlanEntry) => void;
@@ -110,6 +129,13 @@ export const usePlanStore = create<PlanState>()(
       removePlanEntry: (date, index) =>
         set((s) => ({
           weekPlan: { ...s.weekPlan, [date]: (s.weekPlan[date] ?? []).filter((_, i) => i !== index) },
+        })),
+      updatePlanEntry: (date, index, entry) =>
+        set((s) => ({
+          weekPlan: {
+            ...s.weekPlan,
+            [date]: (s.weekPlan[date] ?? []).map((e, i) => (i === index ? entry : e)),
+          },
         })),
 
       setTemplate: (data) => set({ template: data, templateLoaded: true }),

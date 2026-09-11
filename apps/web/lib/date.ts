@@ -47,3 +47,9 @@ export function weekDates(baseDate: Date | string = new Date()): string[] {
 export function sameDay(left: string, right: string) {
   return left.slice(0, 10) === right.slice(0, 10);
 }
+
+const DAY_INITIALS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+export function dayInitial(isoDate: string): string {
+  return DAY_INITIALS[new Date(isoDate + 'T12:00:00').getDay()];
+}

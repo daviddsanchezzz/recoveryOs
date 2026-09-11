@@ -135,6 +135,11 @@ export const PlanService = {
     void saveWeekPlanDay(date, usePlanStore.getState().weekPlan[date] ?? []);
   },
 
+  updatePlanEntry(date: string, index: number, entry: PlanEntry): void {
+    usePlanStore.getState().updatePlanEntry(date, index, entry);
+    void saveWeekPlanDay(date, usePlanStore.getState().weekPlan[date] ?? []);
+  },
+
   // ── Template ────────────────────────────────────────────────────────────────
 
   async loadTemplate(userId: string): Promise<void> {
