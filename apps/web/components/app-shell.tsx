@@ -12,7 +12,7 @@ import { ChatPanel }          from './chat-panel';
 import { ToastContainer }     from './toast-container';
 import { useSessionStore }    from '../stores/session-store';
 import { getJson }            from '../lib/api';
-import { RecoveryService }    from '../lib/services';
+import { RecoveryService, CorosService } from '../lib/services';
 import { todayIso }           from '../lib/date';
 import { registerServiceWorker } from '../lib/push';
 import type { TabId }         from './bottom-nav';
@@ -48,6 +48,7 @@ export function AppShell() {
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email, name: session.user.name });
           void RecoveryService.loadTodayData(session.user.id, todayIso());
+          void CorosService.syncIfStale(session.user.id);
         } else {
           clearUser();
         }

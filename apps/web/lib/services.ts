@@ -518,6 +518,37 @@ export const RecoveryService = {
   },
 };
 
+// ─── Coros ───────────────────────────────────────────────────────────────────
+
+const COROS_STALE_MS = 60 * 60 * 1000;
+
+type CorosStatus = {
+  connected: boolean;
+  lastSyncAt: string | null;
+  syncStatus: string | null;
+  syncError: string | null;
+};
+
+export const CorosService = {
+  /** Called on app open: if COROS is connected and hasn't synced in over an hour
+   *  (e.g. the daily cron failed silently), triggers a sync in the background. */
+  async syncIfStale(userId: string): Promise<void> {
+    try {
+      const status = await getJson<CorosStatus>(`/coros/${userId}/status`);
+      if (!status.connected || status.syncStatus === 'reauth_required') return;
+
+      const isStale = !status.lastSyncAt || Date.now() - new Date(status.lastSyncAt).getTime() > COROS_STALE_MS;
+      if (!isStale) return;
+
+      await postJson('/coros/sync', {});
+      await RecoveryService.loadTodayData(userId, todayIso());
+    } catch {
+      // Silent: this is a background safety net, not a user-initiated action.
+      // Real sync status/errors remain visible on the Conexiones screen.
+    }
+  },
+};
+
 // ─── Nutrition ─────────────────────────────────────────────────────────────────
 
 import { useNutritionStore } from '../stores/nutrition-store';

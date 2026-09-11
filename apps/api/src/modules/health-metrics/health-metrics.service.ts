@@ -131,16 +131,23 @@ export class HealthMetricsService {
     await this.ensureUser(userId);
     const normalizedDate = startOfDay(date);
 
+    // Steps/activeCalories are cumulative through the day, so every sync overwrites them with
+    // the latest total. The other fields (HRV, resting HR, stress, recovery) are computed once
+    // overnight — once set, a later sync with a partial/null response must not clear them.
+    const existing = await this.prisma.dailyHealthMetric.findUnique({
+      where: { userId_date_source: { userId, date: normalizedDate, source: 'coros' } },
+    });
+
     return this.prisma.dailyHealthMetric.upsert({
       where: { userId_date_source: { userId, date: normalizedDate, source: 'coros' } },
       update: {
         ...(data.steps != null ? { steps: data.steps } : {}),
         ...(data.activeCalories != null ? { activeCalories: data.activeCalories } : {}),
-        ...(data.restingHeartRate !== undefined ? { restingHeartRate: data.restingHeartRate } : {}),
-        ...(data.hrv !== undefined ? { hrv: data.hrv } : {}),
-        ...(data.avgHeartRate !== undefined ? { avgHeartRate: data.avgHeartRate } : {}),
-        ...(data.stressAvg !== undefined ? { stressAvg: data.stressAvg } : {}),
-        ...(data.recoveryPct !== undefined ? { recoveryPct: data.recoveryPct } : {}),
+        ...(data.restingHeartRate != null && existing?.restingHeartRate == null ? { restingHeartRate: data.restingHeartRate } : {}),
+        ...(data.hrv != null && existing?.hrv == null ? { hrv: data.hrv } : {}),
+        ...(data.avgHeartRate != null && existing?.avgHeartRate == null ? { avgHeartRate: data.avgHeartRate } : {}),
+        ...(data.stressAvg != null && existing?.stressAvg == null ? { stressAvg: data.stressAvg } : {}),
+        ...(data.recoveryPct != null && existing?.recoveryPct == null ? { recoveryPct: data.recoveryPct } : {}),
       },
       create: {
         userId,
