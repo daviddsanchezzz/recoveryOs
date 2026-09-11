@@ -137,6 +137,8 @@ function formatEntrySubtitle(entry: PlanEntry) {
   if (entry.time) parts.push(entry.time);
   if (entry.kind === 'task') {
     if (entry.subtitle) parts.push(entry.subtitle);
+  } else if (entry.subtitle) {
+    parts.push(entry.subtitle);
   } else if (entry.muscleGroups?.length) {
     parts.push(
       entry.muscleGroups
@@ -194,6 +196,7 @@ function ActivityPicker({
   const [type, setType] = useState<PlanActivityType>(initial?.type ?? 'gym');
   const [label, setLabel] = useState(initial?.label ?? 'Gym');
   const [time, setTime] = useState(initial?.time ?? '');
+  const [subtitle, setSubtitle] = useState(initial?.subtitle ?? '');
   const [muscles, setMuscles] = useState<MuscleGroup[]>(initial?.muscleGroups ?? []);
   const [labelEdited, setLabelEdited] = useState(Boolean(initial));
 
@@ -221,6 +224,7 @@ function ActivityPicker({
       type,
       label: label.trim(),
       time: time || undefined,
+      subtitle: subtitle.trim() || undefined,
       muscleGroups: type === 'gym' && muscles.length > 0 ? muscles : undefined,
     });
   }
@@ -269,6 +273,14 @@ function ActivityPicker({
           setLabelEdited(true);
         }}
         placeholder="Descripción"
+        className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-card outline-none placeholder:text-ink/30"
+      />
+
+      <input
+        type="text"
+        value={subtitle}
+        onChange={(event) => setSubtitle(event.target.value)}
+        placeholder="Detalle (opcional): 20' · 3 series"
         className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-card outline-none placeholder:text-ink/30"
       />
 

@@ -41,6 +41,9 @@ export type ActivityPlanEntry = {
   type: PlanActivityType;
   label: string;
   time?: string;
+  /** Free-text detail line (e.g. "20' · 3 series") — shown instead of the muscle-group
+   *  summary when set. Optional: leave blank and the muscle groups (gym) are used instead. */
+  subtitle?: string;
   muscleGroups?: MuscleGroup[];
 };
 

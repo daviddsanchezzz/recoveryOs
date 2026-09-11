@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import { Portal } from './portal';
 import { ProgressChart } from './progress-chart';
 import { pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
@@ -10,12 +10,14 @@ import type { DailyHealthMetricEntry } from '../stores/recovery-store';
 export function PasosDetailSheet({
   isOpen,
   onClose,
+  onEdit,
   healthMetrics,
   selectedDate,
   onNavToProgreso,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onEdit: () => void;
   healthMetrics: DailyHealthMetricEntry[];
   selectedDate: string;
   onNavToProgreso?: () => void;
@@ -51,10 +53,16 @@ export function PasosDetailSheet({
                   {todaySteps.toLocaleString('es-ES')} de {STEPS_GOAL.toLocaleString('es-ES')}
                 </p>
               </div>
-              <button type="button" onClick={onClose}
-                className="h-8 w-8 rounded-full bg-canvas-light flex items-center justify-center flex-shrink-0">
-                <X size={15} className="text-ink/60" />
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button type="button" onClick={onEdit}
+                  className="h-8 w-8 rounded-full bg-canvas-light flex items-center justify-center">
+                  <Pencil size={13} className="text-ink/60" />
+                </button>
+                <button type="button" onClick={onClose}
+                  className="h-8 w-8 rounded-full bg-canvas-light flex items-center justify-center">
+                  <X size={15} className="text-ink/60" />
+                </button>
+              </div>
             </div>
 
             <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Portal } from './portal';
 import { useNutritionStore } from '../stores/nutrition-store';
 import { NutritionService } from '../lib/services';
@@ -14,12 +14,14 @@ const MEAL_TYPE_LABELS: Record<string, string> = {
 export function AlimentacionDetailSheet({
   isOpen,
   onClose,
+  onAddMeal,
   dailyNutrition,
   activeCalories,
   selectedDate,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onAddMeal: () => void;
   dailyNutrition: DailySummary;
   activeCalories: number;
   selectedDate: string;
@@ -51,10 +53,17 @@ export function AlimentacionDetailSheet({
                   {dailyNutrition.totalCalories.toLocaleString('es-ES')} / {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} kcal
                 </p>
               </div>
-              <button type="button" onClick={onClose}
-                className="h-8 w-8 rounded-full bg-canvas-light flex items-center justify-center flex-shrink-0">
-                <X size={15} className="text-ink/60" />
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button type="button" onClick={onAddMeal}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-canvas-light text-xs font-semibold text-ink/60 active:scale-95 transition-transform">
+                  <Plus size={11} />
+                  Añadir
+                </button>
+                <button type="button" onClick={onClose}
+                  className="h-8 w-8 rounded-full bg-canvas-light flex items-center justify-center flex-shrink-0">
+                  <X size={15} className="text-ink/60" />
+                </button>
+              </div>
             </div>
 
             <div className="h-1.5 rounded-full bg-white overflow-hidden">

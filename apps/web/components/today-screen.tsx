@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
-  Scale, Zap, Moon, Dumbbell,
+  Scale, Zap, Moon,
   Sparkles, Plus, ChevronRight, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
-  Bike, Waves, RefreshCw, SportShoe, Target,
-  UtensilsCrossed, HeartPulse, Heart, Gauge, Pencil, Equal,
+  UtensilsCrossed, HeartPulse, Heart, Gauge, Equal,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -35,18 +34,7 @@ import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
-import type { ActivityPlanEntry, PlanActivityType, TaskPlanEntry } from '../stores/plan-store';
-
-const PLAN_ICONS: Record<PlanActivityType, React.ElementType> = {
-  gym:      Dumbbell,
-  bike:     Bike,
-  run:      SportShoe,
-  walk:     Footprints,
-  swim:     Waves,
-  mobility: RefreshCw,
-  other:    Target,
-  rehab:    HeartPulse,
-};
+import type { ActivityPlanEntry, TaskPlanEntry } from '../stores/plan-store';
 
 const MUSCLE_LABELS: Record<string, string> = {
   pecho: 'Pecho', espalda: 'Espalda', biceps: 'Bíceps', triceps: 'Tríceps',
@@ -77,12 +65,12 @@ function fmtMins(v: number): string {
 function formatActivitySummary(activity: ActivityEntry): string {
   const parts: string[] = [];
 
-  if (activity.durationMinutes && activity.durationMinutes > 0) {
-    parts.push(fmtMins(activity.durationMinutes));
-  }
-
   if ((activity.type === 'run' || activity.type === 'walk' || activity.type === 'bike') && activity.distanceKm) {
     parts.push(`${activity.distanceKm.toFixed(1)} km`);
+  }
+
+  if (activity.durationMinutes && activity.durationMinutes > 0) {
+    parts.push(fmtMins(activity.durationMinutes));
   }
 
   if (activity.type === 'gym' && activity.muscleGroups && activity.muscleGroups.length > 0) {
@@ -327,6 +315,9 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
   const plannedActivityRows = getPlannedActivityMatches(activityPlanEntries, dayActivities);
   const rehabPlanEntry = activityPlanEntries.find((e) => e.type === 'rehab');
+  const pendingCount =
+    plannedActivityRows.filter(({ entry, matchedActivity }) => !(entry.type === 'rehab' ? hasRehab : !!matchedActivity)).length +
+    taskRows.filter(({ entry }) => !entry.completed).length;
   const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
 
   const avgPainToday = dayLogs.length > 0
@@ -434,44 +425,40 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
         {/* ── Movimiento de hoy ─────────────────────────────── */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
-              Movimiento de hoy
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowMovementSheet(true)}
-              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center flex-shrink-0"
-              aria-label="Editar movimiento"
-            >
-              <Pencil size={11} className="text-ink/35" />
-            </button>
-          </div>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-4">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Movimiento hoy
+          </p>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4">
             <div className="grid grid-cols-2 gap-3">
               {/* Pasos — tap abre historial */}
               <button type="button" onClick={() => setShowPasosSheet(true)} className="space-y-1.5 text-left">
-                <div className="flex items-center gap-1.5">
-                  <Footprints size={13} className="text-ink/40" />
-                  <span className="text-xs text-ink/50">Pasos</span>
+                <div className="flex items-baseline gap-1">
+                  <Footprints size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                  <span className="text-lg font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
+                  <span className="text-xs text-ink/40">pasos</span>
                 </div>
-                <span className="text-lg font-bold text-ink block">{movementSteps.toLocaleString('es-ES')}</span>
                 <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
                   <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
                 </div>
-                <p className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')} · {stepsPct}%</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')}</span>
+                  <span className="text-[10px] text-ink/30">{stepsPct}%</span>
+                </div>
               </button>
               {/* Calorías */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Flame size={13} className="text-ember" />
-                  <span className="text-xs text-ink/50">Calorías</span>
+                <div className="flex items-baseline gap-1">
+                  <Flame size={13} className="text-ember flex-shrink-0 self-center" />
+                  <span className="text-lg font-bold text-ink">{movementActiveCalories}</span>
+                  <span className="text-xs text-ink/40">kcal activas</span>
                 </div>
-                <span className="text-lg font-bold text-ink block">{movementActiveCalories}</span>
                 <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                  <div className="bg-ember h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
+                  <div className="bg-moss h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
                 </div>
-                <p className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL} · {activeCaloriesPct}%</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL}</span>
+                  <span className="text-[10px] text-ink/30">{activeCaloriesPct}%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -517,51 +504,40 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
         {/* ── Alimentación ──────────────────────────────────── */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
-              Alimentación
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAddMeal(true)}
-              className="h-6 w-6 rounded-lg bg-canvas flex items-center justify-center flex-shrink-0"
-              aria-label="Añadir comida"
-            >
-              <Plus size={11} className="text-ink/35" />
-            </button>
-          </div>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4 space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Alimentación hoy
+          </p>
+          <div className="rounded-4xl bg-white shadow-card px-5 py-4">
             <button
               type="button"
               onClick={() => setShowAlimentacionSheet(true)}
               disabled={!dailyNutrition}
-              className="w-full text-left space-y-3 disabled:cursor-default"
+              className="w-full text-left disabled:cursor-default"
             >
               {dailyNutrition ? (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <UtensilsCrossed size={13} className="text-ink/40" />
-                      <span className="text-xs text-ink/50">Consumidas</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-baseline gap-1">
+                      <UtensilsCrossed size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                      <span className="text-lg font-bold text-ink">{dailyNutrition.totalCalories.toLocaleString('es-ES')}</span>
+                      <span className="text-xs text-ink/40">kcal</span>
                     </div>
-                    <span className="text-lg font-bold text-ink block">
-                      {dailyNutrition.totalCalories.toLocaleString('es-ES')} <span className="text-[10px] font-normal text-ink/30">kcal</span>
-                    </span>
-                    <p className="text-[10px] text-ink/30 mt-0.5">
-                      de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo
-                    </p>
+                    <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                      <div className="bg-moss h-1.5 rounded-full" style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }} />
+                    </div>
+                    <p className="text-xs text-ink/50">Consumidas</p>
+                    <p className="text-[10px] text-ink/30">de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo</p>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Equal size={13} className="text-ink/40" />
-                      <span className="text-xs text-ink/50">Equilibrio</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-baseline gap-1">
+                      <Equal size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                      <span className={`text-lg font-bold ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
+                        {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance}
+                      </span>
+                      <span className="text-xs text-ink/40">kcal</span>
                     </div>
-                    <span className={`text-lg font-bold block ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
-                      {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance} <span className="text-[10px] font-normal text-ink/30">kcal</span>
-                    </span>
-                    <p className="text-[10px] text-ink/30 mt-0.5">
-                      {movementActiveCalories.toLocaleString('es-ES')} kcal gastadas
-                    </p>
+                    <p className="text-xs text-ink/50">Equilibrio</p>
+                    <p className="text-[10px] text-ink/30">{movementActiveCalories.toLocaleString('es-ES')} kcal gastadas</p>
                   </div>
                 </div>
               ) : (
@@ -577,18 +553,25 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         {/* ── Tu día ────────────────────────────────────────── */}
         {(plannedActivityRows.length > 0 || taskRows.length > 0) && (
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Tu día
-            </p>
-            <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
+                Tu día
+              </p>
+              {pendingCount > 0 && (
+                <span className="text-xs text-ink/30">{pendingCount} pendiente{pendingCount === 1 ? '' : 's'}</span>
+              )}
+            </div>
+            <div className="border-t border-ink/5" />
+            <div>
               {plannedActivityRows.map(({ entry, matchedActivity }, index) => {
-                const Icon = PLAN_ICONS[entry.type] ?? Target;
                 const isDone = entry.type === 'rehab' ? hasRehab : !!matchedActivity;
                 const isPriority = entry.type === 'rehab' && !!phaseInjury;
                 const isAuto = matchedActivity?.stravaId != null;
                 const summary = matchedActivity ? formatActivitySummary(matchedActivity) : null;
-                const details = [entry.time, entry.muscleGroups?.map((g) => MUSCLE_LABELS[g] ?? g).join(' · ')]
-                  .filter(Boolean).join(' · ');
+                const muscleGroupsText = entry.muscleGroups?.map((g) => MUSCLE_LABELS[g] ?? g).join(' · ');
+                const detailLine = isDone
+                  ? [summary, 'hecho'].filter(Boolean).join(' · ')
+                  : (entry.subtitle || muscleGroupsText || 'Sin hora fijada');
 
                 return (
                   <button
@@ -602,34 +585,30 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                       setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
                       setShowAddActivity(true);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-3xl transition-all ${
-                      isPriority ? 'bg-white shadow-card' : 'border-b border-ink/5 last:border-b-0'
+                    className={`w-full flex items-start gap-3 px-4 py-3.5 text-left rounded-3xl transition-all ${
+                      isPriority ? 'bg-white shadow-card my-1' : 'border-b border-ink/5 last:border-b-0'
                     }`}
                   >
-                    <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 ${
+                    <div className={`h-[22px] w-[22px] mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
                       isDone ? 'bg-moss' : 'border-[1.5px] border-ink/15'
                     }`}>
                       {isDone && <Check size={11} strokeWidth={2.5} className="text-white" />}
                     </div>
-                    <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-                      <Icon size={15} className={isDone ? 'text-moss' : 'text-ink/40'} />
-                    </div>
                     <div className="flex-1 min-w-0">
+                      {entry.time && <p className="text-xs text-ink/40 leading-none mb-1">{entry.time}</p>}
                       <div className="flex items-center gap-1.5">
                         <p className={`text-sm font-semibold leading-snug ${isDone ? 'text-ink' : 'text-ink/70'}`}>
                           {entry.label}
                         </p>
                         {isPriority && (
-                          <span className="text-[9px] font-bold uppercase tracking-wide text-ember bg-ember/10 rounded-full px-1.5 py-0.5 flex-shrink-0">
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-ink/50 bg-canvas rounded-full px-1.5 py-0.5 flex-shrink-0">
                             Prioridad
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-ink/40 mt-0.5">
-                        {isDone ? [summary, 'hecho'].filter(Boolean).join(' · ') : (details || 'Sin hora fijada')}
-                      </p>
+                      <p className="text-xs text-ink/40 mt-0.5">{detailLine}</p>
                     </div>
-                    {isAuto && <span className="text-[10px] text-ink/25 flex-shrink-0">auto</span>}
+                    {isAuto && <span className="text-[10px] text-ink/25 flex-shrink-0 mt-0.5">auto</span>}
                   </button>
                 );
               })}
@@ -639,23 +618,19 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                   key={`task-${entry.id}`}
                   type="button"
                   onClick={() => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-3xl border-b border-ink/5 last:border-b-0"
+                  className="w-full flex items-start gap-3 px-4 py-3.5 text-left rounded-3xl border-b border-ink/5 last:border-b-0"
                 >
-                  <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 ${
+                  <div className={`h-[22px] w-[22px] mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
                     entry.completed ? 'bg-moss' : 'border-[1.5px] border-ink/15'
                   }`}>
                     {entry.completed && <Check size={11} strokeWidth={2.5} className="text-white" />}
                   </div>
-                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-                    <Check size={15} className={entry.completed ? 'text-moss' : 'text-ink/40'} />
-                  </div>
                   <div className="flex-1 min-w-0">
+                    {entry.time && <p className="text-xs text-ink/40 leading-none mb-1">{entry.time}</p>}
                     <p className={`text-sm font-semibold leading-snug ${entry.completed ? 'text-ink' : 'text-ink/70'}`}>
                       {entry.label}
                     </p>
-                    <p className="text-xs text-ink/40 mt-0.5">
-                      {[entry.time, entry.subtitle].filter(Boolean).join(' · ') || 'Sin hora fijada'}
-                    </p>
+                    <p className="text-xs text-ink/40 mt-0.5">{entry.subtitle || 'Sin hora fijada'}</p>
                   </div>
                 </button>
               ))}
@@ -858,6 +833,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
       <PasosDetailSheet
         isOpen={showPasosSheet}
         onClose={() => setShowPasosSheet(false)}
+        onEdit={() => { setShowPasosSheet(false); setShowMovementSheet(true); }}
         healthMetrics={dailyHealthMetrics}
         selectedDate={selectedDate}
         onNavToProgreso={onNavToProgreso}
@@ -866,6 +842,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         <AlimentacionDetailSheet
           isOpen={showAlimentacionSheet}
           onClose={() => setShowAlimentacionSheet(false)}
+          onAddMeal={() => { setShowAlimentacionSheet(false); setShowAddMeal(true); }}
           dailyNutrition={dailyNutrition}
           activeCalories={movementActiveCalories}
           selectedDate={selectedDate}
