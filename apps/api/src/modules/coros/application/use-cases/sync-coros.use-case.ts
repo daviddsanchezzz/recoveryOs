@@ -75,6 +75,7 @@ export class SyncCorosUseCase {
       ...(errors.length === 0 ? { lastSuccessfulSyncAt: new Date() } : {}),
     });
 
+    
     this.logger.log(
       `COROS sync [${dates.map(toDateOnly).join(', ')}]: synced=[${synced.join(', ')}] errors=[${errors.join('; ')}]`,
     );
