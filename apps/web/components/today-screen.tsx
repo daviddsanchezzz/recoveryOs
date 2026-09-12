@@ -438,37 +438,35 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
             Movimiento hoy
           </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4">
-            <div className="grid grid-cols-2 gap-3">
-              {/* Pasos — tap abre historial */}
-              <button type="button" onClick={() => setShowPasosSheet(true)} className="space-y-1.5 text-left">
-                <div className="flex items-baseline gap-1">
-                  <Footprints size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                  <span className="text-lg font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
-                  <span className="text-xs text-ink/40">pasos</span>
-                </div>
-                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                  <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')}</span>
-                  <span className="text-[10px] text-ink/30">{stepsPct}%</span>
-                </div>
-              </button>
-              {/* Calorías */}
-              <div className="space-y-1.5">
-                <div className="flex items-baseline gap-1">
-                  <Flame size={13} className="text-ember flex-shrink-0 self-center" />
-                  <span className="text-lg font-bold text-ink">{movementActiveCalories}</span>
-                  <span className="text-xs text-ink/40">kcal activas</span>
-                </div>
-                <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                  <div className="bg-moss h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL}</span>
-                  <span className="text-[10px] text-ink/30">{activeCaloriesPct}%</span>
-                </div>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Pasos — tap abre historial */}
+            <button type="button" onClick={() => setShowPasosSheet(true)} className="space-y-1.5 text-left">
+              <div className="flex items-baseline gap-1">
+                <Footprints size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                <span className="text-lg font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
+                <span className="text-xs text-ink/40">pasos</span>
+              </div>
+              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')}</span>
+                <span className="text-[10px] text-ink/30">{stepsPct}%</span>
+              </div>
+            </button>
+            {/* Calorías */}
+            <div className="space-y-1.5">
+              <div className="flex items-baseline gap-1">
+                <Flame size={13} className="text-ember flex-shrink-0 self-center" />
+                <span className="text-lg font-bold text-ink">{movementActiveCalories}</span>
+                <span className="text-xs text-ink/40">kcal activas</span>
+              </div>
+              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL}</span>
+                <span className="text-[10px] text-ink/30">{activeCaloriesPct}%</span>
               </div>
             </div>
           </div>
