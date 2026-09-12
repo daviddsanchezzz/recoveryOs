@@ -136,11 +136,11 @@ export function DayScoreDetailSheet({
                 value={todayWeightKg != null ? `${todayWeightKg.toFixed(1)} kg` : 'Sin registrar'}
                 onAdd={onAddWeight}
               />
-              <div className="flex items-center justify-between gap-4 py-3">
-                <span className="text-sm text-ink/50">Carga usada</span>
-                <span className="text-right text-sm font-semibold text-ink">
+              <div className="flex items-center justify-between gap-2 py-3">
+                <span className="whitespace-nowrap text-sm text-ink/50">Carga usada</span>
+                <span className="whitespace-nowrap text-right text-sm font-semibold text-ink">
                   {load.score != null
-                    ? `${load.score}/100${load.ratio != null ? ` · ratio ${load.ratio.toFixed(2).replace('.', ',')}` : ''}`
+                    ? `${Math.round(load.score)}/100${load.ratio != null ? ` · ratio ${load.ratio.toFixed(2).replace('.', ',')}` : ''}`
                     : 'Sin datos'}
                 </span>
               </div>
