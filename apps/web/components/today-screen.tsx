@@ -377,6 +377,26 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           </button>
         </div>
 
+        {/* ── Activities detail ─────────────────────────────── */}
+        {dayActivities.length > 0 && planEntries.length === 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+              Actividades
+            </p>
+            <div className="space-y-3">
+              {dayActivities.map((act) => (
+                <ActivityCard
+                  key={act.id}
+                  act={act}
+                  onTap={setDetailActivity}
+                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
+                  onDelete={(id) => RecoveryService.deleteActivity(id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Recuperación (COROS) ──────────────────────────── */}
         {hasRecoveryData && (
           <div className="space-y-2">
@@ -562,26 +582,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           </div>
           <p className="text-sm text-white/90 leading-relaxed">{insight}</p>
         </div>
-
-        {/* ── Activities detail ─────────────────────────────── */}
-        {dayActivities.length > 0 && planEntries.length === 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Actividades
-            </p>
-            <div className="space-y-3">
-              {dayActivities.map((act) => (
-                <ActivityCard
-                  key={act.id}
-                  act={act}
-                  onTap={setDetailActivity}
-                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
-                  onDelete={(id) => RecoveryService.deleteActivity(id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
 
       </div>
 
