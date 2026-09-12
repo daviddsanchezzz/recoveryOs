@@ -183,12 +183,15 @@ model NutritionLog {
 }
 
 model NutritionGoal {
-  id             String @id @default(cuid())
-  userId         String @unique
-  caloriesTarget Int    @default(2300)
-  proteinTarget  Int    @default(150)
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  caloriesTarget Int     @default(2300)
+  proteinTarget  Int     @default(150)
   waterTargetMl  Int?
-  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sex            String? // male | female — used to compute basal metabolic rate
+  heightCm       Int?
+  age            Int?
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

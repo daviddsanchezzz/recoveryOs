@@ -17,6 +17,7 @@ export function AlimentacionDetailSheet({
   onAddMeal,
   dailyNutrition,
   activeCalories,
+  basalCalories,
   selectedDate,
 }: {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export function AlimentacionDetailSheet({
   onAddMeal: () => void;
   dailyNutrition: DailySummary;
   activeCalories: number;
+  basalCalories: number | null;
   selectedDate: string;
 }) {
   const meals = useNutritionStore((s) => s.mealsByDate[selectedDate]);
@@ -34,7 +36,8 @@ export function AlimentacionDetailSheet({
 
   if (!isOpen) return null;
 
-  const balance = dailyNutrition.totalCalories - activeCalories;
+  const totalCaloriesOut = activeCalories + (basalCalories ?? 0);
+  const balance = dailyNutrition.totalCalories - totalCaloriesOut;
 
   return (
     <Portal>
@@ -79,6 +82,12 @@ export function AlimentacionDetailSheet({
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-ink/50">Calorías activas</span>
                 <span className="text-sm font-semibold text-ink">{activeCalories.toLocaleString('es-ES')} kcal</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-sm text-ink/50">Metabolismo basal</span>
+                <span className="text-sm font-semibold text-ink">
+                  {basalCalories != null ? `${basalCalories.toLocaleString('es-ES')} kcal` : 'Añade tus datos'}
+                </span>
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-ink/50">Balance</span>

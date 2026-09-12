@@ -33,6 +33,7 @@ import { PlanService } from '../lib/plan-service';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { formatShortDate, sameDay, todayIso } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
+import { calculateBmr } from '../lib/bmr';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 import type { ActivityPlanEntry, TaskPlanEntry } from '../stores/plan-store';
 
@@ -258,6 +259,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const userId          = useSessionStore((s) => s.user?.id);
   const nutritionByDate = useNutritionStore((s) => s.summaryByDate);
   const dailyNutrition  = nutritionByDate[selectedDate] ?? null;
+  const nutritionGoal   = useNutritionStore((s) => s.goal);
 
   useEffect(() => {
     if (!userId || nutritionByDate[selectedDate]) return;
@@ -332,7 +334,15 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const movementSteps = todayMovement?.steps ?? 0;
   const movementActiveCalories = todayMovement?.activeCalories ?? 0;
   const { stepsPct, activeCaloriesPct } = getMovementPercent(movementSteps, movementActiveCalories);
-  const nutritionBalance = dailyNutrition ? dailyNutrition.totalCalories - movementActiveCalories : 0;
+  const latestWeight = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const basalCalories = calculateBmr({
+    sex: nutritionGoal?.sex,
+    heightCm: nutritionGoal?.heightCm,
+    age: nutritionGoal?.age,
+    weightKg: latestWeight?.weightKg,
+  });
+  const totalCaloriesOut = movementActiveCalories + (basalCalories ?? 0);
+  const nutritionBalance = dailyNutrition ? dailyNutrition.totalCalories - totalCaloriesOut : 0;
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -464,6 +474,52 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           </div>
         </div>
 
+        {/* ── Alimentación ──────────────────────────────────── */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            Alimentación hoy
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAlimentacionSheet(true)}
+            disabled={!dailyNutrition}
+            className="w-full text-left disabled:cursor-default"
+          >
+            {dailyNutrition ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline gap-1">
+                    <UtensilsCrossed size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                    <span className="text-lg font-bold text-ink">{dailyNutrition.totalCalories.toLocaleString('es-ES')}</span>
+                    <span className="text-xs text-ink/40">kcal</span>
+                  </div>
+                  <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
+                    <div className="bg-moss h-1.5 rounded-full" style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }} />
+                  </div>
+                  <p className="text-xs text-ink/50">Consumidas</p>
+                  <p className="text-[10px] text-ink/30">de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo</p>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline gap-1">
+                    <Equal size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                    <span className={`text-lg font-bold ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
+                      {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance}
+                    </span>
+                    <span className="text-xs text-ink/40">kcal</span>
+                  </div>
+                  <p className="text-xs text-ink/50">Equilibrio</p>
+                  <p className="text-[10px] text-ink/30">{totalCaloriesOut.toLocaleString('es-ES')} kcal gastadas</p>
+                </div>
+              </div>
+            ) : (
+              <div className="py-2 text-center">
+                <p className="text-sm text-ink/30">Sin registros hoy</p>
+                <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
+              </div>
+            )}
+          </button>
+        </div>
+
         {/* ── Recuperación (COROS) ──────────────────────────── */}
         {hasRecoveryData && (
           <div className="space-y-2">
@@ -501,54 +557,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
             </div>
           </div>
         )}
-
-        {/* ── Alimentación ──────────────────────────────────── */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Alimentación hoy
-          </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-4">
-            <button
-              type="button"
-              onClick={() => setShowAlimentacionSheet(true)}
-              disabled={!dailyNutrition}
-              className="w-full text-left disabled:cursor-default"
-            >
-              {dailyNutrition ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline gap-1">
-                      <UtensilsCrossed size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                      <span className="text-lg font-bold text-ink">{dailyNutrition.totalCalories.toLocaleString('es-ES')}</span>
-                      <span className="text-xs text-ink/40">kcal</span>
-                    </div>
-                    <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                      <div className="bg-moss h-1.5 rounded-full" style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }} />
-                    </div>
-                    <p className="text-xs text-ink/50">Consumidas</p>
-                    <p className="text-[10px] text-ink/30">de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-baseline gap-1">
-                      <Equal size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                      <span className={`text-lg font-bold ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
-                        {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance}
-                      </span>
-                      <span className="text-xs text-ink/40">kcal</span>
-                    </div>
-                    <p className="text-xs text-ink/50">Equilibrio</p>
-                    <p className="text-[10px] text-ink/30">{movementActiveCalories.toLocaleString('es-ES')} kcal gastadas</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-2 text-center">
-                  <p className="text-sm text-ink/30">Sin registros hoy</p>
-                  <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
 
         {/* ── Tu día ────────────────────────────────────────── */}
         {(plannedActivityRows.length > 0 || taskRows.length > 0) && (
@@ -845,6 +853,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           onAddMeal={() => { setShowAlimentacionSheet(false); setShowAddMeal(true); }}
           dailyNutrition={dailyNutrition}
           activeCalories={movementActiveCalories}
+          basalCalories={basalCalories}
           selectedDate={selectedDate}
         />
       )}

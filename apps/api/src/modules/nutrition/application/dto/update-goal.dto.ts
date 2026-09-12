@@ -1,8 +1,11 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdateGoalDto {
+  // Always overwritten by the controller with the session's user id — optional here
+  // so a client that (correctly) omits it doesn't fail validation.
+  @IsOptional()
   @IsString()
-  userId!: string;
+  userId?: string;
 
   @IsOptional()
   @IsInt()
@@ -18,4 +21,20 @@ export class UpdateGoalDto {
   @IsInt()
   @Min(0)
   waterTargetMl?: number;
+
+  @IsOptional()
+  @IsIn(['male', 'female'])
+  sex?: 'male' | 'female';
+
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  @Max(250)
+  heightCm?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(120)
+  age?: number;
 }

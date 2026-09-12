@@ -13,7 +13,9 @@ export class UpdateNutritionGoalUseCase {
     private readonly repo: NutritionGoalRepositoryPort,
   ) {}
 
-  async execute(input: UpdateGoalDto): Promise<NutritionGoalEntity> {
+  // userId is optional on the DTO (validated before the controller injects it from the
+  // session) but always present by the time it reaches this use-case.
+  async execute(input: UpdateGoalDto & { userId: string }): Promise<NutritionGoalEntity> {
     const existing = await this.repo.findByUser(input.userId);
     const updated = new NutritionGoalEntity(
       existing?.id ?? crypto.randomUUID(),
@@ -21,6 +23,9 @@ export class UpdateNutritionGoalUseCase {
       input.caloriesTarget ?? existing?.caloriesTarget ?? 2300,
       input.proteinTarget ?? existing?.proteinTarget ?? 150,
       input.waterTargetMl ?? existing?.waterTargetMl ?? null,
+      input.sex ?? existing?.sex ?? null,
+      input.heightCm ?? existing?.heightCm ?? null,
+      input.age ?? existing?.age ?? null,
     );
     return this.repo.upsert(updated);
   }

@@ -74,6 +74,9 @@ export interface NutritionGoal {
   caloriesTarget: number;
   proteinTarget: number;
   waterTargetMl: number | null;
+  sex: 'male' | 'female' | null;
+  heightCm: number | null;
+  age: number | null;
 }
 
 // Store state

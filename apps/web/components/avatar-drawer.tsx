@@ -10,6 +10,7 @@ import { RecoveryService } from '../lib/services';
 import { Portal } from './portal';
 import { LesionesScreen } from './lesiones-screen';
 import { ConexionesScreen } from './conexiones-screen';
+import { ConfiguracionScreen } from './configuracion-screen';
 
 export function AvatarDrawer({
   isOpen,
@@ -26,6 +27,7 @@ export function AvatarDrawer({
   const [isLoggingOut,        setIsLoggingOut]        = useState(false);
   const [showLesionesScreen,  setShowLesionesScreen]  = useState(false);
   const [showConexionesScreen, setShowConexionesScreen] = useState(false);
+  const [showConfiguracionScreen, setShowConfiguracionScreen] = useState(false);
 
   const displayName = profile.name || sessionUser?.name || 'Usuario';
   const email       = sessionUser?.email ?? '';
@@ -126,18 +128,14 @@ export function AvatarDrawer({
           <div className="px-5 py-2">
             <button
               type="button"
-              className="w-full flex items-center justify-between py-3.5 border-b border-ink/5"
+              onClick={() => setShowConfiguracionScreen(true)}
+              className="w-full flex items-center justify-between py-3.5 border-b border-ink/5 active:bg-canvas-light transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Settings size={15} className="text-ink/40" />
                 <span className="text-sm text-ink">Configuración</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-ink/30 bg-sand/30 px-2 py-0.5 rounded-full">
-                  próximamente
-                </span>
-                <ChevronRight size={14} className="text-ink/20" />
-              </div>
+              <ChevronRight size={14} className="text-ink/20" />
             </button>
             <button
               type="button"
@@ -172,6 +170,9 @@ export function AvatarDrawer({
       )}
       {showConexionesScreen && (
         <ConexionesScreen onClose={() => setShowConexionesScreen(false)} />
+      )}
+      {showConfiguracionScreen && (
+        <ConfiguracionScreen onClose={() => setShowConfiguracionScreen(false)} />
       )}
     </Portal>
   );

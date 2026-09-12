@@ -574,6 +574,26 @@ type ServerMealEntry = {
   source: string;
 };
 
+type ServerNutritionGoal = {
+  caloriesTarget: number;
+  proteinTarget: number;
+  waterTargetMl: number | null;
+  sex: 'male' | 'female' | null;
+  heightCm: number | null;
+  age: number | null;
+};
+
+function mapServerNutritionGoal(raw: ServerNutritionGoal): NutritionGoal {
+  return {
+    caloriesTarget: raw.caloriesTarget,
+    proteinTarget: raw.proteinTarget,
+    waterTargetMl: raw.waterTargetMl,
+    sex: raw.sex,
+    heightCm: raw.heightCm,
+    age: raw.age,
+  };
+}
+
 function mapServerMeal(m: ServerMealEntry): MealEntry {
   const date = m.consumedAt.includes('T') ? m.consumedAt.split('T')[0] : m.consumedAt;
   return {
@@ -702,14 +722,8 @@ export const NutritionService = {
   },
 
   async fetchGoal(): Promise<NutritionGoal> {
-    const raw = await getJson<{ caloriesTarget: number; proteinTarget: number; waterTargetMl: number | null }>(
-      '/nutrition/goals',
-    );
-    const goal: NutritionGoal = {
-      caloriesTarget: raw.caloriesTarget,
-      proteinTarget:  raw.proteinTarget,
-      waterTargetMl:  raw.waterTargetMl,
-    };
+    const raw = await getJson<ServerNutritionGoal>('/nutrition/goals');
+    const goal = mapServerNutritionGoal(raw);
     useNutritionStore.getState().setGoal(goal);
     return goal;
   },
@@ -718,16 +732,12 @@ export const NutritionService = {
     caloriesTarget?: number;
     proteinTarget?: number;
     waterTargetMl?: number;
+    sex?: 'male' | 'female';
+    heightCm?: number;
+    age?: number;
   }): Promise<NutritionGoal> {
-    const raw = await patchJson<{ caloriesTarget: number; proteinTarget: number; waterTargetMl: number | null }>(
-      '/nutrition/goals',
-      fields,
-    );
-    const goal: NutritionGoal = {
-      caloriesTarget: raw.caloriesTarget,
-      proteinTarget:  raw.proteinTarget,
-      waterTargetMl:  raw.waterTargetMl,
-    };
+    const raw = await patchJson<ServerNutritionGoal>('/nutrition/goals', fields);
+    const goal = mapServerNutritionGoal(raw);
     useNutritionStore.getState().setGoal(goal);
     return goal;
   },
