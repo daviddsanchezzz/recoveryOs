@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Moon, Activity, Droplet } from 'lucide-react';
+import { Moon, Activity, Droplet, Scale } from 'lucide-react';
 import { getJson } from '../lib/api';
 import { DayScoreDetailSheet } from './day-score-detail-sheet';
 
@@ -29,7 +29,23 @@ function fmtSleepH(h: number): string {
   return mm === 0 ? `${hh}h` : `${hh}h ${mm}min`;
 }
 
-export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: string; onNavToProgreso?: () => void }) {
+export function DayScoreCard({
+  selectedDate,
+  onNavToProgreso,
+  hasActiveInjuries,
+  todayWeightKg,
+  onAddSleep,
+  onAddWeight,
+  onAddPain,
+}: {
+  selectedDate: string;
+  onNavToProgreso?: () => void;
+  hasActiveInjuries: boolean;
+  todayWeightKg: number | null;
+  onAddSleep: () => void;
+  onAddWeight: () => void;
+  onAddPain: () => void;
+}) {
   const [data, setData] = useState<DayScoreResponse | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
@@ -48,8 +64,8 @@ export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: 
 
   return (
     <>
-      <button type="button" onClick={() => setShowDetail(true)} className="w-full text-left">
-        <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+      <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
+        <button type="button" onClick={() => setShowDetail(true)} className="w-full text-left space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Estado de hoy</p>
 
           <div className="flex items-center gap-4">
@@ -76,8 +92,8 @@ export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: 
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-1 border-t border-ink/5">
-            <div className="flex flex-col items-center gap-1 pt-3">
+          <div className="flex items-stretch gap-2 pt-1 border-t border-ink/5">
+            <div className="flex-1 flex flex-col items-center gap-1 pt-3">
               <div className="flex items-center gap-1 text-ink/30">
                 <Moon size={11} />
                 <span className="text-[10px] font-semibold uppercase tracking-wide">Sueño</span>
@@ -86,7 +102,7 @@ export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: 
                 {sleep.durationH != null ? fmtSleepH(sleep.durationH) : '--'}
               </span>
             </div>
-            <div className="flex flex-col items-center gap-1 pt-3">
+            <div className="flex-1 flex flex-col items-center gap-1 pt-3">
               <div className="flex items-center gap-1 text-ink/30">
                 <Activity size={11} />
                 <span className="text-[10px] font-semibold uppercase tracking-wide">HRV</span>
@@ -100,15 +116,26 @@ export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: 
                 </span>
               )}
             </div>
-            <div className="flex flex-col items-center gap-1 pt-3">
-              <div className="flex items-center gap-1 text-ink/30">
-                <Droplet size={11} />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">Dolor</span>
+            {hasActiveInjuries && (
+              <div className="flex-1 flex flex-col items-center gap-1 pt-3">
+                <div className="flex items-center gap-1 text-ink/30">
+                  <Droplet size={11} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">Dolor</span>
+                </div>
+                <span className="text-sm font-bold text-ink">
+                  {pain.avgPainLevel != null ? `${pain.avgPainLevel}/10` : '--'}
+                </span>
               </div>
-              <span className="text-sm font-bold text-ink">
-                {pain.avgPainLevel != null ? `${pain.avgPainLevel}/10` : '--'}
-              </span>
-            </div>
+            )}
+            {todayWeightKg != null && (
+              <div className="flex-1 flex flex-col items-center gap-1 pt-3">
+                <div className="flex items-center gap-1 text-ink/30">
+                  <Scale size={11} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">Peso</span>
+                </div>
+                <span className="text-sm font-bold text-ink">{todayWeightKg.toFixed(1)} kg</span>
+              </div>
+            )}
           </div>
 
           {data.tip && (
@@ -117,9 +144,19 @@ export function DayScoreCard({ selectedDate, onNavToProgreso }: { selectedDate: 
               <p className="text-sm text-ink/80 mt-0.5">{data.tip}</p>
             </div>
           )}
-        </div>
-      </button>
-      {data && <DayScoreDetailSheet isOpen={showDetail} onClose={() => setShowDetail(false)} data={data} onNavToProgreso={onNavToProgreso} />}
+        </button>
+      </div>
+      <DayScoreDetailSheet
+        isOpen={showDetail}
+        onClose={() => setShowDetail(false)}
+        data={data}
+        onNavToProgreso={onNavToProgreso}
+        hasActiveInjuries={hasActiveInjuries}
+        todayWeightKg={todayWeightKg}
+        onAddSleep={onAddSleep}
+        onAddWeight={onAddWeight}
+        onAddPain={onAddPain}
+      />
     </>
   );
 }

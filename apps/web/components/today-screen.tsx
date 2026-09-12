@@ -3,26 +3,22 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
-  Scale, Zap, Moon,
-  Sparkles, Plus, ChevronRight, Check,
+  Scale,
+  Sparkles, Check,
   Footprints, Flame, TrendingDown, TrendingUp,
-  UtensilsCrossed, HeartPulse, Heart, Gauge, Equal,
+  UtensilsCrossed, HeartPulse, Heart, Gauge,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
 import { WeightSheet }      from './weight-sheet';
-import { WeightScreen }     from './weight-screen';
 import { SleepSheet }       from './sleep-sheet';
 import { MovementSheet }    from './movement-sheet';
-import { SuenoScreen }      from './sueno-screen';
 import { DolorSheet }       from './dolor-sheet';
-import { LesionesScreen }   from './lesiones-screen';
 import { ActivityCard, ActivityDetailSheet } from './actividades-screen';
 import { AddActivitySheet } from './add-activity-sheet';
 import { DayScoreCard } from './day-score-card';
 import { PasosDetailSheet } from './pasos-detail-sheet';
 import { AlimentacionDetailSheet } from './alimentacion-detail-sheet';
-import { sleepScore } from '../lib/sleep';
 import { AddMealSheet }     from './add-meal-sheet';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { usePlanStore }     from '../stores/plan-store';
@@ -158,92 +154,15 @@ function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
 
 // ── Reusable daily-log row ────────────────────────────────────────────────────
 
-function DailyRow({
-  icon: Icon,
-  label,
-  value,
-  done,
-  doneColor = 'text-moss',
-  doneBg    = 'bg-moss',
-  onAdd,
-  onDetail,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value?: string | null;
-  done: boolean;
-  doneColor?: string;
-  doneBg?: string;
-  onAdd?: () => void;
-  onDetail?: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 py-3.5">
-      {/* Circle = add/log button */}
-      <button
-        type="button"
-        onClick={onAdd}
-        className={`h-[22px] w-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-90 ${
-          done ? doneBg : 'border-[1.5px] border-ink/15 active:border-ink/30'
-        }`}
-      >
-        {done
-          ? <Check size={11} strokeWidth={2.5} className="text-white" />
-          : <Plus size={9} className="text-ink/30" />
-        }
-      </button>
-
-      <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center flex-shrink-0">
-        <Icon size={15} className={done ? doneColor : 'text-ink/35'} />
-      </div>
-
-      {/* Label + value */}
-      {onDetail ? (
-        <button type="button" onClick={onDetail} className="flex-1 min-w-0 text-left">
-          <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
-            {label}
-          </p>
-          <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
-            {value ?? 'Sin registrar'}
-          </p>
-        </button>
-      ) : (
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold leading-none transition-colors ${done ? 'text-ink' : 'text-ink/45'}`}>
-            {label}
-          </p>
-          <p className={`text-xs mt-0.5 leading-none ${value ? doneColor : 'text-ink/25'}`}>
-            {value ?? 'Sin registrar'}
-          </p>
-        </div>
-      )}
-
-      {/* Arrow → detail screen */}
-      {onDetail && (
-        <button
-          type="button"
-          onClick={onDetail}
-          className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
-        >
-          <ChevronRight size={14} className="text-ink/35" />
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ── Screen ───────────────────────────────────────────────────────────────────
 
 export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => void; onNavToProgreso?: () => void } = {}) {
   const [showMonthly,        setShowMonthly]        = useState(false);
   const [showWeightSheet,    setShowWeightSheet]    = useState(false);
-  const [showWeightScreen,   setShowWeightScreen]   = useState(false);
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
   const [showMovementSheet,  setShowMovementSheet]  = useState(false);
   const [showPasosSheet,     setShowPasosSheet]     = useState(false);
-  const [showSuenoScreen,    setShowSuenoScreen]    = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
-  const [showLesionesScreen, setShowLesionesScreen] = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
   const [showAddMeal,        setShowAddMeal]        = useState(false);
   const [showAlimentacionSheet, setShowAlimentacionSheet] = useState(false);
@@ -303,14 +222,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     : phaseCompletedSessions >= phaseInjury.phaseTargetSessions ? 'Fase completada.'
     : `Te quedan ${phaseInjury.phaseTargetSessions - phaseCompletedSessions} sesion${phaseInjury.phaseTargetSessions - phaseCompletedSessions === 1 ? '' : 'es'} para completar la fase${painQualifier}.`;
 
-  // ── Row values ───────────────────────────────────────────────────────────
-  const sleepValue = todaySleep
-    ? [
-        fmtSleep(todaySleep.durationH),
-        `puntuación ${sleepScore(todaySleep)}/100`,
-      ].filter(Boolean).join(' · ')
-    : null;
-
   const hasRecoveryData =
     todayMovement?.source === 'coros' &&
     (todayMovement.hrv != null || todayMovement.restingHeartRate != null || todayMovement.stressAvg != null);
@@ -320,15 +231,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const pendingCount =
     plannedActivityRows.filter(({ entry, matchedActivity }) => !(entry.type === 'rehab' ? hasRehab : !!matchedActivity)).length +
     taskRows.filter(({ entry }) => !entry.completed).length;
-  const weightValue = todayWeight ? `${todayWeight.weightKg.toFixed(1)} kg` : null;
-
-  const avgPainToday = dayLogs.length > 0
-    ? (dayLogs.reduce((s, l) => s + l.painLevel, 0) / dayLogs.length).toFixed(1)
-    : null;
-  const dolorRehabDone  = dayLogs.length > 0 || hasRehab;
-  const dolorRehabValue = dolorRehabDone
-    ? `${avgPainToday ?? '--'}/10 · ${hasRehab ? '✓' : '✗'}`
-    : null;
 
   // MOCK – sustituir por Apple Health
   const movementSteps = todayMovement?.steps ?? 0;
@@ -390,48 +292,15 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         </div>
 
         {/* ── Estado de hoy ─────────────────────────────────── */}
-        <DayScoreCard selectedDate={selectedDate} onNavToProgreso={onNavToProgreso} />
-
-        {/* ── Registros del día ─────────────────────────────── */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Registros de hoy
-          </p>
-          <div className="rounded-4xl bg-white shadow-card px-5 py-1 divide-y divide-ink/5">
-            <DailyRow
-              icon={Moon}
-              label="Sueño"
-              value={sleepValue}
-              done={!!todaySleep}
-              doneColor="text-sand"
-              doneBg="bg-[#a07848]"
-              onAdd={() => setShowSleepSheet(true)}
-              onDetail={() => setShowSuenoScreen(true)}
-            />
-            <DailyRow
-              icon={Scale}
-              label="Peso"
-              value={weightValue}
-              done={!!todayWeight}
-              doneColor="text-ember"
-              doneBg="bg-ember"
-              onAdd={() => setShowWeightSheet(true)}
-              onDetail={() => setShowWeightScreen(true)}
-            />
-            {activeInjuries.length > 0 && (
-              <DailyRow
-                icon={Zap}
-                label="Lesión"
-                value={dolorRehabValue}
-                done={dolorRehabDone}
-                doneColor="text-red-400"
-                doneBg="bg-red-400"
-                onAdd={() => setShowDolorSheet(true)}
-                onDetail={() => setShowLesionesScreen(true)}
-              />
-            )}
-          </div>
-        </div>
+        <DayScoreCard
+          selectedDate={selectedDate}
+          onNavToProgreso={onNavToProgreso}
+          hasActiveInjuries={activeInjuries.length > 0}
+          todayWeightKg={todayWeight?.weightKg ?? null}
+          onAddSleep={() => setShowSleepSheet(true)}
+          onAddWeight={() => setShowWeightSheet(true)}
+          onAddPain={() => setShowDolorSheet(true)}
+        />
 
         {/* ── Movimiento de hoy ─────────────────────────────── */}
         <div className="space-y-2">
@@ -499,7 +368,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-baseline gap-1">
-                    <Equal size={13} className="text-ink/40 flex-shrink-0 self-center" />
+                    <Scale size={13} className="text-ink/40 flex-shrink-0 self-center" />
                     <span className={`text-lg font-bold ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
                       {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance}
                     </span>
@@ -869,9 +738,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
           if (uid) NutritionService.fetchDailySummary(uid, selectedDate).catch(() => {});
         }}
       />
-      {showWeightScreen   && <WeightScreen    onClose={() => setShowWeightScreen(false)} />}
-      {showSuenoScreen    && <SuenoScreen     onClose={() => setShowSuenoScreen(false)} />}
-      {showLesionesScreen && <LesionesScreen  onClose={() => setShowLesionesScreen(false)} />}
     </>
   );
 }

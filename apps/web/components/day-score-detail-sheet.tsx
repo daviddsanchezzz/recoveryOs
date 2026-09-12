@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Portal } from './portal';
 import { sleepScoreLabel } from '../lib/sleep';
 import type { DayScoreResponse } from './day-score-card';
@@ -12,16 +12,53 @@ function fmtSleepH(h: number): string {
   return mm === 0 ? `${hh}h` : `${hh}h ${mm}min`;
 }
 
+function StatRow({
+  label,
+  value,
+  onAdd,
+}: {
+  label: string;
+  value: string;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3">
+      <span className="text-sm text-ink/50">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-ink">{value}</span>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="h-6 w-6 rounded-full bg-canvas flex items-center justify-center flex-shrink-0"
+          aria-label={`Añadir ${label.toLowerCase()}`}
+        >
+          <Plus size={11} className="text-ink/50" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function DayScoreDetailSheet({
   isOpen,
   onClose,
   data,
   onNavToProgreso,
+  hasActiveInjuries,
+  todayWeightKg,
+  onAddSleep,
+  onAddWeight,
+  onAddPain,
 }: {
   isOpen: boolean;
   onClose: () => void;
   data: DayScoreResponse;
   onNavToProgreso?: () => void;
+  hasActiveInjuries: boolean;
+  todayWeightKg: number | null;
+  onAddSleep: () => void;
+  onAddWeight: () => void;
+  onAddPain: () => void;
 }) {
   if (!isOpen || data.score == null) return null;
   const { sleep, hrv, pain } = data.components;
@@ -50,14 +87,13 @@ export function DayScoreDetailSheet({
             {data.explanation && <p className="text-sm text-ink/60 leading-relaxed">{data.explanation}</p>}
 
             <div className="rounded-3xl bg-white shadow-card px-4 divide-y divide-ink/5">
-              <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-ink/50">Sueño anoche</span>
-                <span className="text-sm font-semibold text-ink">
-                  {sleep.durationH != null
-                    ? `${fmtSleepH(sleep.durationH)} · ${sleepScoreLabel(sleep.score ?? 0).toLowerCase()}`
-                    : 'Sin datos'}
-                </span>
-              </div>
+              <StatRow
+                label="Sueño anoche"
+                value={sleep.durationH != null
+                  ? `${fmtSleepH(sleep.durationH)} · ${sleepScoreLabel(sleep.score ?? 0).toLowerCase()}`
+                  : 'Sin datos'}
+                onAdd={onAddSleep}
+              />
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-ink/50">HRV</span>
                 <span className="text-sm font-semibold text-ink">
@@ -66,12 +102,18 @@ export function DayScoreDetailSheet({
                     : 'Sin datos'}
                 </span>
               </div>
-              <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-ink/50">Dolor</span>
-                <span className="text-sm font-semibold text-ink">
-                  {pain.avgPainLevel != null ? `${pain.avgPainLevel}/10` : 'Sin lesiones activas'}
-                </span>
-              </div>
+              {hasActiveInjuries && (
+                <StatRow
+                  label="Dolor"
+                  value={pain.avgPainLevel != null ? `${pain.avgPainLevel}/10` : 'Sin registrar hoy'}
+                  onAdd={onAddPain}
+                />
+              )}
+              <StatRow
+                label="Peso"
+                value={todayWeightKg != null ? `${todayWeightKg.toFixed(1)} kg` : 'Sin registrar'}
+                onAdd={onAddWeight}
+              />
               <div className="py-3 space-y-1">
                 <span className="text-sm text-ink/50">Cómo se calcula</span>
                 <p className="text-xs text-ink/40">
