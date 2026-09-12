@@ -38,6 +38,8 @@ const MUSCLE_LABELS: Record<string, string> = {
   hombro: 'Hombro', core: 'Core', pierna: 'Pierna', gluteo: 'Glúteo',
 };
 
+
+
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
