@@ -138,12 +138,6 @@ export function DayScoreCard({
             )}
           </div>
 
-          {data.tip && (
-            <div className="rounded-2xl bg-moss-light px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-moss/70">Hoy</p>
-              <p className="text-sm text-ink/80 mt-0.5">{data.tip}</p>
-            </div>
-          )}
         </button>
       </div>
       <DayScoreDetailSheet

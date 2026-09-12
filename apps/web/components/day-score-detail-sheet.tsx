@@ -1,6 +1,7 @@
 'use client';
 
-import { Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { Info, Plus, X } from 'lucide-react';
 import { Portal } from './portal';
 import { sleepScoreLabel } from '../lib/sleep';
 import type { DayScoreResponse } from './day-score-card';
@@ -60,8 +61,10 @@ export function DayScoreDetailSheet({
   onAddWeight: () => void;
   onAddPain: () => void;
 }) {
+  const [showHrvInfo, setShowHrvInfo] = useState(false);
+
   if (!isOpen || data.score == null) return null;
-  const { sleep, hrv, pain } = data.components;
+  const { sleep, hrv, pain, load } = data.components;
 
   return (
     <Portal>
@@ -94,13 +97,32 @@ export function DayScoreDetailSheet({
                   : 'Sin datos'}
                 onAdd={onAddSleep}
               />
-              <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-ink/50">HRV</span>
-                <span className="text-sm font-semibold text-ink">
-                  {hrv.valueMs != null
-                    ? `${hrv.valueMs} ms${hrv.deltaPct != null ? ` · ${hrv.deltaPct > 0 ? '↑' : '↓'}${Math.abs(hrv.deltaPct)}%` : ''}`
-                    : 'Sin datos'}
-                </span>
+              <div className="py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-ink/50">HRV</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowHrvInfo((visible) => !visible)}
+                      className="h-5 w-5 rounded-full bg-canvas flex items-center justify-center"
+                      aria-label="Qué es el HRV"
+                      aria-expanded={showHrvInfo}
+                      aria-controls="hrv-explanation"
+                    >
+                      <Info size={11} className="text-ink/50" />
+                    </button>
+                  </div>
+                  <span className="text-sm font-semibold text-ink">
+                    {hrv.valueMs != null
+                      ? `${hrv.valueMs} ms${hrv.deltaPct != null ? ` · ${hrv.deltaPct > 0 ? '↑' : '↓'}${Math.abs(hrv.deltaPct)}%` : ''}`
+                      : 'Sin datos'}
+                  </span>
+                </div>
+                {showHrvInfo && (
+                  <p id="hrv-explanation" className="mt-2 text-xs leading-relaxed text-ink/50">
+                    El HRV es la variación del tiempo entre latidos, medida en milisegundos. Comparado con tu media habitual, ayuda a estimar cómo de recuperado está tu cuerpo: un valor más bajo puede indicar fatiga o estrés.
+                  </p>
+                )}
               </div>
               {hasActiveInjuries && (
                 <StatRow
@@ -114,6 +136,14 @@ export function DayScoreDetailSheet({
                 value={todayWeightKg != null ? `${todayWeightKg.toFixed(1)} kg` : 'Sin registrar'}
                 onAdd={onAddWeight}
               />
+              <div className="flex items-center justify-between gap-4 py-3">
+                <span className="text-sm text-ink/50">Carga usada</span>
+                <span className="text-right text-sm font-semibold text-ink">
+                  {load.score != null
+                    ? `${load.score}/100${load.ratio != null ? ` · ratio ${load.ratio.toFixed(2).replace('.', ',')}` : ''}`
+                    : 'Sin datos'}
+                </span>
+              </div>
               <div className="py-3 space-y-1">
                 <span className="text-sm text-ink/50">Cómo se calcula</span>
                 <p className="text-xs text-ink/40">

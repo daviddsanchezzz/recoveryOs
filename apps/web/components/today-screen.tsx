@@ -5,7 +5,7 @@ import {
   Calendar as CalendarIcon,
   Scale,
   Sparkles, Check,
-  Footprints, Flame, TrendingDown, TrendingUp,
+  Footprints, Flame,
   UtensilsCrossed, HeartPulse, Heart, Gauge,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
@@ -103,18 +103,6 @@ function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsG
   const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const steps = 3500 + ((seed * 2654435761) >>> 0) % 7501;
   return { steps, kcal: Math.round(steps * 0.04), stepsGoal: 10000, kcalGoal: 500 };
-}
-
-function daysSince(isoDate?: string): number {
-  if (!isoDate) return 0;
-  return Math.max(0, Math.floor((Date.now() - new Date(isoDate + 'T12:00:00').getTime()) / 86400000));
-}
-
-function sinceLabel(days: number): string {
-  if (days < 7)   return `${days} día${days === 1 ? '' : 's'}`;
-  if (days < 30)  return `${Math.floor(days / 7)} semana${Math.floor(days / 7) === 1 ? '' : 's'}`;
-  if (days < 365) return `${Math.floor(days / 30)} mes${Math.floor(days / 30) === 1 ? '' : 'es'}`;
-  return `${Math.floor(days / 365)} año${Math.floor(days / 365) === 1 ? '' : 's'}`;
 }
 
 function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
@@ -590,68 +578,6 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 />
               ))}
             </div>
-          </div>
-        )}
-
-        {/* ── Active injury status ──────────────────────────── */}
-        {activeInjuries.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Lesiones activas
-            </p>
-            {activeInjuries.map((injury) => {
-              const logs = injuryLogs.filter((l) => l.injuryId === injury.id);
-              const { avgPain, painDiff, trend } = computePainTrend(logs);
-              const painColor =
-                avgPain === null ? 'text-ink/30'
-                : avgPain <= 3  ? 'text-moss'
-                : avgPain <= 6  ? 'text-ember'
-                : 'text-red-500';
-
-              const ageDays = daysSince(injury.startDate);
-
-              return (
-                <div key={injury.id} className="rounded-3xl bg-white shadow-card p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-ink">{injury.name}</p>
-                      {injury.bodyPart && <p className="text-xs text-ink/40 capitalize mt-0.5">{injury.bodyPart}</p>}
-                      <p className="text-[10px] text-ink/30 mt-1.5">Activa desde hace {sinceLabel(ageDays)}</p>
-                      {painDiff !== null ? (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {painDiff < 0
-                            ? <TrendingDown size={10} className="text-moss flex-shrink-0" />
-                            : <TrendingUp   size={10} className="text-ember flex-shrink-0" />
-                          }
-                          <p className={`text-[10px] font-medium ${painDiff < 0 ? 'text-moss' : 'text-ember'}`}>
-                            {painDiff < 0
-                              ? `↓ ${Math.abs(painDiff)} pts vs sem. pasada`
-                              : `↑ +${painDiff} pts vs sem. pasada`
-                            }
-                          </p>
-                        </div>
-                      ) : trend ? (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {trend === 'mejorando'
-                            ? <TrendingDown size={10} className="text-moss flex-shrink-0" />
-                            : <TrendingUp   size={10} className="text-ember flex-shrink-0" />
-                          }
-                          <p className={`text-[10px] font-medium ${trend === 'mejorando' ? 'text-moss' : 'text-ember'}`}>
-                            {trend === 'mejorando' ? '↓ Mejorando esta semana' : '↑ Empeorando'}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className={`text-2xl font-bold leading-none ${painColor}`}>
-                        {avgPain ?? '--'}<span className="text-xs font-normal text-ink/30">/10</span>
-                      </p>
-                      <p className="text-[10px] text-ink/30 mt-0.5">dolor medio</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
 
