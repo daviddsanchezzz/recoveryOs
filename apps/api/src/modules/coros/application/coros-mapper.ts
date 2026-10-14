@@ -1,5 +1,5 @@
 /**
- * All four COROS MCP tools (`queryDailyHealthData`, `querySleepData`, `querySleepHrv`,
+ * All four COROS MCP tools (`queryDailyHealthData`, `querySleepOverview`, `querySleepHrv`,
  * `queryRestingHeartRate`) ignore the `date`/`startDate`/`endDate` argument passed to them
  * and always return a multi-day window (observed as the last 7 days) with one section per
  * day, confirmed against real fixtures captured from the live server (see
@@ -46,19 +46,25 @@ export function parseDailyHealthData(text: string, targetDate: string): ParsedDa
   };
 }
 
-// Day sections are a bare "YYYY-MM-DD" line, e.g. "2026-08-30", followed by fields including "Main Sleep: Xh Ymin".
+// querySleepOverview: each day is a bare "YYYY-MM-DD" line (dated by wake-up day) followed by e.g.
+// "Sleep Score: 90", "Daily Sleep: 9h 18min (incl. naps)", "Main Sleep (asleep): 8h 37min".
+// A day may only have "Daily Sleep" (no main sleep yet), which is used as a fallback.
+function parseDurationHours(value: string | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/(?:(\d+)\s*h(?:ours?)?)?\s*(?:(\d+)\s*m(?:in)?)?/i);
+  if (!match || (match[1] == null && match[2] == null)) return null;
+  const hours = match[1] ? Number(match[1]) : 0;
+  const minutes = match[2] ? Number(match[2]) : 0;
+  return Math.round((hours + minutes / 60) * 100) / 100;
+}
+
 export function parseSleepData(text: string, targetDate: string): ParsedSleep {
   const section =
     text.match(new RegExp(`(?:^|\\n)${targetDate}\\n([\\s\\S]*?)(?=\\n\\d{4}-\\d{2}-\\d{2}\\n|$)`))?.[1] ?? '';
-  const duration = section.match(/Main Sleep:\s*(\d+)\s*h(?:ours?)?\s*(\d+)?\s*m(?:in)?/i);
-  let durationH: number | null = null;
-  if (duration) {
-    const hours = Number(duration[1]);
-    const minutes = duration[2] ? Number(duration[2]) : 0;
-    durationH = Math.round((hours + minutes / 60) * 100) / 100;
-  }
+  const main = section.match(/^Main Sleep(?:\s*\(asleep\))?:\s*(.+)$/im)?.[1];
+  const daily = section.match(/^Daily Sleep:\s*(.+)$/im)?.[1];
   return {
-    durationH,
+    durationH: parseDurationHours(main) ?? parseDurationHours(daily),
     score: parseIntLoose(section.match(/Sleep Score:\s*(\d+)/i)?.[1]),
   };
 }

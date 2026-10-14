@@ -30,25 +30,31 @@ describe('parseDailyHealthData (verified against real fixture: queryDailyHealthD
   });
 });
 
-describe('parseSleepData (verified against real fixture: querySleepData)', () => {
+describe('parseSleepData (verified against real response: querySleepOverview)', () => {
   const text = [
-    '2026-08-30',
-    'Sleep Score: 84',
-    'Main Sleep: 6h 36min',
-    'Deep Sleep Ratio: 31%',
+    'Sleep Overview',
+    '==============',
+    'Note: each record below is dated by its wake-up day.',
     '',
-    '2026-08-31',
-    'Sleep Score: 83',
-    'Main Sleep: 10h 36min',
+    '2026-10-08',
+    'Sleep Score: 90',
+    'Daily Sleep: 9h 18min (incl. naps)',
+    'Main Sleep (asleep): 8h 37min',
+    'Main Sleep Period (incl. awake): 8h 45min',
     'Deep Sleep Ratio: 22%',
+    'Naps Total (asleep): 41 min',
+    '',
+    '2026-10-09',
+    'Sleep Score: 83',
+    'Daily Sleep: 8h 40min (incl. naps)',
   ].join('\n');
 
-  it('extracts the requested day, not the first day in the blob, using "Main Sleep:" not "Duration:"', () => {
-    expect(parseSleepData(text, '2026-08-31')).toEqual({ durationH: 10.6, score: 83 });
+  it('uses "Main Sleep (asleep)" rather than daily sleep including naps', () => {
+    expect(parseSleepData(text, '2026-10-08')).toEqual({ durationH: 8.62, score: 90 });
   });
 
-  it('extracts a different day correctly when it is the earlier section', () => {
-    expect(parseSleepData(text, '2026-08-30')).toEqual({ durationH: 6.6, score: 84 });
+  it('falls back to "Daily Sleep" when a day has no main sleep line', () => {
+    expect(parseSleepData(text, '2026-10-09')).toEqual({ durationH: 8.67, score: 83 });
   });
 
   it('returns nulls when the target date section is absent', () => {
