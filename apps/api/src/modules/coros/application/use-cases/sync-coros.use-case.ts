@@ -105,6 +105,7 @@ export class SyncCorosUseCase {
     let durationH: number | null = null;
     let score: number | null = null;
     let sleepDataOk = false;
+    let sleepSample = '';
 
     try {
       const result = await this.mcpClient.callTool(userId, 'querySleepOverview', { date: dateStr });
@@ -114,6 +115,7 @@ export class SyncCorosUseCase {
         durationH = parsed.durationH;
         score = parsed.score;
         sleepDataOk = true;
+        sleepSample = result.text.slice(0, 600);
       } else if (result.text && !result.text.includes(dateStr)) {
         // querySleepOverview replaced querySleepData and its format is unverified:
         // surface a sample so the parser can be aligned with the real response.
@@ -163,7 +165,7 @@ export class SyncCorosUseCase {
       await this.sleepRepo.upsertBySource({ userId, date, durationH, score, source: 'coros' });
       synced.push('sleep');
     } else if (sleepDataOk) {
-      errors.push('sleepData: response did not contain a parseable duration');
+      errors.push(`sleepData: response did not contain a parseable duration; response starts: ${JSON.stringify(sleepSample)}`);
     }
   }
 }
