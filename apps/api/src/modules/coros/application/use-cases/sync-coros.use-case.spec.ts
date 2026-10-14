@@ -31,7 +31,7 @@ function makeDeps() {
 // parse.
 const OK_RESPONSES: Record<string, string> = {
   queryDailyHealthData: '--- 20260829 ---\nSteps: 11,358 | Calories: 472 kcal | Exercise: 5 min\nStress: Avg 29',
-  querySleepData: '2026-08-29\nSleep Score: 82\nMain Sleep: 7h 12min',
+  querySleepOverview: '2026-08-29\nSleep Score: 82\nMain Sleep: 7h 12min',
   querySleepHrv: 'HRV Assessment — Last 7 days\n========================\n\n2026-08-29:\n  HRV Avg: 45 ms — Balanced',
   queryRestingHeartRate: '2026-08-29: 52 bpm',
 };

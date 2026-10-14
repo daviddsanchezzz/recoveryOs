@@ -107,13 +107,17 @@ export class SyncCorosUseCase {
     let sleepDataOk = false;
 
     try {
-      const result = await this.mcpClient.callTool(userId, 'querySleepData', { date: dateStr });
-      if (result.isError) throw new Error(result.text || 'querySleepData returned an error');
+      const result = await this.mcpClient.callTool(userId, 'querySleepOverview', { date: dateStr });
+      if (result.isError) throw new Error(result.text || 'querySleepOverview returned an error');
       if (new RegExp(`(?:^|\\n)${dateStr}\\n`).test(result.text)) {
         const parsed = parseSleepData(result.text, dateStr);
         durationH = parsed.durationH;
         score = parsed.score;
         sleepDataOk = true;
+      } else if (result.text && !result.text.includes(dateStr)) {
+        // querySleepOverview replaced querySleepData and its format is unverified:
+        // surface a sample so the parser can be aligned with the real response.
+        errors.push(`sleepData: no ${dateStr} section found; response starts: ${JSON.stringify(result.text.slice(0, 300))}`);
       }
     } catch (error) {
       if (error instanceof UnauthorizedError) throw error;
