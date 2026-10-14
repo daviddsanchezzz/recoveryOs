@@ -152,6 +152,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
   const [showMovementSheet,  setShowMovementSheet]  = useState(false);
   const [showPasosSheet,     setShowPasosSheet]     = useState(false);
+  const [showKcalSheet,      setShowKcalSheet]      = useState(false);
   const [showDolorSheet,     setShowDolorSheet]     = useState(false);
   const [showAddActivity,    setShowAddActivity]    = useState(false);
   const [showAddMeal,        setShowAddMeal]        = useState(false);
@@ -313,8 +314,8 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 <span className="text-[10px] text-ink/30">{stepsPct}%</span>
               </div>
             </button>
-            {/* Calorías */}
-            <div className="space-y-1.5">
+            {/* Calorías — tap abre historial */}
+            <button type="button" onClick={() => setShowKcalSheet(true)} className="space-y-1.5 text-left">
               <div className="flex items-baseline gap-1">
                 <Flame size={13} className="text-ember flex-shrink-0 self-center" />
                 <span className="text-lg font-bold text-ink">{movementActiveCalories}</span>
@@ -327,7 +328,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 <span className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL}</span>
                 <span className="text-[10px] text-ink/30">{activeCaloriesPct}%</span>
               </div>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -637,6 +638,15 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         isOpen={showPasosSheet}
         onClose={() => setShowPasosSheet(false)}
         onEdit={() => { setShowPasosSheet(false); setShowMovementSheet(true); }}
+        healthMetrics={dailyHealthMetrics}
+        selectedDate={selectedDate}
+        onNavToProgreso={onNavToProgreso}
+      />
+      <PasosDetailSheet
+        metric="activeCalories"
+        isOpen={showKcalSheet}
+        onClose={() => setShowKcalSheet(false)}
+        onEdit={() => { setShowKcalSheet(false); setShowMovementSheet(true); }}
         healthMetrics={dailyHealthMetrics}
         selectedDate={selectedDate}
         onNavToProgreso={onNavToProgreso}

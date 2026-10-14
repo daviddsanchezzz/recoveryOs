@@ -3,11 +3,17 @@
 import { Pencil, X } from 'lucide-react';
 import { Portal } from './portal';
 import { ProgressChart } from './progress-chart';
-import { pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
+import { ACTIVE_CALORIES_GOAL, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import { addDays, dayInitial, formatShortDate } from '../lib/date';
 import type { DailyHealthMetricEntry } from '../stores/recovery-store';
 
+const METRICS = {
+  steps: { title: 'Pasos', unit: 'pasos', goal: STEPS_GOAL, color: '#54715a' },
+  activeCalories: { title: 'Kcal activas', unit: 'kcal', goal: ACTIVE_CALORIES_GOAL, color: '#b56b45' },
+} as const;
+
 export function PasosDetailSheet({
+  metric = 'steps',
   isOpen,
   onClose,
   onEdit,
@@ -15,6 +21,7 @@ export function PasosDetailSheet({
   selectedDate,
   onNavToProgreso,
 }: {
+  metric?: keyof typeof METRICS;
   isOpen: boolean;
   onClose: () => void;
   onEdit: () => void;
@@ -24,13 +31,15 @@ export function PasosDetailSheet({
 }) {
   if (!isOpen) return null;
 
+  const { title, unit, goal, color } = METRICS[metric];
+
   const last7Dates = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i - 6));
   const chartData = last7Dates.map((date) => {
     const entry = pickBySourcePrecedence(healthMetrics, date);
-    return { label: dayInitial(date), rangeLabel: formatShortDate(date), value: entry?.steps ?? 0, weekStart: date };
+    return { label: dayInitial(date), rangeLabel: formatShortDate(date), value: (metric === 'steps' ? entry?.steps : entry?.activeCalories) ?? 0, weekStart: date };
   });
 
-  const todaySteps = chartData[chartData.length - 1]?.value ?? 0;
+  const todayValue = chartData[chartData.length - 1]?.value ?? 0;
   const validDays = chartData.filter((p) => p.value > 0);
   const avg7d = validDays.length > 0
     ? Math.round(validDays.reduce((s, p) => s + (p.value as number), 0) / validDays.length)
@@ -48,9 +57,9 @@ export function PasosDetailSheet({
           <div className="px-5 pt-2 pb-5 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Pasos</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">{title}</p>
                 <p className="text-xl font-bold text-ink mt-0.5">
-                  {todaySteps.toLocaleString('es-ES')} de {STEPS_GOAL.toLocaleString('es-ES')}
+                  {todayValue.toLocaleString('es-ES')} de {goal.toLocaleString('es-ES')}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -69,9 +78,9 @@ export function PasosDetailSheet({
               <ProgressChart
                 data={chartData}
                 type="bar"
-                color="#54715a"
+                color={color}
                 averageValue={avg7d}
-                formatValue={(v) => `${v.toLocaleString('es-ES')} pasos`}
+                formatValue={(v) => `${v.toLocaleString('es-ES')} ${unit}`}
                 xAxisInterval={0}
               />
             </div>
@@ -83,7 +92,7 @@ export function PasosDetailSheet({
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-ink/50">Objetivo diario</span>
-                <span className="text-sm font-semibold text-ink">{STEPS_GOAL.toLocaleString('es-ES')}</span>
+                <span className="text-sm font-semibold text-ink">{goal.toLocaleString('es-ES')}</span>
               </div>
             </div>
 
