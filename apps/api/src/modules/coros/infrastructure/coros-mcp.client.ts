@@ -112,10 +112,22 @@ export class CorosMcpClient {
 
     await client.connect(transport);
     try {
-      const result = await client.callTool({ name, arguments: args });
-      const first = Array.isArray(result.content) ? result.content[0] : undefined;
-      const rawText = first && (first as { type?: string }).type === 'text' ? (first as { text: string }).text : '';
-      return { text: normalizeCorosToolText(rawText), isError: Boolean(result.isError) };
+      try {
+        const result = await client.callTool({ name, arguments: args });
+        const first = Array.isArray(result.content) ? result.content[0] : undefined;
+        const rawText = first && (first as { type?: string }).type === 'text' ? (first as { text: string }).text : '';
+        return { text: normalizeCorosToolText(rawText), isError: Boolean(result.isError) };
+      } catch (error) {
+        if (!/unknown tool/i.test((error as Error).message)) throw error;
+        // COROS may have renamed/removed the tool: surface what it offers now.
+        let available = 'unavailable';
+        try {
+          available = (await client.listTools()).tools.map((t) => t.name).join(', ');
+        } catch {
+          /* keep original error */
+        }
+        throw new Error(`${(error as Error).message} (requested "${name}"; available tools: ${available})`);
+      }
     } finally {
       await client.close();
     }

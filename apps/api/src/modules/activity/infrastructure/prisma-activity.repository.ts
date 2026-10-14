@@ -133,6 +133,15 @@ export class PrismaActivityRepository implements ActivityRepositoryPort {
     return row ? toEntity(row) : null;
   }
 
+  async findLatestCreatedAtBySource(userId: string, source: string): Promise<Date | null> {
+    const row = await this.prisma.activity.findFirst({
+      where: { userId, source },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    return row?.createdAt ?? null;
+  }
+
   async setIsRace(id: string, userId: string, isRace: boolean): Promise<boolean> {
     const { count } = await this.prisma.activity.updateMany({ where: { id, userId }, data: { isRace } });
     return count > 0;
