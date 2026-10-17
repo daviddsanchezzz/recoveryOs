@@ -36,7 +36,7 @@ import {
 } from '../lib/progress-metrics';
 import { ProgressWeeklySummary } from './progress-weekly-summary';
 import { ProgressChart }         from './progress-chart';
-import { ProgressCalendar }      from './progress-calendar';
+import { ProgressCalendarViews } from './progress-calendar-views';
 import { ProgressStreaks }        from './progress-streaks';
 import { ProgressTrends }        from './progress-trends';
 import { ProgressDaySummary }    from './progress-day-summary';
@@ -364,6 +364,24 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
     [progressActivities, weightEntries, injuryLogs, checkIns, sleepEntries, dailyHealthMetrics],
   );
 
+  // Full history for the calendar views (Año / Historial reach beyond the 12-week window)
+  const calendarData = useMemo(
+    () => ({ ...storeData, activities: allTimeActivities ?? storeData.activities }),
+    [storeData, allTimeActivities],
+  );
+
+  const firstYear = useMemo(() => {
+    const dates = [
+      ...calendarData.activities.map((a) => a.date),
+      ...weightEntries.map((w) => w.date),
+      ...sleepEntries.map((e) => e.date),
+      ...injuryLogs.map((l) => l.date),
+      ...dailyHealthMetrics.map((h) => h.date),
+    ].filter(Boolean);
+    const min = dates.reduce((m, d) => (d < m ? d : m), todayIso());
+    return Number(min.slice(0, 4));
+  }, [calendarData, weightEntries, sleepEntries, injuryLogs, dailyHealthMetrics]);
+
   function handleTabChange(tab: AnyTab) {
     setActiveTab(tab);
     if (tab !== 'nutricion' && tab !== 'resumen') setChartMetric(DEFAULT_CHART_METRIC[tab]);
@@ -383,13 +401,13 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
   const movementSummary = useMemo(() => getMovementSummary(storeData), [storeData]);
 
   const getDots = useCallback(
-    (y: number, m: number) => getCalendarDots(progressTab, activityFilter, y, m, storeData),
-    [progressTab, activityFilter, storeData],
+    (y: number, m: number) => getCalendarDots(progressTab, activityFilter, y, m, calendarData),
+    [progressTab, activityFilter, calendarData],
   );
 
   const getResumenDots = useCallback(
-    (y: number, m: number) => getResumenCalendarDots(y, m, storeData),
-    [storeData],
+    (y: number, m: number) => getResumenCalendarDots(y, m, calendarData),
+    [calendarData],
   );
 
   const metricOptions      = CHART_METRIC_OPTIONS[progressTab];
@@ -452,11 +470,11 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
         <div className="px-4 space-y-5 pt-1">
           {/* Calendar + day summary */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
-            <ProgressCalendar
+            <ProgressCalendarViews
               getDots={getResumenDots}
               selectedDate={selectedDate}
               onSelect={setSelectedDate}
+              firstYear={firstYear}
             />
             <ProgressDaySummary date={selectedDate} data={storeData} />
           </div>
@@ -546,11 +564,11 @@ export function ProgressScreen({ onNavToActividades }: { onNavToActividades?: ()
 
           {/* 3 — Inline monthly calendar + day detail */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-ink/40 px-1">Este mes</p>
-            <ProgressCalendar
+            <ProgressCalendarViews
               getDots={getDots}
               selectedDate={selectedDate}
               onSelect={setSelectedDate}
+              firstYear={firstYear}
             />
             <CalendarDayDetail tab={progressTab} date={selectedDate} data={storeData} />
           </div>
