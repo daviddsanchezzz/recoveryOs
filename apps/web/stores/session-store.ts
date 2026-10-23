@@ -1,5 +1,6 @@
 'use client';
 
+import '../lib/storage-migration';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -24,7 +25,7 @@ export const useSessionStore = create<SessionState>()(
       clearUser: () => set({ user: null }),
     }),
     {
-      name: 'recoveryos-session',
+      name: 'pulso-session',
     },
   ),
 );

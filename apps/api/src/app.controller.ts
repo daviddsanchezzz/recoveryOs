@@ -6,7 +6,7 @@ export class AppController {
   health() {
     return {
       status: 'ok',
-      service: 'recoveryos-api',
+      service: 'pulso-api',
       date: new Date().toISOString(),
     };
   }

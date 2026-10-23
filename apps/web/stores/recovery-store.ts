@@ -1,5 +1,6 @@
 'use client';
 
+import '../lib/storage-migration';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { sameDay, todayIso } from '../lib/date';
@@ -391,7 +392,7 @@ export const useRecoveryStore = create<RecoveryState>()(
         set({ activities: [], weightEntries: [], checkIns: [], injuryLogs: [], injuries: [], sleepEntries: [], dailyHealthMetrics: [], activitiesMeta: INITIAL_ACTIVITIES_META }),
     }),
     {
-      name: 'recoveryos-v1-store',
+      name: 'pulso-v1-store',
       version: 4,
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

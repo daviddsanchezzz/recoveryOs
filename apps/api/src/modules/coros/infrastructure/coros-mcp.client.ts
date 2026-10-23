@@ -11,7 +11,7 @@ import { createCorosOAuthProvider } from './coros-oauth-provider';
 // RFC 8707 resource check rejects the mismatch if you connect to the
 // non-regional URL, so this must point at the regional one directly.
 const MCP_URL = process.env.COROS_MCP_URL ?? 'https://mcpeu.coros.com/mcp';
-const CLIENT_INFO = { name: 'recoveryos', version: '1.0.0' } as const;
+const CLIENT_INFO = { name: 'pulso', version: '1.0.0' } as const;
 
 export interface CorosToolResult {
   text: string;

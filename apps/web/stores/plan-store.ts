@@ -1,5 +1,6 @@
 'use client';
 
+import '../lib/storage-migration';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ActivityType, MuscleGroup } from './recovery-store';
@@ -162,7 +163,7 @@ export const usePlanStore = create<PlanState>()(
         })),
     }),
     {
-      name: 'recoveryos-plan-v1',
+      name: 'pulso-plan-v1',
       partialize: (state) => ({ weekPlan: state.weekPlan, template: state.template, structuredGoals: state.structuredGoals }),
     },
   ),

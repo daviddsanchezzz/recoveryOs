@@ -1,5 +1,6 @@
 'use client';
 
+import '../lib/storage-migration';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -24,6 +25,6 @@ export const useChatStore = create<ChatState>()(
         })),
       resetMessages: () => set({ messages: [] }),
     }),
-    { name: 'recoveryos-chat-v2' },
+    { name: 'pulso-chat-v2' },
   ),
 );

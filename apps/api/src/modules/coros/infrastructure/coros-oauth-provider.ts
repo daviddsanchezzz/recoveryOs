@@ -28,7 +28,7 @@ export function createCorosOAuthProvider(opts: CorosOAuthProviderOptions): OAuth
     get clientMetadata(): OAuthClientMetadata {
       return {
         redirect_uris: [redirectUri],
-        client_name: 'RecoveryOS',
+        client_name: 'Pulso',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none',

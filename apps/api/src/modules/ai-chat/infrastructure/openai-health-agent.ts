@@ -77,7 +77,7 @@ export class OpenAiHealthAgent implements HealthAgentPort {
       text: {
         format: {
           type: 'json_schema',
-          name: 'recoveryos_health_agent',
+          name: 'pulso_health_agent',
           strict: true,
           schema,
         },
