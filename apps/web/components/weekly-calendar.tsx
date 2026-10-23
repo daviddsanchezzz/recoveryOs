@@ -24,7 +24,7 @@ export function WeeklyCalendar({
   injuryLogs: InjuryLog[];
   healthMetrics?: DailyHealthMetricEntry[];
 }) {
-  const dates = weekDates();
+  const dates = weekDates(selectedDate);
 
   return (
     <div className="grid grid-cols-7 gap-1">

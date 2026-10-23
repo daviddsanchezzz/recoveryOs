@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
+  ChevronLeft, ChevronRight,
   Scale,
   Sparkles, Check,
   Footprints, Flame,
@@ -27,7 +28,7 @@ import { useSessionStore }  from '../stores/session-store';
 import { RecoveryService, NutritionService } from '../lib/services';
 import { PlanService } from '../lib/plan-service';
 import { buildRuleBasedInsight } from '../lib/metrics';
-import { formatShortDate, sameDay, todayIso } from '../lib/date';
+import { addDays, formatShortDate, sameDay, todayIso } from '../lib/date';
 import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import { calculateBmr } from '../lib/bmr';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
@@ -254,14 +255,32 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-bold text-ink uppercase tracking-wide">{monthLabel}</p>
-            <button
-              type="button"
-              onClick={() => setShowMonthly(true)}
-              className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
-              aria-label="Ver calendario mensual"
-            >
-              <CalendarIcon size={15} className="text-ink/50" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedDate(addDays(selectedDate, -7))}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
+                aria-label="Semana anterior"
+              >
+                <ChevronLeft size={16} className="text-ink/50" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
+                aria-label="Semana siguiente"
+              >
+                <ChevronRight size={16} className="text-ink/50" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMonthly(true)}
+                className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
+                aria-label="Ver calendario mensual"
+              >
+                <CalendarIcon size={15} className="text-ink/50" />
+              </button>
+            </div>
           </div>
           <WeeklyCalendar
             selectedDate={selectedDate}
