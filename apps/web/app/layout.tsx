@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import { QueryProvider } from '../components/query-provider';
 
 export const metadata: Metadata = {
-  title: 'RecoveryOS',
+  title: 'Pulso',
   description: 'Life OS personal para recuperacion, nutricion y rendimiento',
 };
 

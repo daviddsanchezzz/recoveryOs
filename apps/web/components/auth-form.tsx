@@ -64,7 +64,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <span className="text-white font-bold text-2xl">R</span>
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-ink">RecoveryOS</h1>
+          <h1 className="text-2xl font-bold text-ink">Pulso</h1>
           <p className="text-sm text-ink/40 mt-1">Track. Recover. Improve.</p>
         </div>
       </div>

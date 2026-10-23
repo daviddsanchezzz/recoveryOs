@@ -72,8 +72,8 @@ export class OpenAiHealthAgent implements HealthAgentPort {
       store: false,
       max_output_tokens: 900,
       instructions:
-        'Eres el agente personal de salud y rendimiento de RecoveryOS. Responde siempre en español y usa solo los datos verificados recibidos. Puedes aconsejar o interpretar solicitudes para registrar peso, dolor/rehab, comida o actividad. Si faltan datos para guardar, pide aclaración: nunca inventes. Cita cifras al aconsejar, separa hechos de inferencias y sé prudente. No diagnostiques; ante síntomas preocupantes recomienda parar y consultar a un profesional.',
-      input: `Fecha seleccionada: ${input.date}\nMensaje: ${input.message}\n\nDatos verificados de RecoveryOS:\n${JSON.stringify(input.context)}`,
+        'Eres el agente personal de salud y rendimiento de Pulso. Responde siempre en español y usa solo los datos verificados recibidos. Puedes aconsejar o interpretar solicitudes para registrar peso, dolor/rehab, comida o actividad. Si faltan datos para guardar, pide aclaración: nunca inventes. Cita cifras al aconsejar, separa hechos de inferencias y sé prudente. No diagnostiques; ante síntomas preocupantes recomienda parar y consultar a un profesional.',
+      input: `Fecha seleccionada: ${input.date}\nMensaje: ${input.message}\n\nDatos verificados de Pulso:\n${JSON.stringify(input.context)}`,
       text: {
         format: {
           type: 'json_schema',

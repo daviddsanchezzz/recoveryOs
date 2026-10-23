@@ -1,5 +1,5 @@
 self.addEventListener('push', (event) => {
-  let data = { title: 'RecoveryOS', body: '' };
+  let data = { title: 'Pulso', body: '' };
   try { data = event.data?.json() ?? data; } catch {}
 
   event.waitUntil(

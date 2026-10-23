@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Mantener `RecoveryOS` como un monorepo y desplegar:
+Mantener `Pulso` como un monorepo y desplegar:
 
 - `apps/web` en Vercel
 - `apps/api` en Railway

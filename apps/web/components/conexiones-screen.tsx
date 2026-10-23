@@ -27,7 +27,7 @@ export function ConexionesScreen({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="px-5 pb-5 text-sm text-ink/40 leading-relaxed">
-          Enlaza tus apps de entrenamiento para traer actividad, sueño y recuperación a RecoveryOS automáticamente.
+          Enlaza tus apps de entrenamiento para traer actividad, sueño y recuperación a Pulso automáticamente.
         </p>
 
         <div className="flex-1 overflow-y-auto px-4 pb-10 space-y-3">

@@ -1,4 +1,4 @@
-# RecoveryOS Architecture
+# Pulso Architecture
 
 ## Objetivo
 

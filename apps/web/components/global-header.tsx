@@ -71,7 +71,7 @@ export function GlobalHeader() {
 
           {/* Center: wordmark */}
           <p className="absolute left-1/2 -translate-x-1/2 text-sm font-bold text-ink tracking-tight pointer-events-none select-none">
-            RecoveryOS
+            Pulso
           </p>
         </div>
       </header>

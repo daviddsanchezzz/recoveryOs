@@ -1,4 +1,4 @@
-# RecoveryOS
+# Pulso
 
 Monorepo inicial para una aplicacion personal centrada en salud, recuperacion deportiva, nutricion y seguimiento de habitos.
 

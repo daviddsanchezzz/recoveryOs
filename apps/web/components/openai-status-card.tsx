@@ -27,7 +27,7 @@ export function OpenAiStatusCard() {
         className={`h-9 w-9 object-contain flex-shrink-0 ${status?.configured ? '' : 'opacity-35'}`}
       />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-ink leading-snug">Agente RecoveryOS</p>
+        <p className="text-sm font-semibold text-ink leading-snug">Agente Pulso</p>
         <p className="text-[11px] text-ink/40 mt-0.5">
           {!status
             ? 'Comprobando configuración…'

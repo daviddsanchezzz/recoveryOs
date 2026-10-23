@@ -85,7 +85,7 @@ export function AppShell() {
             <div className="mx-auto h-14 w-14 rounded-3xl bg-ink flex items-center justify-center">
               <span className="text-white font-bold text-xl">R</span>
             </div>
-            <h1 className="text-2xl font-bold text-ink">RecoveryOS</h1>
+            <h1 className="text-2xl font-bold text-ink">Pulso</h1>
             <p className="text-sm text-ink/60">Track. Recover. Improve.</p>
           </div>
           <div className="space-y-3">
