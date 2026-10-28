@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GlobalHeader }       from './global-header';
 import { BottomNav }          from './bottom-nav';
 import { TodayScreen }        from './today-screen';
@@ -24,6 +25,8 @@ export function AppShell() {
   const [activeTab, setActiveTab]             = useState<TabId>('hoy');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const mainRef = useRef<HTMLElement>(null);
+  const router = useRouter();
+  const redirectToLogin = useCallback(() => router.replace('/login'), [router]);
 
   function switchTab(id: TabId) {
     setActiveTab(id);
@@ -69,10 +72,12 @@ export function AppShell() {
           void CorosService.syncIfStale(session.user.id);
           void NutritionService.fetchGoal().catch(() => {});
         } else {
+          // The server answered and there is really no session.
           clearUser();
         }
       } catch {
-        if (!cancelled) clearUser();
+        // Network / server hiccup (e.g. opening the app on a weak connection or while the API
+        // restarts): that says nothing about the session, so keep whoever was already signed in.
       } finally {
         if (!cancelled) setIsCheckingSession(false);
       }
@@ -96,33 +101,7 @@ export function AppShell() {
   }
 
   if (!user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas px-6">
-        <div className="w-full max-w-sm space-y-6 animate-slide-up">
-          <div className="text-center space-y-2">
-            <div className="mx-auto h-14 w-14 rounded-3xl bg-ink flex items-center justify-center">
-              <span className="text-white font-bold text-xl">R</span>
-            </div>
-            <h1 className="text-2xl font-bold text-ink">Pulso</h1>
-            <p className="text-sm text-ink/60">Track. Recover. Improve.</p>
-          </div>
-          <div className="space-y-3">
-            <Link
-              href="/login"
-              className="block w-full rounded-2xl bg-ink py-4 text-center text-sm font-semibold text-white"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/register"
-              className="block w-full rounded-2xl bg-white py-4 text-center text-sm font-semibold text-ink border border-ink/10"
-            >
-              Crear cuenta
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
+    return <RedirectToLogin onRedirect={redirectToLogin} />;
   }
 
   return (
@@ -156,5 +135,19 @@ export function AppShell() {
       <BottomNav activeTab={activeTab} onTabChange={switchTab} />
       <ToastContainer />
     </div>
+  );
+}
+
+/** No session: go straight to the login form (with a plain link as fallback). */
+function RedirectToLogin({ onRedirect }: { onRedirect: () => void }) {
+  useEffect(() => { onRedirect(); }, [onRedirect]);
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-canvas px-6">
+      <div className="text-center space-y-3">
+        <p className="text-sm text-ink/60">Redirigiendo al inicio de sesión…</p>
+        <Link href="/login" className="text-sm font-semibold text-ink underline">Ir a iniciar sesión</Link>
+      </div>
+    </main>
   );
 }

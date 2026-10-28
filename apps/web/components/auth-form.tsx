@@ -1,10 +1,10 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
-import { postJson } from '../lib/api';
+import { getJson, postJson } from '../lib/api';
 import { useSessionStore } from '../stores/session-store';
 
 type AuthFormProps = { mode: 'login' | 'register' };
@@ -27,6 +27,20 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const setUser = useSessionStore((state) => state.setUser);
+
+  // Opening /login or /register with a valid session (e.g. from a bookmark or the home-screen icon)
+  // goes straight to the app instead of asking for the password again.
+  useEffect(() => {
+    let cancelled = false;
+    getJson<{ user?: { id: string; email: string; name: string } } | null>('/auth/session')
+      .then((session) => {
+        if (cancelled || !session?.user) return;
+        setUser({ id: session.user.id, email: session.user.email, name: session.user.name });
+        router.replace('/app');
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [router, setUser]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
