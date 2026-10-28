@@ -9,7 +9,7 @@ const SWIPE_MIN_PX = 48;
 
 const LEGEND = [
   { label: 'Actividad', className: 'bg-moss' },
-  { label: 'Movimiento', className: 'bg-sand' },
+  { label: 'Pasos', className: 'bg-sand' },
   { label: 'Peso', className: 'bg-ember' },
   { label: 'Rehab', className: 'bg-ink/70' },
   { label: 'Dolor', className: 'bg-red-400' },
@@ -133,7 +133,7 @@ export function WeeklyCalendar({
         })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+      <div className="flex flex-nowrap items-center justify-center gap-x-2.5 whitespace-nowrap">
         {LEGEND.map((item) => (
           <span key={item.label} className="flex items-center gap-1 text-[10px] text-ink/50">
             <span className={`h-1.5 w-1.5 rounded-full ${item.className}`} />
@@ -142,7 +142,7 @@ export function WeeklyCalendar({
         ))}
         <span className="flex items-center gap-1 text-[10px] text-ink/50">
           <span className="h-1.5 w-1.5 rounded-full border border-ink/40" />
-          Planificado
+          Plan
         </span>
       </div>
     </div>

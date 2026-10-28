@@ -27,6 +27,13 @@ export class BetterAuthService implements AuthServicePort {
           emailAndPassword: {
             enabled: true,
           },
+          // better-auth has no separate refresh token: the session itself is renewed on use.
+          // Valid for 6 months of inactivity; every use after `updateAge` pushes the expiry
+          // another 6 months, so an app opened regularly never asks for the password again.
+          session: {
+            expiresIn: 60 * 60 * 24 * 180,
+            updateAge: 60 * 60 * 24,
+          },
         });
       })();
     }

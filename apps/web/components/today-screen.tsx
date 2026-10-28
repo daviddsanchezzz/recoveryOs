@@ -383,21 +383,21 @@ export function TodayScreen({
         </div>
 
         {/* ── Day header ────────────────────────────────────── */}
-        <div className="flex items-end justify-between gap-3">
-          <div>
+        <div className="flex items-end justify-between gap-2">
+          <div className="min-w-0">
             <p className="text-xs text-ink/60 font-medium">{dayCaption}</p>
-            <p className="text-lg font-bold text-ink leading-tight">{dayLabel}</p>
+            <p className="text-lg font-bold text-ink leading-tight whitespace-nowrap">{dayLabel}</p>
           </div>
           {syncLabel && (
             <button
               type="button"
               onClick={refreshNow}
               disabled={syncing}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] text-ink/60 shadow-card active:scale-95 transition-transform"
-              aria-label="Sincronizar ahora"
+              className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-2.5 py-1.5 text-[11px] text-ink/60 shadow-card active:scale-95 transition-transform"
+              aria-label="Sincronizar COROS ahora"
             >
               <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
-              COROS · {syncing ? 'sincronizando…' : syncLabel}
+              {syncing ? 'Sincronizando…' : syncLabel}
             </button>
           )}
         </div>
