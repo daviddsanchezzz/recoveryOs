@@ -1,4 +1,5 @@
 import { sameDay } from './date';
+import type { StructuredGoal } from '../stores/plan-store';
 
 export const STEPS_GOAL = 10000;
 export const ACTIVE_CALORIES_GOAL = 700;
@@ -25,5 +26,17 @@ export function getMovementPercent(steps: number, activeCalories: number) {
     stepsPct,
     activeCaloriesPct,
     overallPct: clampPercent((stepsPct + activeCaloriesPct) / 2),
+  };
+}
+
+/** Daily steps / active-kcal targets: the user's enabled goals, falling back to the defaults. */
+export function getDailyTargets(goals: StructuredGoal[]) {
+  const pick = (type: StructuredGoal['type'], fallback: number) => {
+    const goal = goals.find((g) => g.type === type && g.enabled && g.target > 0);
+    return goal ? goal.target : fallback;
+  };
+  return {
+    steps: pick('steps_daily', STEPS_GOAL),
+    activeCalories: pick('active_calories_daily', ACTIVE_CALORIES_GOAL),
   };
 }

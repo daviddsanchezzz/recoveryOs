@@ -73,11 +73,14 @@ export function AddActivitySheet({
   onClose,
   editActivity,
   prefill,
+  defaultDate,
 }: {
   isOpen: boolean;
   onClose: () => void;
   editActivity?: ActivityEntry;
   prefill?: { type: ActivityType; muscleGroups?: MuscleGroup[] };
+  /** Day the activity is logged on when creating a new one (never later than today). */
+  defaultDate?: string;
 }) {
   const isEditing = !!editActivity;
 
@@ -143,6 +146,7 @@ export function AddActivitySheet({
       setVolumeKg(editActivity.totalVolumeKg ? String(editActivity.totalVolumeKg) : '');
     } else {
       reset();
+      if (defaultDate) setDate(defaultDate < todayIso() ? defaultDate : todayIso());
       if (prefill) {
         setType(prefill.type);
         setMuscles(prefill.muscleGroups ?? []);

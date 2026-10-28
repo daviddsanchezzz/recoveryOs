@@ -5,6 +5,7 @@ import {
   Bike,
   CalendarDays,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -12,7 +13,6 @@ import {
   Flame,
   Footprints,
   HeartPulse,
-  Layers,
   Moon,
   Pencil,
   Plus,
@@ -25,11 +25,23 @@ import {
 } from 'lucide-react';
 import { todayIso, weekDates } from '../lib/date';
 import { PlanService } from '../lib/plan-service';
+import { RecoveryService } from '../lib/services';
+import { pickBySourcePrecedence } from '../lib/health-metrics';
+import {
+  didRehabOn,
+  getPlannedActivityMatches,
+  isSessionEntry,
+  summarizePlanDay,
+  type PlanDaySummary,
+} from '../lib/plan-matching';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { useSessionStore } from '../stores/session-store';
 import { usePlanStore } from '../stores/plan-store';
 import { Portal } from './portal';
-import type { MuscleGroup } from '../stores/recovery-store';
+import { AddActivitySheet } from './add-activity-sheet';
+import { ActivityDetailSheet } from './actividades-screen';
+import { DolorSheet } from './dolor-sheet';
+import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 import type { PlanEntry, PlanActivityType, ActivityPlanEntry, TaskPlanEntry, StructuredGoal, StructuredGoalType } from '../stores/plan-store';
 
 const DAY_LETTERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -55,17 +67,6 @@ const ACTIVITY_ICONS: Record<PlanActivityType, ElementType> = {
   mobility: RefreshCw,
   other: Target,
   rehab: HeartPulse,
-};
-
-const DOT_COLOR: Record<PlanActivityType, string> = {
-  gym: 'bg-moss',
-  bike: 'bg-ember',
-  run: 'bg-moss',
-  walk: 'bg-sand',
-  swim: 'bg-ink/40',
-  mobility: 'bg-moss/60',
-  other: 'bg-ink/20',
-  rehab: 'bg-red-400',
 };
 
 const MUSCLE_GROUPS: { id: MuscleGroup; label: string }[] = [
@@ -130,6 +131,11 @@ function dayFullLabel(dateStr: string) {
     day: 'numeric',
     month: 'long',
   });
+}
+
+function dayShortLabel(dateStr: string) {
+  const date = new Date(dateStr + 'T12:00:00');
+  return `${cap(date.toLocaleDateString('es-ES', { weekday: 'long' }))} ${date.getDate()}`;
 }
 
 function formatEntrySubtitle(entry: PlanEntry) {
@@ -364,53 +370,6 @@ function TaskForm({
   );
 }
 
-function AddPlanEntrySheet({
-  isOpen,
-  dateStr,
-  onClose,
-}: {
-  isOpen: boolean;
-  dateStr: string;
-  onClose: () => void;
-}) {
-  const [mode, setMode] = useState<'activity' | 'task'>('activity');
-
-  useEffect(() => {
-    if (isOpen) setMode('activity');
-  }, [isOpen]);
-
-  function handleConfirm(entry: PlanEntry) {
-    PlanService.addPlanEntry(dateStr, entry);
-    onClose();
-  }
-
-  return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Añadir al día" subtitle={cap(dayFullLabel(dateStr))}>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('activity')}
-          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'activity' ? 'bg-ink text-white' : 'bg-canvas text-ink/50'}`}
-        >
-          Actividad
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('task')}
-          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'task' ? 'bg-ink text-white' : 'bg-canvas text-ink/50'}`}
-        >
-          Tarea
-        </button>
-      </div>
-      {mode === 'activity' ? (
-        <ActivityPicker onConfirm={handleConfirm} />
-      ) : (
-        <TaskForm onConfirm={handleConfirm} />
-      )}
-    </Sheet>
-  );
-}
-
 function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { structuredGoals, updateStructuredGoal } = usePlanStore();
 
@@ -475,93 +434,416 @@ function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
   );
 }
 
-function AddProgramSheet({
+function AddPlanEntrySheet({
   isOpen,
+  title = 'Añadir al día',
+  subtitle,
   onClose,
-  userId,
+  onAdd,
 }: {
   isOpen: boolean;
+  title?: string;
+  subtitle?: string;
   onClose: () => void;
-  userId: string;
+  onAdd: (entry: PlanEntry) => void;
 }) {
-  const [name, setName] = useState('');
-  const [totalWeeks, setTotalWeeks] = useState(8);
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'activity' | 'task'>('activity');
 
   useEffect(() => {
-    if (!isOpen) {
-      setName('');
-      setTotalWeeks(8);
-    }
+    if (isOpen) setMode('activity');
   }, [isOpen]);
 
-  async function handleCreate() {
-    if (!name.trim()) return;
-    setLoading(true);
-    await PlanService.createProgram(userId, name.trim(), totalWeeks);
-    setLoading(false);
+  function handleConfirm(entry: PlanEntry) {
+    onAdd(entry);
     onClose();
   }
 
   return (
-    <Sheet isOpen={isOpen} onClose={onClose} title="Nuevo programa">
-      <div>
-        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-ink/40">Nombre</p>
-        <input
-          type="text"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Ej: Bloque de recuperación"
-          className="w-full rounded-2xl bg-canvas px-4 py-3 text-sm text-ink outline-none placeholder:text-ink/30"
-        />
+    <Sheet isOpen={isOpen} onClose={onClose} title={title} subtitle={subtitle}>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('activity')}
+          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'activity' ? 'bg-ink text-white' : 'bg-canvas text-ink/60'}`}
+        >
+          Actividad
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('task')}
+          className={`rounded-2xl py-2.5 text-sm font-semibold transition-all ${mode === 'task' ? 'bg-ink text-white' : 'bg-canvas text-ink/60'}`}
+        >
+          Tarea
+        </button>
       </div>
-      <div>
-        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-ink/40">Duración</p>
-        <div className="grid grid-cols-3 gap-2">
-          {WEEK_OPTIONS.map((weeks) => (
-            <button
-              key={weeks}
-              type="button"
-              onClick={() => setTotalWeeks(weeks)}
-              className={`rounded-2xl py-3 text-sm font-semibold transition-all ${totalWeeks === weeks ? 'bg-ink text-white' : 'bg-canvas text-ink/60'}`}
-            >
-              {weeks} semanas
-            </button>
-          ))}
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={handleCreate}
-        disabled={!name.trim() || loading}
-        className="w-full rounded-2xl bg-ink py-3.5 text-sm font-semibold text-white disabled:opacity-30"
-      >
-        {loading ? 'Creando...' : 'Crear programa'}
-      </button>
+      {mode === 'activity' ? (
+        <ActivityPicker onConfirm={handleConfirm} />
+      ) : (
+        <TaskForm onConfirm={handleConfirm} />
+      )}
     </Sheet>
   );
 }
 
-function GoalRow({
+// ── Base week editor (one weekday of the recurring routine) ──────────────────
+
+function TemplateDaySheet({ dayIndex, onClose }: { dayIndex: number | null; onClose: () => void }) {
+  const template = usePlanStore((state) => state.template);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => { setAdding(false); }, [dayIndex]);
+
+  if (dayIndex === null) return null;
+  const entries = template[dayIndex] ?? [];
+
+  return (
+    <>
+      <Sheet
+        isOpen
+        onClose={onClose}
+        title={`Semana base · ${DAY_NAMES[dayIndex]}`}
+        subtitle="Se aplica sola a los próximos días de este tipo"
+      >
+        {entries.length === 0 ? (
+          <p className="rounded-2xl bg-canvas px-4 py-3 text-sm text-ink/60">Día libre en tu rutina.</p>
+        ) : (
+          <div className="space-y-2">
+            {entries.map((entry, index) => {
+              const Icon = entry.kind === 'task' ? Check : ACTIVITY_ICONS[entry.type] ?? Target;
+              return (
+                <div key={`${entry.label}-${index}`} className="flex items-center gap-3 rounded-2xl bg-canvas px-3 py-2.5">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
+                    <Icon size={15} className="text-moss" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-snug text-ink">{entry.label}</p>
+                    {formatEntrySubtitle(entry) ? (
+                      <p className="mt-0.5 text-xs text-ink/60">{formatEntrySubtitle(entry)}</p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => PlanService.removeTemplateEntry(dayIndex, index)}
+                    aria-label={`Quitar ${entry.label}`}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-ink/40 active:bg-red-50 active:text-red-400"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-ink py-3.5 text-sm font-semibold text-white"
+        >
+          <Plus size={14} /> Añadir a {DAY_NAMES[dayIndex].toLowerCase()}
+        </button>
+        <p className="text-xs text-ink/50">
+          Los días que ya tienen plan no cambian. Para actualizarlos usa «Aplicar a esta semana».
+        </p>
+      </Sheet>
+      <AddPlanEntrySheet
+        isOpen={adding}
+        title={`Añadir a ${DAY_NAMES[dayIndex].toLowerCase()}`}
+        subtitle="Semana base"
+        onClose={() => setAdding(false)}
+        onAdd={(entry) => PlanService.addTemplateEntry(dayIndex, entry)}
+      />
+    </>
+  );
+}
+
+function BaseWeekCard({
+  weekIsPast,
+  onEditDay,
+  onApply,
+}: {
+  weekIsPast: boolean;
+  onEditDay: (dayIndex: number) => void;
+  onApply: () => void;
+}) {
+  const template = usePlanStore((state) => state.template);
+  const isEmpty = DAY_NAMES.every((_, index) => (template[index] ?? []).length === 0);
+  const [open, setOpen] = useState(isEmpty);
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+
+  return (
+    <div className="space-y-2">
+      <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-ink/50">Mi semana base</p>
+      <div className="rounded-4xl bg-white p-5 shadow-card">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <div>
+            <p className="text-sm font-semibold text-ink">Tu rutina fija</p>
+            <p className="mt-0.5 text-xs text-ink/60">
+              {isEmpty
+                ? 'Defínela una vez y se aplicará sola cada semana.'
+                : 'Se aplica sola a los próximos 14 días.'}
+            </p>
+          </div>
+          <ChevronDown size={18} className={`flex-shrink-0 text-ink/40 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {open ? (
+          <div className="mt-4 space-y-1">
+            {DAY_NAMES.map((dayName, index) => {
+              const entries = template[index] ?? [];
+              return (
+                <button
+                  key={dayName}
+                  type="button"
+                  onClick={() => onEditDay(index)}
+                  className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left active:bg-canvas"
+                >
+                  <span className="w-20 flex-shrink-0 text-[11px] font-semibold uppercase tracking-widest text-ink/50">{dayName}</span>
+                  <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+                    {entries.length === 0 ? (
+                      <span className="text-xs text-ink/40">Libre</span>
+                    ) : (
+                      entries.map((entry, entryIndex) => (
+                        <span key={`${entry.label}-${entryIndex}`} className="rounded-full bg-canvas px-2 py-1 text-[11px] font-semibold leading-none text-ink/70">
+                          {entry.label}
+                        </span>
+                      ))
+                    )}
+                  </span>
+                  <ChevronRight size={14} className="flex-shrink-0 text-ink/30" />
+                </button>
+              );
+            })}
+
+            {!isEmpty && !weekIsPast ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!armed) { setArmed(true); return; }
+                  setArmed(false);
+                  onApply();
+                }}
+                className={`mt-3 w-full rounded-2xl py-3 text-sm font-semibold transition-colors ${
+                  armed ? 'bg-ember text-white' : 'bg-canvas text-ink'
+                }`}
+              >
+                {armed ? 'Confirmar: sustituye los días desde hoy' : 'Aplicar a esta semana'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ── Week strip ────────────────────────────────────────────────────────────────
+
+function DayCell({
+  dateStr,
+  letter,
+  isSelected,
+  isToday,
+  summary,
+  onClick,
+}: {
+  dateStr: string;
+  letter: string;
+  isSelected: boolean;
+  isToday: boolean;
+  summary: PlanDaySummary;
+  onClick: () => void;
+}) {
+  const { status, sessionsDone, sessionsTotal } = summary;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={dateStr}
+      aria-pressed={isSelected}
+      className={`flex flex-col items-center gap-1.5 rounded-2xl py-2.5 transition-all ${isSelected ? 'bg-ink' : isToday ? 'bg-ember/10' : 'active:bg-canvas'}`}
+    >
+      <span className={`text-[10px] font-semibold uppercase tracking-wider ${isSelected ? 'text-white/70' : isToday ? 'text-ember/80' : 'text-ink/50'}`}>
+        {letter}
+      </span>
+      <span className={`text-lg font-bold leading-none ${isSelected ? 'text-white' : isToday ? 'text-ember' : 'text-ink'}`}>
+        {dateStr.slice(8, 10)}
+      </span>
+      <span className="flex h-4 items-center justify-center">
+        {status === 'free' ? (
+          <span className={`text-[11px] leading-4 ${isSelected ? 'text-white/40' : 'text-ink/25'}`}>–</span>
+        ) : status === 'done' ? (
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-moss">
+            <Check size={10} strokeWidth={3} className="text-white" />
+          </span>
+        ) : (
+          <span className={`text-[11px] font-bold leading-4 ${status === 'missed' ? 'text-ember' : isSelected ? 'text-white/80' : 'text-ink/60'}`}>
+            {sessionsDone}/{sessionsTotal}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+// ── Day detail ────────────────────────────────────────────────────────────────
+
+function DayDetail({
+  dateStr,
+  entries,
+  activities,
+  rehabDone,
+  isPast,
+  isEditing,
+  onToggleEdit,
+  onAdd,
+  onRemove,
+  onToggleTask,
+  onSession,
+}: {
+  dateStr: string;
+  entries: PlanEntry[];
+  activities: ActivityEntry[];
+  rehabDone: boolean;
+  isPast: boolean;
+  isEditing: boolean;
+  onToggleEdit: () => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+  onToggleTask: (index: number, entry: TaskPlanEntry) => void;
+  onSession: (entry: ActivityPlanEntry, matched: ActivityEntry | null, done: boolean) => void;
+}) {
+  const sessions = entries.filter(isSessionEntry);
+  const matches = new Map(getPlannedActivityMatches(sessions, activities).map((m) => [m.entry, m.matchedActivity]));
+  const done = (entry: ActivityPlanEntry) => (entry.type === 'rehab' ? rehabDone : !!matches.get(entry));
+  const sessionsDone = sessions.filter(done).length;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-ink">{dayShortLabel(dateStr)}</p>
+          <p className="mt-0.5 text-xs text-ink/60">
+            {sessions.length > 0
+              ? `${sessionsDone} de ${sessions.length} ${sessions.length === 1 ? 'sesión' : 'sesiones'}`
+              : entries.length > 0 ? 'Solo tareas' : 'Día libre'}
+          </p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {entries.length > 0 ? (
+            <button
+              type="button"
+              onClick={onToggleEdit}
+              className={`flex h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors ${isEditing ? 'bg-ink text-white' : 'bg-canvas text-ink/70'}`}
+            >
+              {isEditing ? 'Listo' : <><Pencil size={12} /> Editar</>}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex h-8 items-center gap-1.5 rounded-xl bg-canvas px-3 text-xs font-semibold text-ink/70 active:bg-ink/5"
+          >
+            <Plus size={12} /> Añadir
+          </button>
+        </div>
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl bg-canvas px-3 py-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white">
+            <Sun size={15} className="text-ink/30" />
+          </div>
+          <span className="text-sm text-ink/60">Nada planificado: descanso.</span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((entry, index) => {
+            const isTask = entry.kind === 'task';
+            const isDone = isTask ? entry.completed : done(entry);
+            const matched = isTask ? null : matches.get(entry) ?? null;
+            const Icon = isTask ? Check : ACTIVITY_ICONS[entry.type] ?? Target;
+            const actionable = isTask || !isDone || !!matched;
+
+            return (
+              <div key={`${entry.label}-${index}`} className="flex items-center gap-2 rounded-2xl bg-canvas pl-3 pr-2 py-2.5">
+                <button
+                  type="button"
+                  disabled={isEditing || !actionable}
+                  onClick={() => (isTask ? onToggleTask(index, entry) : onSession(entry, matched, isDone))}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                >
+                  <span
+                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${
+                      isDone ? 'bg-moss' : isPast && !isTask ? 'border-[1.5px] border-ember/50' : 'border-[1.5px] border-ink/20'
+                    }`}
+                  >
+                    {isDone ? <Check size={12} strokeWidth={3} className="text-white" /> : null}
+                  </span>
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
+                    <Icon size={15} className="text-moss" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-medium leading-snug ${isTask && entry.completed ? 'text-ink/50 line-through' : 'text-ink'}`}>
+                      {entry.label}
+                    </span>
+                    {formatEntrySubtitle(entry) ? (
+                      <span className="mt-0.5 block text-xs text-ink/60">{formatEntrySubtitle(entry)}</span>
+                    ) : null}
+                  </span>
+                </button>
+                {isEditing ? (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(index)}
+                    aria-label={`Quitar ${entry.label}`}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-ink/40 active:bg-red-50 active:text-red-400"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+          {!isEditing && sessions.some((entry) => !done(entry)) ? (
+            <p className="px-1 text-[11px] text-ink/50">
+              Toca una sesión pendiente para registrarla. Las de Strava y COROS se marcan solas.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Goals: consistency over the week ─────────────────────────────────────────
+
+type DayGoalState = 'met' | 'missed' | 'open';
+
+function DailyGoalRow({
   goal,
-  currentValue,
-  progressPct,
+  states,
+  letters,
 }: {
   goal: StructuredGoal;
-  currentValue: number;
-  progressPct: number;
+  states: DayGoalState[];
+  letters: string[];
 }) {
   const meta = STRUCTURED_GOAL_META[goal.type];
   const Icon = meta.Icon;
-  const targetLabel =
-    goal.type === 'sleep_hours_daily'
-      ? `${goal.target} ${meta.unit}`
-      : `${Math.round(goal.target)} ${meta.unit}`;
-  const currentLabel =
-    goal.type === 'sleep_hours_daily'
-      ? `${currentValue.toFixed(currentValue % 1 === 0 ? 0 : 1)} ${meta.unit}`
-      : `${Math.round(currentValue)} ${meta.unit}`;
-  const barColor = progressPct >= 100 ? 'bg-moss' : progressPct >= 60 ? 'bg-ink' : 'bg-sand';
+  const elapsed = states.filter((state) => state !== 'open').length;
+  const met = states.filter((state) => state === 'met').length;
+  const target = goal.type === 'sleep_hours_daily' ? `${goal.target} ${meta.unit}` : `${Math.round(goal.target).toLocaleString('es-ES')} ${meta.unit}`;
 
   return (
     <div className="space-y-2.5">
@@ -571,216 +853,58 @@ function GoalRow({
             <Icon size={15} className={meta.color} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm leading-snug text-ink">{meta.label}</p>
-            <p className="mt-0.5 text-xs text-ink/35">
-              {currentLabel} / {targetLabel}
+            <p className="truncate text-sm font-medium leading-snug text-ink">{meta.label}</p>
+            <p className="mt-0.5 text-xs text-ink/60">Objetivo {target}</p>
+          </div>
+        </div>
+        <span className="flex-shrink-0 text-xs font-bold tabular-nums text-ink/70">
+          {met}/{elapsed || 0} {elapsed === 1 ? 'día' : 'días'}
+        </span>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {states.map((state, index) => (
+          <div key={index} className="space-y-1">
+            <div
+              className={`h-2 rounded-full ${state === 'met' ? 'bg-moss' : state === 'missed' ? 'bg-ember/40' : 'bg-ink/10'}`}
+            />
+            <p className="text-center text-[9px] font-semibold text-ink/40">{letters[index]}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeeklyGoalRow({ goal, current }: { goal: StructuredGoal; current: number }) {
+  const meta = STRUCTURED_GOAL_META[goal.type];
+  const Icon = meta.Icon;
+  const pct = goal.target > 0 ? Math.round((current / goal.target) * 100) : 0;
+  const reached = pct >= 100;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-canvas">
+            <Icon size={15} className={meta.color} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium leading-snug text-ink">{meta.label}</p>
+            <p className="mt-0.5 text-xs text-ink/60">
+              {Math.round(current).toLocaleString('es-ES')} / {Math.round(goal.target).toLocaleString('es-ES')} {meta.unit}
             </p>
           </div>
         </div>
-        <span className="tabular-nums text-xs font-bold text-ink/40">{progressPct}%</span>
+        <span className={`flex-shrink-0 text-xs font-bold tabular-nums ${reached ? 'text-moss' : 'text-ink/70'}`}>{pct}%</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-canvas">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-          style={{ width: `${Math.min(progressPct, 100)}%` }}
-        />
+        <div className={`h-full rounded-full transition-all duration-700 ${'bg-moss'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
     </div>
   );
 }
 
-function ProgramCard({
-  name,
-  currentWeek,
-  totalWeeks,
-}: {
-  name: string;
-  currentWeek: number;
-  totalWeeks: number;
-}) {
-  const pct = Math.round((currentWeek / totalWeeks) * 100);
-
-  return (
-    <div className="space-y-3 rounded-3xl bg-white p-4 shadow-card">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-moss-light">
-          <Layers size={16} className="text-moss" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-snug text-ink">{name}</p>
-          <p className="mt-0.5 text-xs text-ink/40">Semana {currentWeek} de {totalWeeks}</p>
-        </div>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-canvas">
-        <div className="h-full rounded-full bg-moss transition-all duration-700" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function DayCell({
-  dateStr,
-  letter,
-  isSelected,
-  isToday,
-  entries,
-  onClick,
-}: {
-  dateStr: string;
-  letter: string;
-  isSelected: boolean;
-  isToday: boolean;
-  entries: PlanEntry[];
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-2xl py-2.5 transition-all ${isSelected ? 'bg-ink' : isToday ? 'bg-ember/10' : 'hover:bg-canvas'}`}
-    >
-      <span className={`text-[9px] font-semibold uppercase tracking-wider ${isSelected ? 'text-white/55' : isToday ? 'text-ember' : 'text-ink/30'}`}>
-        {letter}
-      </span>
-      <span className={`text-base font-bold leading-none ${isSelected ? 'text-white' : 'text-ink'}`}>
-        {dateStr.slice(8, 10)}
-      </span>
-      <div className="flex h-2 items-center gap-0.5">
-        {entries.length === 0 ? (
-          <div className={`h-1 w-1 rounded-full ${isSelected ? 'bg-white/20' : 'bg-ink/10'}`} />
-        ) : (
-          entries.slice(0, 3).map((entry, index) => (
-            <div
-              key={index}
-              className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-white/60' : entry.kind === 'task' ? 'bg-ink/30' : DOT_COLOR[entry.type]}`}
-            />
-          ))
-        )}
-      </div>
-    </button>
-  );
-}
-
-function DayDetail({
-  dateStr,
-  entries,
-  onAdd,
-  onRemove,
-  onToggleTask,
-}: {
-  dateStr: string;
-  entries: PlanEntry[];
-  onAdd: () => void;
-  onRemove: (index: number) => void;
-  onToggleTask: (index: number, entry: TaskPlanEntry) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="h-px bg-ink/5" />
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">
-            {cap(dayFullLabel(dateStr))}
-          </p>
-          <p className="mt-1 text-xs text-ink/35">
-            {entries.length > 0 ? `${entries.length} planificadas` : 'Día libre'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex h-7 items-center gap-1.5 rounded-xl bg-canvas px-3 text-xs font-medium text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink"
-        >
-          <Plus size={12} />Añadir
-        </button>
-      </div>
-      {entries.length === 0 ? (
-        <div className="flex items-center gap-3 px-1 py-1">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-canvas">
-            <Sun size={15} className="text-ink/20" />
-          </div>
-          <span className="text-sm text-ink/30">Sin actividad planificada</span>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry, index) => {
-            const isTask = entry.kind === 'task';
-            const Icon = isTask ? Check : ACTIVITY_ICONS[entry.type] ?? Target;
-
-            return (
-              <div key={`${entry.label}-${index}`} className="group flex items-start gap-3 rounded-2xl bg-canvas px-3 py-2.5">
-                {isTask ? (
-                  <button
-                    type="button"
-                    onClick={() => onToggleTask(index, entry)}
-                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl shadow-card ${entry.completed ? 'bg-moss' : 'bg-white'}`}
-                  >
-                    <Icon size={15} className={entry.completed ? 'text-white' : 'text-ink/20'} />
-                  </button>
-                ) : (
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-card">
-                    <Icon size={15} className="text-moss" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium leading-snug ${isTask && entry.completed ? 'text-ink/40 line-through' : 'text-ink'}`}>
-                    {entry.label}
-                  </p>
-                  {formatEntrySubtitle(entry) ? (
-                    <p className="mt-0.5 text-xs text-ink/35">{formatEntrySubtitle(entry)}</p>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemove(index)}
-                  className="flex h-7 w-7 items-center justify-center rounded-xl text-ink/20 transition-colors hover:bg-red-50 hover:text-red-400"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TemplateWeekCard() {
-  const template = usePlanStore((state) => state.template);
-
-  return (
-    <div className="space-y-3 rounded-4xl bg-white p-4 shadow-card">
-      {DAY_NAMES.map((dayName, index) => {
-        const entries = template[index] ?? [];
-
-        return (
-          <div key={dayName}>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/40">{dayName}</p>
-              <span className="text-xs text-ink/35">
-                {entries.length === 0 ? 'Libre' : `${entries.length} actividades`}
-              </span>
-            </div>
-            {entries.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {entries.map((entry, entryIndex) => (
-                  <span
-                    key={`${entry.label}-${entryIndex}`}
-                    className="rounded-full bg-canvas px-2 py-1 text-[10px] font-semibold leading-none text-ink/55"
-                  >
-                    {entry.label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {index < DAY_NAMES.length - 1 ? <div className="mt-3 h-px bg-ink/5" /> : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 export function PlanScreen() {
   const today = todayIso();
@@ -791,198 +915,261 @@ export function PlanScreen() {
   });
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
-  const [showAddProgram, setShowAddProgram] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [templateDay, setTemplateDay] = useState<number | null>(null);
+  const [fetchedActivities, setFetchedActivities] = useState<ActivityEntry[]>([]);
+  const [showAddActivity, setShowAddActivity] = useState(false);
+  const [prefill, setPrefill] = useState<{ type: ActivityType; muscleGroups?: MuscleGroup[] } | undefined>(undefined);
+  const [editActivity, setEditActivity] = useState<ActivityEntry | undefined>(undefined);
+  const [detailActivity, setDetailActivity] = useState<ActivityEntry | null>(null);
+  const [showDolor, setShowDolor] = useState(false);
 
   const user = useSessionStore((state) => state.user);
-  const { structuredGoals, program, weekPlan } = usePlanStore();
-  const { activities, sleepEntries, dailyHealthMetrics } = useRecoveryStore();
+  const { structuredGoals, weekPlan } = usePlanStore();
+  const { activities: storeActivities, sleepEntries, dailyHealthMetrics, checkIns, injuryLogs } = useRecoveryStore();
 
   useEffect(() => {
     if (!user) return;
-    void PlanService.loadProgram(user.id);
-    void PlanService.loadWeekPlan(user.id);
-    void PlanService.loadTemplate(user.id);
+    void PlanService.syncFromTemplate(user.id);
   }, [user]);
+
+  // The store only keeps recent activities; load the last months so past weeks are accurate.
+  function loadActivities() {
+    if (!user) return;
+    const since = new Date();
+    since.setDate(since.getDate() - 120);
+    RecoveryService.fetchActivitiesFrom(user.id, since).then(setFetchedActivities).catch(() => {});
+  }
+  useEffect(loadActivities, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allActivities = useMemo(() => {
+    const byId = new Map<string, ActivityEntry>();
+    for (const activity of [...fetchedActivities, ...storeActivities]) byId.set(activity.id, activity);
+    return [...byId.values()];
+  }, [fetchedActivities, storeActivities]);
 
   const days = getDaysForOffset(weekOffset);
 
   useEffect(() => {
-    setSelectedIdx((current) => {
-      if (current >= 0 && current < days.length) return current;
-      return 0;
-    });
+    setSelectedIdx((current) => (current >= 0 && current < days.length ? current : 0));
+    setIsEditing(false);
   }, [days]);
 
   const selectedDate = days[selectedIdx] ?? days[0] ?? today;
   const dayEntries = weekPlan[selectedDate] ?? [];
-  const weekActivities = useMemo(
-    () => activities.filter((activity) => days.includes(activity.date)),
-    [activities, days],
-  );
-  const dayActivityCount = activities.filter((activity) => activity.date === selectedDate).length;
-  const daySleepHours = sleepEntries.find((entry) => entry.date === selectedDate)?.durationH ?? 0;
-  const dayMovement = dailyHealthMetrics.find((entry) => entry.date === selectedDate);
+  const weekIsPast = days[6] < today;
 
-  function getGoalCurrentValue(goal: StructuredGoal) {
+  const summaries = useMemo(
+    () => days.map((date) =>
+      summarizePlanDay({
+        entries: weekPlan[date] ?? [],
+        activities: allActivities,
+        rehabDone: didRehabOn(date, checkIns, injuryLogs),
+        date,
+        today,
+      })),
+    [days, weekPlan, allActivities, checkIns, injuryLogs, today],
+  );
+  const sessionsTotal = summaries.reduce((sum, s) => sum + s.sessionsTotal, 0);
+  const sessionsDone = summaries.reduce((sum, s) => sum + s.sessionsDone, 0);
+  const sessionsPending = sessionsTotal - sessionsDone;
+  const sessionsPct = sessionsTotal > 0 ? Math.round((sessionsDone / sessionsTotal) * 100) : 0;
+
+  const weekActivities = useMemo(
+    () => allActivities.filter((activity) => days.includes(activity.date)),
+    [allActivities, days],
+  );
+
+  function dailyValue(goal: StructuredGoal, date: string): number {
     switch (goal.type) {
-      case 'steps_daily':
-        return dayMovement?.steps ?? 0;
-      case 'active_calories_daily':
-        return dayMovement?.activeCalories ?? 0;
-      case 'sleep_hours_daily':
-        return daySleepHours;
-      case 'activity_minutes_weekly':
-        return weekActivities.reduce((sum, activity) => sum + (activity.durationMinutes ?? 0), 0);
-      case 'activity_sessions_weekly':
-        return weekActivities.length;
-      case 'training_sessions_daily':
-        return dayActivityCount;
+      case 'steps_daily': return pickBySourcePrecedence(dailyHealthMetrics, date)?.steps ?? 0;
+      case 'active_calories_daily': return pickBySourcePrecedence(dailyHealthMetrics, date)?.activeCalories ?? 0;
+      case 'sleep_hours_daily': return pickBySourcePrecedence(sleepEntries, date)?.durationH ?? 0;
+      case 'training_sessions_daily': return allActivities.filter((a) => a.date === date).length;
+      default: return 0;
     }
   }
 
-  function goToPrevWeek() {
-    setWeekOffset((current) => current - 1);
+  function weeklyValue(goal: StructuredGoal): number {
+    if (goal.type === 'activity_minutes_weekly') {
+      return weekActivities.reduce((sum, activity) => sum + (activity.durationMinutes ?? 0), 0);
+    }
+    return weekActivities.length;
   }
 
-  function goToNextWeek() {
-    setWeekOffset((current) => current + 1);
+  function dayStates(goal: StructuredGoal): DayGoalState[] {
+    return days.map((date) => {
+      const met = dailyValue(goal, date) >= goal.target;
+      if (met) return 'met';
+      return date < today ? 'missed' : 'open';
+    });
   }
 
-  function goToThisWeek() {
-    setWeekOffset(0);
-    const current = getDaysForOffset(0);
-    setSelectedIdx(Math.max(0, current.indexOf(today)));
+  function handleSession(entry: ActivityPlanEntry, matched: ActivityEntry | null, done: boolean) {
+    if (matched) { setDetailActivity(matched); return; }
+    if (done || selectedDate > today) return;
+    if (entry.type === 'rehab') { setShowDolor(true); return; }
+    setEditActivity(undefined);
+    setPrefill({ type: entry.type, muscleGroups: entry.muscleGroups });
+    setShowAddActivity(true);
   }
 
   const enabledGoals = structuredGoals.filter((goal) => goal.enabled);
+  const dailyGoals = enabledGoals.filter((goal) => STRUCTURED_GOAL_META[goal.type].cadence === 'daily');
+  const weeklyGoals = enabledGoals.filter((goal) => STRUCTURED_GOAL_META[goal.type].cadence === 'weekly');
+
+  const headline = sessionsTotal === 0 ? 'Semana libre' : `${sessionsDone} de ${sessionsTotal} sesiones`;
+  const subline = sessionsTotal === 0
+    ? 'Sin sesiones planificadas'
+    : weekIsPast
+      ? `${sessionsPct}% cumplido`
+      : sessionsPending === 0
+        ? 'Semana completada'
+        : `${sessionsPending} ${sessionsPending === 1 ? 'pendiente' : 'pendientes'}`;
 
   return (
     <>
       <div className="animate-fade-in space-y-5 px-4 pb-24 pt-4">
-        <div className="space-y-0.5">
-          <h1 className="text-2xl font-bold text-ink">Plan</h1>
-          <p className="text-sm text-ink/40">{weekRangeLabel(days)}</p>
-        </div>
+        <h1 className="px-1 text-2xl font-bold text-ink">Plan</h1>
 
-        <div className="space-y-2">
-          <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-ink/30">Esta semana</p>
-          <div className="space-y-3 rounded-4xl bg-white p-4 shadow-card">
-            <div className="flex items-center justify-between">
+        {/* ── Week: summary, strip and day ── */}
+        <div className="space-y-4 rounded-4xl bg-white p-4 shadow-card">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-ink">{weekOffsetLabel(weekOffset)}</p>
+              <p className="text-xs text-ink/60">{weekRangeLabel(days)}</p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1.5">
+              {weekOffset !== 0 ? (
+                <button
+                  type="button"
+                  onClick={() => { setWeekOffset(0); setSelectedIdx(Math.max(0, getDaysForOffset(0).indexOf(today))); }}
+                  className="h-8 rounded-xl bg-ink px-3 text-xs font-semibold text-white active:scale-95 transition-transform"
+                >
+                  Hoy
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={goToPrevWeek}
-                className="flex h-8 w-8 items-center justify-center rounded-xl bg-canvas text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+                onClick={() => setWeekOffset((current) => current - 1)}
+                aria-label="Semana anterior"
+                className="flex h-8 w-8 items-center justify-center rounded-xl bg-canvas text-ink/60 active:scale-95 transition-transform"
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 type="button"
-                onClick={weekOffset !== 0 ? goToThisWeek : undefined}
-                className={`text-xs font-semibold transition-colors ${weekOffset !== 0 ? 'text-moss hover:text-moss/70' : 'text-ink'}`}
-              >
-                {weekOffsetLabel(weekOffset)}
-              </button>
-              <button
-                type="button"
-                onClick={goToNextWeek}
-                className="flex h-8 w-8 items-center justify-center rounded-xl bg-canvas text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+                onClick={() => setWeekOffset((current) => current + 1)}
+                aria-label="Semana siguiente"
+                className="flex h-8 w-8 items-center justify-center rounded-xl bg-canvas text-ink/60 active:scale-95 transition-transform"
               >
                 <ChevronRight size={16} />
               </button>
             </div>
-
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((dateStr, index) => (
-                <DayCell
-                  key={dateStr}
-                  dateStr={dateStr}
-                  letter={DAY_LETTERS[index]}
-                  isSelected={index === selectedIdx}
-                  isToday={dateStr === today}
-                  entries={weekPlan[dateStr] ?? []}
-                  onClick={() => setSelectedIdx(index)}
-                />
-              ))}
-            </div>
-
-            <DayDetail
-              dateStr={selectedDate}
-              entries={dayEntries}
-              onAdd={() => setShowAddEntry(true)}
-              onRemove={(index) => PlanService.removePlanEntry(selectedDate, index)}
-              onToggleTask={(index, entry) => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
-            />
           </div>
+
+          <div className="space-y-2.5 rounded-3xl bg-canvas p-4">
+            <div className="flex items-end justify-between gap-2">
+              <p className="text-lg font-bold leading-tight text-ink">{headline}</p>
+              <p className={`text-xs font-medium ${sessionsTotal > 0 && sessionsPending === 0 ? 'text-moss' : 'text-ink/60'}`}>{subline}</p>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white">
+              <div className="h-full rounded-full bg-moss transition-all duration-700" style={{ width: `${sessionsPct}%` }} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((dateStr, index) => (
+              <DayCell
+                key={dateStr}
+                dateStr={dateStr}
+                letter={DAY_LETTERS[index]}
+                isSelected={index === selectedIdx}
+                isToday={dateStr === today}
+                summary={summaries[index]}
+                onClick={() => { setSelectedIdx(index); setIsEditing(false); }}
+              />
+            ))}
+          </div>
+
+          <div className="h-px bg-ink/5" />
+
+          <DayDetail
+            dateStr={selectedDate}
+            entries={dayEntries}
+            activities={allActivities.filter((a) => a.date === selectedDate)}
+            rehabDone={didRehabOn(selectedDate, checkIns, injuryLogs)}
+            isPast={selectedDate < today}
+            isEditing={isEditing}
+            onToggleEdit={() => setIsEditing((value) => !value)}
+            onAdd={() => setShowAddEntry(true)}
+            onRemove={(index) => PlanService.removePlanEntry(selectedDate, index)}
+            onToggleTask={(index, entry) => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
+            onSession={handleSession}
+          />
         </div>
 
+        {/* ── Goals: how consistent you were this week ── */}
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">Objetivos medibles</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/50">Objetivos de la semana</p>
             <button
               type="button"
               onClick={() => setShowGoals(true)}
-              className="flex h-7 items-center gap-1.5 rounded-xl bg-canvas px-3 text-xs font-medium text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink"
+              className="flex h-7 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-semibold text-ink/70 shadow-card active:scale-95 transition-transform"
             >
-              <Pencil size={12} />Editar
+              <Pencil size={12} /> Editar
             </button>
           </div>
-          <div className="space-y-4 rounded-4xl bg-white p-5 shadow-card">
+          <div className="space-y-5 rounded-4xl bg-white p-5 shadow-card">
             {enabledGoals.length === 0 ? (
               <div className="py-2 text-center">
-                <p className="text-sm text-ink/40">Sin objetivos activos</p>
-                <p className="mt-1 text-xs font-medium text-ink/30">
-                  Define pasos, kcal, sueño o actividad semanal
-                </p>
+                <p className="text-sm text-ink/60">Sin objetivos activos</p>
+                <p className="mt-1 text-xs text-ink/50">Define pasos, kcal, sueño o actividad semanal</p>
               </div>
             ) : (
-              enabledGoals.map((goal, index) => {
-                const currentValue = getGoalCurrentValue(goal);
-                const progressPct = goal.target > 0 ? Math.round((currentValue / goal.target) * 100) : 0;
-
-                return (
-                  <div key={goal.type}>
-                    <GoalRow goal={goal} currentValue={currentValue} progressPct={progressPct} />
-                    {index < enabledGoals.length - 1 ? <div className="mt-4 h-px bg-ink/5" /> : null}
-                  </div>
-                );
-              })
+              <>
+                {weeklyGoals.map((goal) => (
+                  <WeeklyGoalRow key={goal.type} goal={goal} current={weeklyValue(goal)} />
+                ))}
+                {dailyGoals.map((goal) => (
+                  <DailyGoalRow key={goal.type} goal={goal} states={dayStates(goal)} letters={DAY_LETTERS} />
+                ))}
+              </>
             )}
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-ink/30">Programa activo</p>
-          {program ? (
-            <ProgramCard name={program.name} currentWeek={program.currentWeek} totalWeeks={program.totalWeeks} />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddProgram(true)}
-              className="flex w-full flex-col items-center gap-2 rounded-4xl border border-sand/40 bg-canvas-light p-6 text-center transition-colors hover:bg-canvas"
-            >
-              <Layers size={22} className="text-ink/20" />
-              <p className="text-sm text-ink/40">Sin programa activo</p>
-              <p className="text-xs font-medium text-ink/30">Pulsa para crear tu programa</p>
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-ink/30">Semana base</p>
-          <TemplateWeekCard />
-        </div>
+        {/* ── Recurring routine ── */}
+        <BaseWeekCard
+          weekIsPast={weekIsPast}
+          onEditDay={setTemplateDay}
+          onApply={() => PlanService.applyTemplateToDates(days.filter((date) => date >= today))}
+        />
       </div>
 
-      <AddPlanEntrySheet isOpen={showAddEntry} dateStr={selectedDate} onClose={() => setShowAddEntry(false)} />
+      <AddPlanEntrySheet
+        isOpen={showAddEntry}
+        subtitle={cap(dayFullLabel(selectedDate))}
+        onClose={() => setShowAddEntry(false)}
+        onAdd={(entry) => PlanService.addPlanEntry(selectedDate, entry)}
+      />
       <GoalsSheet isOpen={showGoals} onClose={() => setShowGoals(false)} />
-      {user ? (
-        <AddProgramSheet
-          isOpen={showAddProgram}
-          onClose={() => setShowAddProgram(false)}
-          userId={user.id}
-        />
-      ) : null}
+      <TemplateDaySheet dayIndex={templateDay} onClose={() => setTemplateDay(null)} />
+      <AddActivitySheet
+        isOpen={showAddActivity}
+        onClose={() => { setShowAddActivity(false); setEditActivity(undefined); setPrefill(undefined); loadActivities(); }}
+        editActivity={editActivity}
+        prefill={prefill}
+        defaultDate={selectedDate}
+      />
+      <ActivityDetailSheet
+        act={detailActivity}
+        onClose={() => setDetailActivity(null)}
+        onEdit={(activity) => { setDetailActivity(null); setEditActivity(activity); setShowAddActivity(true); }}
+        onDelete={(id) => { setDetailActivity(null); void Promise.resolve(RecoveryService.deleteActivity(id)).then(loadActivities); }}
+      />
+      <DolorSheet isOpen={showDolor} onClose={() => setShowDolor(false)} defaultDate={selectedDate} />
     </>
   );
 }
-

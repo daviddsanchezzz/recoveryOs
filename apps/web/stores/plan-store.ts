@@ -82,6 +82,7 @@ type PlanState = {
 
   setWeekPlan: (data: Record<string, PlanEntry[]>) => void;
   addPlanEntry: (date: string, entry: PlanEntry) => void;
+  setPlanDay: (date: string, entries: PlanEntry[]) => void;
   removePlanEntry: (date: string, index: number) => void;
   updatePlanEntry: (date: string, index: number, entry: PlanEntry) => void;
 
@@ -130,6 +131,8 @@ export const usePlanStore = create<PlanState>()(
         set((s) => ({
           weekPlan: { ...s.weekPlan, [date]: [...(s.weekPlan[date] ?? []), entry] },
         })),
+      setPlanDay: (date, entries) =>
+        set((s) => ({ weekPlan: { ...s.weekPlan, [date]: entries } })),
       removePlanEntry: (date, index) =>
         set((s) => ({
           weekPlan: { ...s.weekPlan, [date]: (s.weekPlan[date] ?? []).filter((_, i) => i !== index) },

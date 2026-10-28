@@ -2,11 +2,24 @@ import { usePlanStore } from '../stores/plan-store';
 import { toast } from '../stores/toast-store';
 import { getJson, postJson, patchJson, deleteJson, putJson } from './api';
 import type { Goal, ActiveProgram, PlanEntry } from '../stores/plan-store';
+import { addDays, startOfWeekIso, todayIso } from './date';
 
 type ServerGoal = { id: string; label: string; progressPct: number; sortOrder: number };
 type ServerProgram = { id: string; name: string; totalWeeks: number; currentWeek: number } | null;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
+
+/** 0 = Monday … 6 = Sunday, the same indexing the weekly template uses. */
+export function weekdayIndex(isoDate: string): number {
+  return (new Date(isoDate + 'T12:00:00').getDay() + 6) % 7;
+}
+
+/** Copies template entries for a new day: checklist tasks get a fresh id and start unchecked. */
+function instantiateEntries(entries: PlanEntry[]): PlanEntry[] {
+  return entries.map((entry) =>
+    entry.kind === 'task' ? { ...entry, id: crypto.randomUUID(), completed: false } : { ...entry },
+  );
+}
 
 async function saveWeekPlanDay(date: string, entries: PlanEntry[]): Promise<void> {
   try {
@@ -122,6 +135,40 @@ export const PlanService = {
       }
     } catch {
       usePlanStore.getState().setWeekPlan(usePlanStore.getState().weekPlan);
+    }
+  },
+
+  /** Replaces a whole day's entries and persists them. */
+  setDayEntries(date: string, entries: PlanEntry[]): void {
+    usePlanStore.getState().setPlanDay(date, entries);
+    void saveWeekPlanDay(date, entries);
+  },
+
+  /**
+   * Fixed-routine planning: loads plan + base week, then fills every day from the start of the
+   * current week until `horizonDays` ahead of today that has never been planned with that
+   * weekday's base entries. A day that already has a record (even an emptied one) is left
+   * alone, so manual changes are never overwritten; weeks before the current one are never touched.
+   */
+  async syncFromTemplate(userId: string, horizonDays = 14): Promise<void> {
+    await Promise.all([PlanService.loadWeekPlan(userId), PlanService.loadTemplate(userId)]);
+    const { template, weekPlan } = usePlanStore.getState();
+    const today = todayIso();
+    const last = addDays(today, horizonDays - 1);
+
+    for (let date = startOfWeekIso(today); date <= last; date = addDays(date, 1)) {
+      if (weekPlan[date] !== undefined) continue;
+      const base = template[weekdayIndex(date)] ?? [];
+      if (base.length === 0) continue;
+      PlanService.setDayEntries(date, instantiateEntries(base));
+    }
+  },
+
+  /** Overwrites the given days with the base week (used by "Aplicar a esta semana"). */
+  applyTemplateToDates(dates: string[]): void {
+    const { template } = usePlanStore.getState();
+    for (const date of dates) {
+      PlanService.setDayEntries(date, instantiateEntries(template[weekdayIndex(date)] ?? []));
     }
   },
 

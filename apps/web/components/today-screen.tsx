@@ -30,9 +30,10 @@ import { useSessionStore }  from '../stores/session-store';
 import { RecoveryService, NutritionService, CorosService } from '../lib/services';
 import type { CorosSyncInfo } from '../lib/services';
 import { PlanService } from '../lib/plan-service';
+import { getPlannedActivityMatches } from '../lib/plan-matching';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { addDays, formatShortDate, sameDay, todayIso } from '../lib/date';
-import { ACTIVE_CALORIES_GOAL, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
+import { getDailyTargets, pickBySourcePrecedence } from '../lib/health-metrics';
 import { calculateBmr } from '../lib/bmr';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 import type { ActivityPlanEntry, TaskPlanEntry } from '../stores/plan-store';
@@ -81,27 +82,6 @@ function formatActivitySummary(activity: ActivityEntry): string {
   }
 
   return parts.join(' · ');
-}
-
-function matchesPlanEntry(entry: ActivityPlanEntry, activity: ActivityEntry): boolean {
-  return activity.type === entry.type;
-}
-
-function getPlannedActivityMatches(entries: ActivityPlanEntry[], activities: ActivityEntry[]) {
-  const usedIds = new Set<string>();
-
-  return entries.map((entry) => {
-    // Rehab entries never match a logged Activity — completion comes from today's
-    // InjuryLog.didRehab (see hasRehab), not from the Activities list.
-    const matchedActivity = entry.type === 'rehab' ? null : activities.find((activity) => {
-      if (usedIds.has(activity.id)) return false;
-      return matchesPlanEntry(entry, activity);
-    }) ?? null;
-
-    if (matchedActivity) usedIds.add(matchedActivity.id);
-
-    return { entry, matchedActivity };
-  });
 }
 
 function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
@@ -206,8 +186,7 @@ export function TodayScreen({
   // The plan lives in the Plan tab's loaders; without this, "Tu día" is empty until that tab is opened.
   useEffect(() => {
     if (!userId) return;
-    void PlanService.loadWeekPlan(userId);
-    void PlanService.loadProgram(userId);
+    void PlanService.syncFromTemplate(userId);
   }, [userId]);
 
   useEffect(() => {
@@ -227,7 +206,8 @@ export function TodayScreen({
   }
 
   const weekPlan   = usePlanStore((s) => s.weekPlan);
-  const activeProgram = usePlanStore((s) => s.program);
+  const structuredGoals = usePlanStore((s) => s.structuredGoals);
+  const dailyTargets = getDailyTargets(structuredGoals);
   const planEntries = weekPlan[selectedDate] ?? [];
   const activityPlanEntries = planEntries.filter((e): e is ActivityPlanEntry => e.kind !== 'task');
   const taskRows = planEntries
@@ -547,9 +527,9 @@ export function TodayScreen({
           <>
             <TodayMovementCard
               steps={movementSteps}
-              stepsGoal={STEPS_GOAL}
+              stepsGoal={dailyTargets.steps}
               activeCalories={movementActiveCalories}
-              caloriesGoal={ACTIVE_CALORIES_GOAL}
+              caloriesGoal={dailyTargets.activeCalories}
               onOpenSteps={() => setShowPasosSheet(true)}
               onOpenCalories={() => setShowKcalSheet(true)}
             />
@@ -603,11 +583,6 @@ export function TodayScreen({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-base font-bold text-ink">{phaseInjury.name} · {phaseInjury.phaseLabel}</p>
-                  {activeProgram && (
-                    <p className="text-xs text-ink/60 mt-0.5">
-                      Semana {activeProgram.currentWeek} de {activeProgram.totalWeeks}
-                    </p>
-                  )}
                 </div>
                 {phaseInjury.phaseTargetSessions != null && (
                   <p className="text-sm font-semibold text-ink/60">
@@ -671,6 +646,7 @@ export function TodayScreen({
         onClose={() => { setShowAddActivity(false); setEditActivity(undefined); setPrefillActivity(undefined); }}
         editActivity={editActivity}
         prefill={prefillActivity}
+        defaultDate={selectedDate}
       />
       <ActivityDetailSheet
         act={detailActivity}
