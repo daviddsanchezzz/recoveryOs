@@ -1,13 +1,32 @@
 import { usePlanStore } from '../stores/plan-store';
 import { toast } from '../stores/toast-store';
 import { getJson, postJson, patchJson, deleteJson, putJson } from './api';
-import type { Goal, ActiveProgram, PlanEntry } from '../stores/plan-store';
+import { DEFAULT_STRUCTURED_GOALS } from '../stores/plan-store';
+import type { Goal, ActiveProgram, PlanEntry, StructuredGoal, StructuredGoalType } from '../stores/plan-store';
 import { addDays, startOfWeekIso, todayIso } from './date';
 
 type ServerGoal = { id: string; label: string; progressPct: number; sortOrder: number };
 type ServerProgram = { id: string; name: string; totalWeeks: number; currentWeek: number } | null;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
+
+let saveGoalsTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function saveStructuredGoals(goals: StructuredGoal[]): Promise<void> {
+  try {
+    await putJson<unknown>('/plan/structured-goals', { goals });
+  } catch {
+    // optimistic — the next change (or the next load) tries again
+  }
+}
+
+/** True when every goal still has its default value, i.e. there is nothing worth uploading. */
+function goalsAreDefault(goals: StructuredGoal[]): boolean {
+  return DEFAULT_STRUCTURED_GOALS.every((def) => {
+    const current = goals.find((g) => g.type === def.type);
+    return !!current && current.enabled === def.enabled && current.target === def.target;
+  });
+}
 
 /** 0 = Monday … 6 = Sunday, the same indexing the weekly template uses. */
 export function weekdayIndex(isoDate: string): number {
@@ -138,6 +157,42 @@ export const PlanService = {
     }
   },
 
+  // ── Measurable goals (stored in the account, so every device sees the same ones) ──
+
+  async loadStructuredGoals(userId: string): Promise<void> {
+    try {
+      const { goals } = await getJson<{ goals: StructuredGoal[] | null }>(`/plan/${userId}/structured-goals`);
+      const store = usePlanStore.getState();
+
+      if (goals && goals.length > 0) {
+        // Keep every known type present even if the server only has some of them.
+        store.setStructuredGoals(
+          DEFAULT_STRUCTURED_GOALS.map((def) => goals.find((g) => g.type === def.type) ?? def),
+        );
+      } else if (!goalsAreDefault(store.structuredGoals)) {
+        // First time with server storage: keep the goals this device already had.
+        void saveStructuredGoals(store.structuredGoals);
+      }
+    } catch {
+      // offline: keep the local copy
+    }
+  },
+
+  /** Updates one goal locally right away and saves to the account shortly after (debounced). */
+  updateStructuredGoal(type: StructuredGoalType, data: Partial<Omit<StructuredGoal, 'type'>>): void {
+    usePlanStore.getState().updateStructuredGoal(type, data);
+    if (saveGoalsTimer) clearTimeout(saveGoalsTimer);
+    saveGoalsTimer = setTimeout(() => {
+      void saveStructuredGoals(usePlanStore.getState().structuredGoals);
+    }, 600);
+  },
+
+  /** Saves immediately (e.g. when the goals sheet is closed). */
+  async flushStructuredGoals(): Promise<void> {
+    if (saveGoalsTimer) { clearTimeout(saveGoalsTimer); saveGoalsTimer = undefined; }
+    await saveStructuredGoals(usePlanStore.getState().structuredGoals);
+  },
+
   /** Replaces a whole day's entries and persists them. */
   setDayEntries(date: string, entries: PlanEntry[]): void {
     usePlanStore.getState().setPlanDay(date, entries);
@@ -151,7 +206,11 @@ export const PlanService = {
    * alone, so manual changes are never overwritten; weeks before the current one are never touched.
    */
   async syncFromTemplate(userId: string, horizonDays = 14): Promise<void> {
-    await Promise.all([PlanService.loadWeekPlan(userId), PlanService.loadTemplate(userId)]);
+    await Promise.all([
+      PlanService.loadWeekPlan(userId),
+      PlanService.loadTemplate(userId),
+      PlanService.loadStructuredGoals(userId),
+    ]);
     const { template, weekPlan } = usePlanStore.getState();
     const today = todayIso();
     const last = addDays(today, horizonDays - 1);

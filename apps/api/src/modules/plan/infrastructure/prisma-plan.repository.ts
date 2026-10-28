@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { GoalEntity } from '../domain/goal.entity';
 import { ProgramEntity } from '../domain/program.entity';
-import { PlanEntryJson, PlanRepositoryPort } from '../domain/plan-repository.port';
+import { PlanEntryJson, PlanRepositoryPort, StructuredGoalJson } from '../domain/plan-repository.port';
 
 function toGoalEntity(r: {
   id: string;
@@ -158,5 +158,20 @@ export class PrismaPlanRepository implements PlanRepositoryPort {
       create: { userId, dayIndex, entries: entries as object[] },
     });
     return { dayIndex: r.dayIndex, entries: r.entries as PlanEntryJson[] };
+  }
+
+  async findStructuredGoals(userId: string): Promise<StructuredGoalJson[] | null> {
+    const row = await this.prisma.userPlanSettings.findUnique({ where: { userId } });
+    return row ? (row.structuredGoals as StructuredGoalJson[]) : null;
+  }
+
+  async saveStructuredGoals(userId: string, goals: StructuredGoalJson[]): Promise<StructuredGoalJson[]> {
+    await this.ensureUser(userId);
+    const row = await this.prisma.userPlanSettings.upsert({
+      where: { userId },
+      update: { structuredGoals: goals as object[] },
+      create: { userId, structuredGoals: goals as object[] },
+    });
+    return row.structuredGoals as StructuredGoalJson[];
   }
 }

@@ -61,6 +61,15 @@ export type TaskPlanEntry = {
 
 export type PlanEntry = ActivityPlanEntry | TaskPlanEntry;
 
+export const DEFAULT_STRUCTURED_GOALS: StructuredGoal[] = [
+  { type: 'steps_daily', enabled: true, target: 10000 },
+  { type: 'active_calories_daily', enabled: true, target: 700 },
+  { type: 'sleep_hours_daily', enabled: true, target: 8 },
+  { type: 'activity_minutes_weekly', enabled: true, target: 300 },
+  { type: 'activity_sessions_weekly', enabled: false, target: 5 },
+  { type: 'training_sessions_daily', enabled: false, target: 1 },
+];
+
 type PlanState = {
   goals: Goal[];
   structuredGoals: StructuredGoal[];
@@ -96,14 +105,7 @@ export const usePlanStore = create<PlanState>()(
   persist(
     (set) => ({
       goals: [],
-      structuredGoals: [
-        { type: 'steps_daily', enabled: true, target: 10000 },
-        { type: 'active_calories_daily', enabled: true, target: 700 },
-        { type: 'sleep_hours_daily', enabled: true, target: 8 },
-        { type: 'activity_minutes_weekly', enabled: true, target: 300 },
-        { type: 'activity_sessions_weekly', enabled: false, target: 5 },
-        { type: 'training_sessions_daily', enabled: false, target: 1 },
-      ],
+      structuredGoals: DEFAULT_STRUCTURED_GOALS.map((goal) => ({ ...goal })),
       program: null,
       goalsLoaded: false,
       programLoaded: false,

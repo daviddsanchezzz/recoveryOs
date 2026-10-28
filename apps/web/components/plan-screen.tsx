@@ -371,12 +371,17 @@ function TaskForm({
 }
 
 function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { structuredGoals, updateStructuredGoal } = usePlanStore();
+  const structuredGoals = usePlanStore((state) => state.structuredGoals);
+
+  function close() {
+    void PlanService.flushStructuredGoals();
+    onClose();
+  }
 
   return (
     <Sheet
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={close}
       title="Objetivos medibles"
       subtitle="Define pasos, kcal, sueño y volumen de actividad"
     >
@@ -399,7 +404,7 @@ function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                 </div>
                 <button
                   type="button"
-                  onClick={() => updateStructuredGoal(goal.type, { enabled: !goal.enabled })}
+                  onClick={() => PlanService.updateStructuredGoal(goal.type, { enabled: !goal.enabled })}
                   className={`flex h-7 w-12 items-center rounded-full px-1 transition-all ${goal.enabled ? 'justify-end bg-ink' : 'justify-start bg-white shadow-card'}`}
                 >
                   <span className="h-5 w-5 rounded-full bg-white shadow-sm" />
@@ -413,7 +418,7 @@ function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                   value={goal.target}
                   disabled={!goal.enabled}
                   onChange={(event) =>
-                    updateStructuredGoal(goal.type, { target: Number(event.target.value || 0) })
+                    PlanService.updateStructuredGoal(goal.type, { target: Number(event.target.value || 0) })
                   }
                   className="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-ink outline-none disabled:opacity-50"
                 />
@@ -425,7 +430,7 @@ function GoalsSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
       </div>
       <button
         type="button"
-        onClick={onClose}
+        onClick={close}
         className="w-full rounded-2xl bg-ink py-3.5 text-sm font-semibold text-white"
       >
         Guardar

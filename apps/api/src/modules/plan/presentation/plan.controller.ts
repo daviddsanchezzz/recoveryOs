@@ -15,6 +15,8 @@ import { GetWeekPlanUseCase } from '../application/use-cases/get-week-plan.use-c
 import { UpsertWeekPlanDayUseCase } from '../application/use-cases/upsert-week-plan-day.use-case';
 import { GetTemplateUseCase } from '../application/use-cases/get-template.use-case';
 import { UpsertTemplateDayUseCase } from '../application/use-cases/upsert-template-day.use-case';
+import { GetStructuredGoalsUseCase } from '../application/use-cases/get-structured-goals.use-case';
+import { SaveStructuredGoalsUseCase } from '../application/use-cases/save-structured-goals.use-case';
 import { AUTH_SERVICE, AuthServicePort } from '../../auth/domain/auth-service.port';
 import { PlanEntryJson } from '../domain/plan-repository.port';
 
@@ -31,6 +33,8 @@ export class PlanController {
     private readonly upsertWeekPlanDayUseCase: UpsertWeekPlanDayUseCase,
     private readonly getTemplateUseCase: GetTemplateUseCase,
     private readonly upsertTemplateDayUseCase: UpsertTemplateDayUseCase,
+    private readonly getStructuredGoalsUseCase: GetStructuredGoalsUseCase,
+    private readonly saveStructuredGoalsUseCase: SaveStructuredGoalsUseCase,
     @Inject(AUTH_SERVICE) private readonly authService: AuthServicePort,
   ) {}
 
@@ -119,5 +123,21 @@ export class PlanController {
     const session = await this.authService.getSession({ headers: new Headers(req.headers) });
     if (!session) throw new ForbiddenException();
     return this.upsertTemplateDayUseCase.execute(session.user.id, parseInt(dayIndex, 10), body.entries ?? []);
+  }
+
+  // ── Measurable goals (steps, kcal, sleep…) ──────────────────────────────
+
+  @Get(':userId/structured-goals')
+  async getStructuredGoals(@Param('userId') userId: string, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session || session.user.id !== userId) throw new ForbiddenException();
+    return { goals: await this.getStructuredGoalsUseCase.execute(userId) };
+  }
+
+  @Put('structured-goals')
+  async saveStructuredGoals(@Body() body: { goals: unknown }, @Req() req: any) {
+    const session = await this.authService.getSession({ headers: new Headers(req.headers) });
+    if (!session) throw new ForbiddenException();
+    return { goals: await this.saveStructuredGoalsUseCase.execute(session.user.id, body?.goals) };
   }
 }

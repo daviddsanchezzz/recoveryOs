@@ -10,6 +10,8 @@ export type PlanEntryJson = {
   muscleGroups?: string[];
 };
 
+export type StructuredGoalJson = { type: string; enabled: boolean; target: number };
+
 export interface PlanRepositoryPort {
   createGoal(goal: GoalEntity): Promise<GoalEntity>;
   findGoalsByUser(userId: string): Promise<GoalEntity[]>;
@@ -34,4 +36,7 @@ export interface PlanRepositoryPort {
 
   findTemplateDays(userId: string): Promise<Array<{ dayIndex: number; entries: PlanEntryJson[] }>>;
   upsertTemplateDay(userId: string, dayIndex: number, entries: PlanEntryJson[]): Promise<{ dayIndex: number; entries: PlanEntryJson[] }>;
+
+  findStructuredGoals(userId: string): Promise<StructuredGoalJson[] | null>;
+  saveStructuredGoals(userId: string, goals: StructuredGoalJson[]): Promise<StructuredGoalJson[]>;
 }

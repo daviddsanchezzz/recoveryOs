@@ -10,6 +10,8 @@ import { GetWeekPlanUseCase } from './application/use-cases/get-week-plan.use-ca
 import { UpsertWeekPlanDayUseCase } from './application/use-cases/upsert-week-plan-day.use-case';
 import { GetTemplateUseCase } from './application/use-cases/get-template.use-case';
 import { UpsertTemplateDayUseCase } from './application/use-cases/upsert-template-day.use-case';
+import { GetStructuredGoalsUseCase } from './application/use-cases/get-structured-goals.use-case';
+import { SaveStructuredGoalsUseCase } from './application/use-cases/save-structured-goals.use-case';
 import { PLAN_REPOSITORY } from './domain/plan-repository.port';
 import { PrismaPlanRepository } from './infrastructure/prisma-plan.repository';
 import { PlanController } from './presentation/plan.controller';
@@ -28,6 +30,8 @@ import { PlanController } from './presentation/plan.controller';
     UpsertWeekPlanDayUseCase,
     GetTemplateUseCase,
     UpsertTemplateDayUseCase,
+    GetStructuredGoalsUseCase,
+    SaveStructuredGoalsUseCase,
     PrismaPlanRepository,
     { provide: PLAN_REPOSITORY, useExisting: PrismaPlanRepository },
   ],
