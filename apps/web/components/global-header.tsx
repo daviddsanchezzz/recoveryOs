@@ -7,7 +7,7 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { AvatarDrawer } from './avatar-drawer';
 import { NotificationPanel } from './notification-panel';
 import { getJson } from '../lib/api';
-import { calculateActivityStreak } from '../lib/metrics';
+import { calculateActivityWeekStreak } from '../lib/metrics';
 import { RecoveryService } from '../lib/services';
 
 export function GlobalHeader() {
@@ -30,7 +30,7 @@ export function GlobalHeader() {
       .catch(() => {});
   }, [user]);
 
-  const streak = calculateActivityStreak([...historyDates, ...activities.map((a) => a.date)]);
+  const streak = calculateActivityWeekStreak([...historyDates, ...activities.map((a) => a.date)]);
 
   useEffect(() => {
     if (!user) return;
@@ -89,11 +89,11 @@ export function GlobalHeader() {
           {streak > 0 && (
             <div
               className="ml-auto flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-card"
-              aria-label={`${streak} días seguidos con actividad`}
+              aria-label={`${streak} semanas seguidas con actividad`}
             >
               <Flame size={14} className="text-ember" />
               <span className="text-xs font-bold text-ink">{streak}</span>
-              <span className="text-[11px] text-ink/50">{streak === 1 ? 'día' : 'días'}</span>
+              <span className="text-[11px] text-ink/50">{streak === 1 ? 'semana' : 'semanas'}</span>
             </div>
           )}
         </div>

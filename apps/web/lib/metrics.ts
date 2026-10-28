@@ -5,7 +5,7 @@ import type {
   InjuryLog,
   WeightEntry,
 } from '../stores/recovery-store';
-import { addDays, sameDay, todayIso, weekDates } from './date';
+import { addDays, sameDay, startOfWeekIso, todayIso, weekDates } from './date';
 
 export function calculateRecoveryScore(input: {
   activeInjuries: Injury[];
@@ -139,15 +139,15 @@ export function buildRuleBasedInsight(input: {
 }
 
 
-/** Consecutive days with at least one activity. Today not having one yet does not break the streak. */
-export function calculateActivityStreak(activityDates: string[]) {
-  const days = new Set(activityDates.map((date) => date.slice(0, 10)));
-  const today = todayIso();
-  let cursor = days.has(today) ? today : addDays(today, -1);
+/** Consecutive weeks (Mon–Sun) with at least one activity. The current week not having one yet does not break the streak. */
+export function calculateActivityWeekStreak(activityDates: string[]) {
+  const weeks = new Set(activityDates.map((date) => startOfWeekIso(date.slice(0, 10))));
+  const thisWeek = startOfWeekIso(todayIso());
+  let cursor = weeks.has(thisWeek) ? thisWeek : addDays(thisWeek, -7);
   let streak = 0;
-  while (days.has(cursor)) {
+  while (weeks.has(cursor)) {
     streak += 1;
-    cursor = addDays(cursor, -1);
+    cursor = addDays(cursor, -7);
   }
   return streak;
 }
