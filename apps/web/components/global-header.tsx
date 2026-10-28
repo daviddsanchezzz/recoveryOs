@@ -1,12 +1,13 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import { Bell, Flame } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSessionStore } from '../stores/session-store';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { AvatarDrawer } from './avatar-drawer';
 import { NotificationPanel } from './notification-panel';
 import { getJson } from '../lib/api';
+import { calculateLoggingStreak } from '../lib/metrics';
 
 export function GlobalHeader() {
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -15,6 +16,10 @@ export function GlobalHeader() {
 
   const user    = useSessionStore((s) => s.user);
   const profile = useRecoveryStore((s) => s.profile);
+  const { weightEntries, sleepEntries, activities, injuryLogs, dailyHealthMetrics } = useRecoveryStore();
+  const streak = calculateLoggingStreak({
+    weights: weightEntries, sleep: sleepEntries, activities, injuryLogs, healthMetrics: dailyHealthMetrics,
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -41,10 +46,10 @@ export function GlobalHeader() {
   return (
     <>
       <header
-        className="fixed top-0 left-0 right-0 z-40 bg-canvas/90 backdrop-blur-md"
+        className="fixed top-0 left-0 right-0 z-40 bg-canvas shadow-[0_1px_0_rgba(19,32,26,0.05)]"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="mx-auto max-w-md relative flex items-center px-4 h-14">
+        <div className="mx-auto max-w-md flex items-center px-4 h-14">
           {/* Left: avatar + bell */}
           <div className="flex items-center gap-2">
             <button
@@ -69,10 +74,17 @@ export function GlobalHeader() {
             </button>
           </div>
 
-          {/* Center: wordmark */}
-          <p className="absolute left-1/2 -translate-x-1/2 text-sm font-bold text-ink tracking-tight pointer-events-none select-none">
-            Pulso
-          </p>
+          {/* Right: logging streak */}
+          {streak > 0 && (
+            <div
+              className="ml-auto flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-card"
+              aria-label={`Racha de ${streak} días registrando`}
+            >
+              <Flame size={14} className="text-ember" />
+              <span className="text-xs font-bold text-ink">{streak}</span>
+              <span className="text-[11px] text-ink/50">{streak === 1 ? 'día' : 'días'}</span>
+            </div>
+          )}
         </div>
       </header>
 

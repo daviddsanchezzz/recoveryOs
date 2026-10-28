@@ -34,7 +34,7 @@ export function ChatPanel() {
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, addMessage, resetMessages } = useChatStore();
+  const { messages, addMessage, resetMessages, pendingPrompt, setPendingPrompt } = useChatStore();
   const user = useSessionStore((state) => state.user);
   const selectedDate = useRecoveryStore((state) => state.selectedDate);
   const today = todayIso();
@@ -85,6 +85,13 @@ export function ChatPanel() {
     }
   }
 
+  useEffect(() => {
+    if (!pendingPrompt || !agentStatus?.configured || isSubmitting) return;
+    setPendingPrompt(null);
+    void sendMessage(pendingPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt, agentStatus?.configured]);
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -108,7 +115,7 @@ export function ChatPanel() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-[17px] font-semibold tracking-tight">Recovery Agent</h1>
+                <h1 className="text-[17px] font-semibold tracking-tight">Agente Pulso</h1>
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
                     agentStatus?.configured

@@ -529,7 +529,28 @@ type CorosStatus = {
   syncError: string | null;
 };
 
+export type CorosSyncInfo = { connected: boolean; lastSyncAt: string | null; syncStatus: string | null };
+
 export const CorosService = {
+  async getStatus(userId: string): Promise<CorosSyncInfo | null> {
+    try {
+      const status = await getJson<CorosStatus>(`/coros/${userId}/status`);
+      return { connected: status.connected, lastSyncAt: status.lastSyncAt, syncStatus: status.syncStatus };
+    } catch {
+      return null;
+    }
+  },
+
+  /** User-initiated refresh: sync COROS (if connected) and reload the day's data. */
+  async syncNow(userId: string, date = todayIso()): Promise<CorosSyncInfo | null> {
+    const status = await CorosService.getStatus(userId);
+    if (status?.connected && status.syncStatus !== 'reauth_required') {
+      try { await postJson('/coros/sync', {}); } catch { /* keep going: still reload what we have */ }
+    }
+    await RecoveryService.loadTodayData(userId, date);
+    return CorosService.getStatus(userId);
+  },
+
   /** Called on app open: if COROS is connected and hasn't synced in over 15 minutes
    *  (e.g. the daily cron failed silently, or steps/kcal have just gone stale), triggers
    *  a sync in the background. */

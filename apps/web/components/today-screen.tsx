@@ -4,10 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft, ChevronRight,
-  Scale,
-  Sparkles, Check,
-  Footprints, Flame,
-  UtensilsCrossed, HeartPulse, Heart, Gauge,
+  Check, Plus, RefreshCw,
 } from 'lucide-react';
 import { WeeklyCalendar }   from './weekly-calendar';
 import { MonthlyCalendar }  from './monthly-calendar';
@@ -21,15 +18,21 @@ import { DayScoreCard } from './day-score-card';
 import { PasosDetailSheet } from './pasos-detail-sheet';
 import { AlimentacionDetailSheet } from './alimentacion-detail-sheet';
 import { AddMealSheet }     from './add-meal-sheet';
+import { TodayQuickLog, type QuickLogItem } from './today-quick-log';
+import { TodayMovementCard } from './today-movement-card';
+import { TodayNutritionCard } from './today-nutrition-card';
+import { TodayRecoveryCard, computeRecoveryBaseline } from './today-recovery-card';
+import { TodayInsightCard } from './today-insight-card';
 import { useRecoveryStore } from '../stores/recovery-store';
 import { usePlanStore }     from '../stores/plan-store';
 import { useNutritionStore } from '../stores/nutrition-store';
 import { useSessionStore }  from '../stores/session-store';
-import { RecoveryService, NutritionService } from '../lib/services';
+import { RecoveryService, NutritionService, CorosService } from '../lib/services';
+import type { CorosSyncInfo } from '../lib/services';
 import { PlanService } from '../lib/plan-service';
 import { buildRuleBasedInsight } from '../lib/metrics';
 import { addDays, formatShortDate, sameDay, todayIso } from '../lib/date';
-import { ACTIVE_CALORIES_GOAL, getMovementPercent, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
+import { ACTIVE_CALORIES_GOAL, pickBySourcePrecedence, STEPS_GOAL } from '../lib/health-metrics';
 import { calculateBmr } from '../lib/bmr';
 import type { ActivityEntry, ActivityType, MuscleGroup } from '../stores/recovery-store';
 import type { ActivityPlanEntry, TaskPlanEntry } from '../stores/plan-store';
@@ -101,13 +104,6 @@ function getPlannedActivityMatches(entries: ActivityPlanEntry[], activities: Act
   });
 }
 
-// MOCK – sustituir por Apple Health
-function getMockMovement(dateStr: string): { steps: number; kcal: number; stepsGoal: number; kcalGoal: number } {
-  const seed  = dateStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const steps = 3500 + ((seed * 2654435761) >>> 0) % 7501;
-  return { steps, kcal: Math.round(steps * 0.04), stepsGoal: 10000, kcalGoal: 500 };
-}
-
 function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
   avgPain: number | null;
   painDiff: number | null;
@@ -143,11 +139,37 @@ function computePainTrend(logs: Array<{ date: string; painLevel: number }>): {
   return { avgPain, painDiff, trend };
 }
 
-// ── Reusable daily-log row ────────────────────────────────────────────────────
+function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function greeting(name?: string): string {
+  const hour = new Date().getHours();
+  const base = hour < 6 ? 'Buenas noches' : hour < 13 ? 'Buenos días' : hour < 21 ? 'Buenas tardes' : 'Buenas noches';
+  const first = name?.trim().split(/\s+/)[0];
+  return first ? `${base}, ${first}` : base;
+}
+
+function minutesAgoLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'ahora mismo';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  return hours < 24 ? `hace ${hours} h` : `hace ${Math.floor(hours / 24)} d`;
+}
+
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
-export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => void; onNavToProgreso?: () => void } = {}) {
+export function TodayScreen({
+  onNavToProgreso, onNavToPlan, onAskAgent,
+}: {
+  onNavToActividades?: () => void;
+  onNavToProgreso?: () => void;
+  onNavToPlan?: () => void;
+  onAskAgent?: (prompt: string) => void;
+} = {}) {
   const [showMonthly,        setShowMonthly]        = useState(false);
   const [showWeightSheet,    setShowWeightSheet]    = useState(false);
   const [showSleepSheet,     setShowSleepSheet]     = useState(false);
@@ -177,6 +199,33 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     NutritionService.fetchDailySummary(userId, selectedDate).catch(() => {});
   }, [selectedDate, userId]);
 
+  const profileName = useRecoveryStore((s) => s.profile.name);
+  const [syncInfo, setSyncInfo]   = useState<CorosSyncInfo | null>(null);
+  const [syncing, setSyncing]     = useState(false);
+
+  // The plan lives in the Plan tab's loaders; without this, "Tu día" is empty until that tab is opened.
+  useEffect(() => {
+    if (!userId) return;
+    void PlanService.loadWeekPlan(userId);
+    void PlanService.loadProgram(userId);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    void CorosService.getStatus(userId).then(setSyncInfo);
+  }, [userId, selectedDate]);
+
+  async function refreshNow() {
+    if (!userId || syncing) return;
+    setSyncing(true);
+    try {
+      const info = await CorosService.syncNow(userId, selectedDate);
+      if (info) setSyncInfo(info);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const weekPlan   = usePlanStore((s) => s.weekPlan);
   const activeProgram = usePlanStore((s) => s.program);
   const planEntries = weekPlan[selectedDate] ?? [];
@@ -185,8 +234,10 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     .map((entry, index) => ({ entry, index }))
     .filter((row): row is { entry: TaskPlanEntry; index: number } => row.entry.kind === 'task');
 
-  const today   = todayIso();
-  const isToday = sameDay(selectedDate, today);
+  const today    = todayIso();
+  const isToday  = sameDay(selectedDate, today);
+  const isFuture = selectedDate > today;
+  const isPast   = selectedDate < today;
 
   // ── Day data ─────────────────────────────────────────────────────────────
   const dayCheckIn    = checkIns.find((c) => sameDay(c.date, selectedDate));
@@ -224,10 +275,8 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     plannedActivityRows.filter(({ entry, matchedActivity }) => !(entry.type === 'rehab' ? hasRehab : !!matchedActivity)).length +
     taskRows.filter(({ entry }) => !entry.completed).length;
 
-  // MOCK – sustituir por Apple Health
   const movementSteps = todayMovement?.steps ?? 0;
   const movementActiveCalories = todayMovement?.activeCalories ?? 0;
-  const { stepsPct, activeCaloriesPct } = getMovementPercent(movementSteps, movementActiveCalories);
   const latestWeight = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
   const basalCalories = calculateBmr({
     sex: nutritionGoal?.sex,
@@ -236,7 +285,34 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
     weightKg: latestWeight?.weightKg,
   });
   const totalCaloriesOut = movementActiveCalories + (basalCalories ?? 0);
-  const nutritionBalance = dailyNutrition ? dailyNutrition.totalCalories - totalCaloriesOut : 0;
+
+  // Activities that did not match a planned session (or all of them when there is no plan)
+  const matchedIds = new Set(plannedActivityRows.map((r) => r.matchedActivity?.id).filter(Boolean) as string[]);
+  const extraActivities = dayActivities.filter((a) => !matchedIds.has(a.id));
+
+  const previousDays = Array.from({ length: 7 }, (_, i) => addDays(selectedDate, -(i + 1)));
+  const sleepAvgH = (() => {
+    const values = previousDays
+      .map((d) => pickBySourcePrecedence(sleepEntries, d)?.durationH)
+      .filter((v): v is number => v != null);
+    return values.length >= 3 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+  })();
+  const recoveryBaseline = computeRecoveryBaseline(dailyHealthMetrics, selectedDate, previousDays);
+  // Only sessions (not checklist tasks) feed the "Hoy toca" line of the day state.
+  const pendingSessionLabels = plannedActivityRows
+    .filter(({ entry, matchedActivity }) => !(entry.type === 'rehab' ? hasRehab : !!matchedActivity))
+    .map(({ entry }) => entry.label);
+
+  const quickLog: QuickLogItem[] = [
+    { key: 'peso',   label: 'Peso',   onClick: () => setShowWeightSheet(true), missing: !todayWeight },
+    { key: 'sueno',  label: 'Sueño',  onClick: () => setShowSleepSheet(true),  missing: !todaySleep },
+    ...(activeInjuries.length > 0
+      ? [{ key: 'dolor', label: 'Dolor', onClick: () => setShowDolorSheet(true), missing: dayLogs.length === 0 }]
+      : []),
+    { key: 'comida', label: 'Comida', onClick: () => setShowAddMeal(true), missing: !dailyNutrition || dailyNutrition.totalCalories === 0 },
+    { key: 'actividad', label: 'Actividad', onClick: () => { setEditActivity(undefined); setPrefillActivity(undefined); setShowAddActivity(true); }, missing: false },
+  ].sort((a, b) => Number(b.missing) - Number(a.missing));
+  const hasMissing = quickLog.some((item) => item.missing);
 
   // ── Insight + labels ─────────────────────────────────────────────────────
   const insight = buildRuleBasedInsight({
@@ -245,24 +321,35 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
 
   const selDateObj = new Date(selectedDate + 'T12:00:00');
   const monthLabel = `${MONTH_NAMES[selDateObj.getMonth()]} ${selDateObj.getFullYear()}`;
-  const dayLabel   = selDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dayLabel   = capitalizeFirst(selDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
+  const dayCaption = isToday ? greeting(profileName) : isFuture ? 'Día planificado' : 'Resumen del día';
+  const syncLabel  = isToday && syncInfo?.connected ? minutesAgoLabel(syncInfo.lastSyncAt) : null;
 
   return (
     <>
       <div className="px-4 pt-3 pb-4 space-y-4 animate-fade-in">
 
         {/* ── Weekly calendar ───────────────────────────────── */}
-        <div className="rounded-4xl bg-white shadow-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="rounded-4xl bg-white shadow-card px-4 pt-4 pb-3 space-y-3">
+          <div className="flex items-center justify-between px-1">
             <p className="text-sm font-bold text-ink uppercase tracking-wide">{monthLabel}</p>
             <div className="flex items-center gap-1.5">
+              {!isToday && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(today)}
+                  className="h-8 rounded-xl bg-ink px-3 text-xs font-semibold text-white active:scale-95 transition-transform"
+                >
+                  Hoy
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedDate(addDays(selectedDate, -7))}
                 className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
                 aria-label="Semana anterior"
               >
-                <ChevronLeft size={16} className="text-ink/50" />
+                <ChevronLeft size={16} className="text-ink/60" />
               </button>
               <button
                 type="button"
@@ -270,7 +357,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
                 aria-label="Semana siguiente"
               >
-                <ChevronRight size={16} className="text-ink/50" />
+                <ChevronRight size={16} className="text-ink/60" />
               </button>
               <button
                 type="button"
@@ -278,196 +365,81 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 className="h-8 w-8 rounded-xl bg-canvas flex items-center justify-center active:scale-95 transition-transform"
                 aria-label="Ver calendario mensual"
               >
-                <CalendarIcon size={15} className="text-ink/50" />
+                <CalendarIcon size={15} className="text-ink/60" />
               </button>
             </div>
           </div>
           <WeeklyCalendar
             selectedDate={selectedDate}
             onSelect={setSelectedDate}
+            onShiftWeek={(direction) => setSelectedDate(addDays(selectedDate, direction * 7))}
             checkIns={checkIns}
             weights={weightEntries}
             activities={activities}
             injuryLogs={injuryLogs}
             healthMetrics={dailyHealthMetrics}
+            plan={weekPlan}
           />
         </div>
 
         {/* ── Day header ────────────────────────────────────── */}
-        <div>
-          <p className="text-xs text-ink/40 font-medium uppercase tracking-wider">
-            {isToday ? 'Hoy' : formatShortDate(selectedDate)}
-          </p>
-          <p className="text-lg font-bold text-ink leading-tight capitalize">{dayLabel}</p>
-        </div>
-
-        {/* ── Estado de hoy ─────────────────────────────────── */}
-        <DayScoreCard
-          selectedDate={selectedDate}
-          onNavToProgreso={onNavToProgreso}
-          hasActiveInjuries={activeInjuries.length > 0}
-          todayWeightKg={todayWeight?.weightKg ?? null}
-          onAddSleep={() => setShowSleepSheet(true)}
-          onAddWeight={() => setShowWeightSheet(true)}
-          onAddPain={() => setShowDolorSheet(true)}
-        />
-
-        {/* ── Movimiento de hoy ─────────────────────────────── */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Movimiento hoy
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {/* Pasos — tap abre historial */}
-            <button type="button" onClick={() => setShowPasosSheet(true)} className="space-y-1.5 text-left">
-              <div className="flex items-baseline gap-1">
-                <Footprints size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                <span className="text-lg font-bold text-ink">{movementSteps.toLocaleString('es-ES')}</span>
-                <span className="text-xs text-ink/40">pasos</span>
-              </div>
-              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${stepsPct}%` }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-ink/30">de {STEPS_GOAL.toLocaleString('es-ES')}</span>
-                <span className="text-[10px] text-ink/30">{stepsPct}%</span>
-              </div>
-            </button>
-            {/* Calorías — tap abre historial */}
-            <button type="button" onClick={() => setShowKcalSheet(true)} className="space-y-1.5 text-left">
-              <div className="flex items-baseline gap-1">
-                <Flame size={13} className="text-ember flex-shrink-0 self-center" />
-                <span className="text-lg font-bold text-ink">{movementActiveCalories}</span>
-                <span className="text-xs text-ink/40">kcal activas</span>
-              </div>
-              <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                <div className="bg-moss h-1.5 rounded-full" style={{ width: `${activeCaloriesPct}%` }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-ink/30">de {ACTIVE_CALORIES_GOAL}</span>
-                <span className="text-[10px] text-ink/30">{activeCaloriesPct}%</span>
-              </div>
-            </button>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs text-ink/60 font-medium">{dayCaption}</p>
+            <p className="text-lg font-bold text-ink leading-tight">{dayLabel}</p>
           </div>
+          {syncLabel && (
+            <button
+              type="button"
+              onClick={refreshNow}
+              disabled={syncing}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] text-ink/60 shadow-card active:scale-95 transition-transform"
+              aria-label="Sincronizar ahora"
+            >
+              <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
+              COROS · {syncing ? 'sincronizando…' : syncLabel}
+            </button>
+          )}
         </div>
 
-        {/* ── Alimentación ──────────────────────────────────── */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-            Alimentación hoy
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowAlimentacionSheet(true)}
-            disabled={!dailyNutrition}
-            className="w-full text-left disabled:cursor-default"
-          >
-            {dailyNutrition ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <div className="flex items-baseline gap-1">
-                    <UtensilsCrossed size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                    <span className="text-lg font-bold text-ink">{dailyNutrition.totalCalories.toLocaleString('es-ES')}</span>
-                    <span className="text-xs text-ink/40">kcal</span>
-                  </div>
-                  <div className="w-full bg-ink/[0.08] rounded-full h-1.5">
-                    <div className="bg-moss h-1.5 rounded-full" style={{ width: `${Math.min(dailyNutrition.caloriesProgressPercent, 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-ink/50">Consumidas</p>
-                  <p className="text-[10px] text-ink/30">de {dailyNutrition.caloriesTarget.toLocaleString('es-ES')} objetivo</p>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-baseline gap-1">
-                    <Scale size={13} className="text-ink/40 flex-shrink-0 self-center" />
-                    <span className={`text-lg font-bold ${nutritionBalance >= 0 ? 'text-ember' : 'text-moss'}`}>
-                      {nutritionBalance >= 0 ? '+' : ''}{nutritionBalance}
-                    </span>
-                    <span className="text-xs text-ink/40">kcal</span>
-                  </div>
-                  <p className="text-xs text-ink/50">Equilibrio</p>
-                  <p className="text-[10px] text-ink/30">{totalCaloriesOut.toLocaleString('es-ES')} kcal gastadas</p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-2 text-center">
-                <p className="text-sm text-ink/30">Sin registros hoy</p>
-                <p className="text-xs text-ink/20 mt-0.5">Añade tu primera comida</p>
-              </div>
-            )}
-          </button>
-        </div>
-
-        {/* ── Activities detail ─────────────────────────────── */}
-        {dayActivities.length > 0 && planEntries.length === 0 && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Actividades
-            </p>
-            <div className="space-y-3">
-              {dayActivities.map((act) => (
-                <ActivityCard
-                  key={act.id}
-                  act={act}
-                  onTap={setDetailActivity}
-                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
-                  onDelete={(id) => RecoveryService.deleteActivity(id)}
-                />
-              ))}
-            </div>
-          </div>
+        {/* ── Estado del día ────────────────────────────────── */}
+        {!isFuture && (
+          <DayScoreCard
+            selectedDate={selectedDate}
+            onNavToProgreso={onNavToProgreso}
+            hasActiveInjuries={activeInjuries.length > 0}
+            todayWeightKg={todayWeight?.weightKg ?? null}
+            onAddSleep={() => setShowSleepSheet(true)}
+            onAddWeight={() => setShowWeightSheet(true)}
+            onAddPain={() => setShowDolorSheet(true)}
+            isToday={isToday}
+            sleepAvgH={sleepAvgH}
+            plannedToday={isToday ? pendingSessionLabels : []}
+          />
         )}
 
-        {/* ── Recuperación (COROS) ──────────────────────────── */}
-        {hasRecoveryData && (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
-              Recuperación
-            </p>
-            <div className="rounded-4xl bg-white shadow-card px-5 py-4 flex items-center justify-between gap-2">
-              {todayMovement?.hrv != null && (
-                <div className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
-                    <HeartPulse size={15} className="text-moss" />
-                  </div>
-                  <p className="text-base font-bold text-ink leading-none">{todayMovement.hrv}</p>
-                  <p className="text-[10px] text-ink/40 leading-none">HRV (ms)</p>
-                </div>
-              )}
-              {todayMovement?.restingHeartRate != null && (
-                <div className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
-                    <Heart size={15} className="text-ember" />
-                  </div>
-                  <p className="text-base font-bold text-ink leading-none">{todayMovement.restingHeartRate}</p>
-                  <p className="text-[10px] text-ink/40 leading-none">FC reposo</p>
-                </div>
-              )}
-              {todayMovement?.stressAvg != null && (
-                <div className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="h-9 w-9 rounded-xl bg-canvas flex items-center justify-center">
-                    <Gauge size={15} className="text-ink/50" />
-                  </div>
-                  <p className="text-base font-bold text-ink leading-none">{todayMovement.stressAvg}</p>
-                  <p className="text-[10px] text-ink/40 leading-none">Estrés</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* ── Registro rápido ───────────────────────────────── */}
+        {!isFuture && (
+          <TodayQuickLog
+            items={quickLog}
+            title={hasMissing ? (isToday ? 'Te falta registrar' : 'Sin registrar este día') : 'Registrar'}
+          />
         )}
 
         {/* ── Tu día ────────────────────────────────────────── */}
-        {(plannedActivityRows.length > 0 || taskRows.length > 0) && (
+        {(plannedActivityRows.length > 0 || taskRows.length > 0) ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30">
-                Tu día
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/50">
+                {isToday ? 'Tu día' : isFuture ? 'Plan del día' : 'Plan del día'}
               </p>
-              {pendingCount > 0 && (
-                <span className="text-xs text-ink/30">{pendingCount} pendiente{pendingCount === 1 ? '' : 's'}</span>
+              {pendingCount > 0 && !isFuture && (
+                <span className="text-xs text-ink/60">
+                  {isPast ? `${pendingCount} sin hacer` : `${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}`}
+                </span>
               )}
             </div>
-            <div className="border-t border-ink/5" />
-            <div>
+            <div className="rounded-4xl bg-white shadow-card p-2">
               {plannedActivityRows.map(({ entry, matchedActivity }, index) => {
                 const isDone = entry.type === 'rehab' ? hasRehab : !!matchedActivity;
                 const isPriority = entry.type === 'rehab' && !!phaseInjury;
@@ -490,30 +462,30 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                       setPrefillActivity({ type: entry.type, muscleGroups: entry.muscleGroups });
                       setShowAddActivity(true);
                     }}
-                    className={`w-full flex items-start gap-3 px-4 py-3.5 text-left rounded-3xl transition-all ${
-                      isPriority ? 'bg-white shadow-card my-1' : 'border-b border-ink/5 last:border-b-0'
+                    className={`w-full flex items-start gap-3 px-3 py-3.5 text-left rounded-3xl transition-all border-b border-ink/5 last:border-b-0 ${
+                      isPriority ? 'bg-canvas-light' : ''
                     }`}
                   >
                     <div className={`h-[22px] w-[22px] mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      isDone ? 'bg-moss' : 'border-[1.5px] border-ink/15'
+                      isDone ? 'bg-moss' : isPast ? 'border-[1.5px] border-ember/50' : 'border-[1.5px] border-ink/20'
                     }`}>
                       {isDone && <Check size={11} strokeWidth={2.5} className="text-white" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      {entry.time && <p className="text-xs text-ink/40 leading-none mb-1">{entry.time}</p>}
+                      {entry.time && <p className="text-xs text-ink/60 leading-none mb-1">{entry.time}</p>}
                       <div className="flex items-center gap-1.5">
-                        <p className={`text-sm font-semibold leading-snug ${isDone ? 'text-ink' : 'text-ink/70'}`}>
+                        <p className={`text-sm font-semibold leading-snug ${isDone ? 'text-ink' : 'text-ink/80'}`}>
                           {entry.label}
                         </p>
                         {isPriority && (
-                          <span className="text-[9px] font-bold uppercase tracking-wide text-ink/50 bg-canvas rounded-full px-1.5 py-0.5 flex-shrink-0">
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-ink/60 bg-canvas rounded-full px-1.5 py-0.5 flex-shrink-0">
                             Prioridad
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-ink/40 mt-0.5">{detailLine}</p>
+                      <p className="text-xs text-ink/60 mt-0.5">{detailLine}</p>
                     </div>
-                    {isAuto && <span className="text-[10px] text-ink/25 flex-shrink-0 mt-0.5">auto</span>}
+                    {isAuto && <span className="text-[10px] text-ink/40 flex-shrink-0 mt-0.5">auto</span>}
                   </button>
                 );
               })}
@@ -523,21 +495,99 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                   key={`task-${entry.id}`}
                   type="button"
                   onClick={() => PlanService.updatePlanEntry(selectedDate, index, { ...entry, completed: !entry.completed })}
-                  className="w-full flex items-start gap-3 px-4 py-3.5 text-left rounded-3xl border-b border-ink/5 last:border-b-0"
+                  className="w-full flex items-start gap-3 px-3 py-3.5 text-left rounded-3xl border-b border-ink/5 last:border-b-0"
                 >
                   <div className={`h-[22px] w-[22px] mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    entry.completed ? 'bg-moss' : 'border-[1.5px] border-ink/15'
+                    entry.completed ? 'bg-moss' : 'border-[1.5px] border-ink/20'
                   }`}>
                     {entry.completed && <Check size={11} strokeWidth={2.5} className="text-white" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    {entry.time && <p className="text-xs text-ink/40 leading-none mb-1">{entry.time}</p>}
-                    <p className={`text-sm font-semibold leading-snug ${entry.completed ? 'text-ink' : 'text-ink/70'}`}>
+                    {entry.time && <p className="text-xs text-ink/60 leading-none mb-1">{entry.time}</p>}
+                    <p className={`text-sm font-semibold leading-snug ${entry.completed ? 'text-ink' : 'text-ink/80'}`}>
                       {entry.label}
                     </p>
-                    <p className="text-xs text-ink/40 mt-0.5">{entry.subtitle || 'Sin hora fijada'}</p>
+                    <p className="text-xs text-ink/60 mt-0.5">{entry.subtitle || 'Sin hora fijada'}</p>
                   </div>
                 </button>
+              ))}
+            </div>
+          </div>
+        ) : !isPast && (
+          <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/50">
+              {isToday ? 'Tu día' : 'Plan del día'}
+            </p>
+            <p className="text-sm font-semibold text-ink">{isToday ? 'Sin plan para hoy' : 'Nada planificado este día'}</p>
+            <div className="flex flex-wrap gap-2">
+              {onNavToPlan && (
+                <button
+                  type="button"
+                  onClick={onNavToPlan}
+                  className="rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white active:scale-95 transition-transform"
+                >
+                  Planificar
+                </button>
+              )}
+              {isToday && (
+                <button
+                  type="button"
+                  onClick={() => { setEditActivity(undefined); setPrefillActivity(undefined); setShowAddActivity(true); }}
+                  className="flex items-center gap-1.5 rounded-full bg-canvas px-4 py-2.5 text-xs font-semibold text-ink active:scale-95 transition-transform"
+                >
+                  <Plus size={13} strokeWidth={2.5} /> Registrar actividad
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Movimiento / Alimentación / Recuperación ──────── */}
+        {!isFuture && (
+          <>
+            <TodayMovementCard
+              steps={movementSteps}
+              stepsGoal={STEPS_GOAL}
+              activeCalories={movementActiveCalories}
+              caloriesGoal={ACTIVE_CALORIES_GOAL}
+              onOpenSteps={() => setShowPasosSheet(true)}
+              onOpenCalories={() => setShowKcalSheet(true)}
+            />
+
+            <TodayNutritionCard
+              dailyNutrition={dailyNutrition}
+              caloriesOut={totalCaloriesOut}
+              isToday={isToday}
+              onOpenDetail={() => dailyNutrition ? setShowAlimentacionSheet(true) : setShowAddMeal(true)}
+              onAddMeal={() => setShowAddMeal(true)}
+            />
+
+            {hasRecoveryData && (
+              <TodayRecoveryCard
+                hrv={todayMovement?.hrv}
+                restingHeartRate={todayMovement?.restingHeartRate}
+                stressAvg={todayMovement?.stressAvg}
+                baseline={recoveryBaseline}
+              />
+            )}
+          </>
+        )}
+
+        {/* ── Actividades ───────────────────────────────────── */}
+        {!isFuture && extraActivities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/50 px-1">
+              {plannedActivityRows.length > 0 ? 'Otras actividades' : 'Actividades'}
+            </p>
+            <div className="space-y-3">
+              {extraActivities.map((act) => (
+                <ActivityCard
+                  key={act.id}
+                  act={act}
+                  onTap={setDetailActivity}
+                  onEdit={(a) => { setEditActivity(a); setShowAddActivity(true); }}
+                  onDelete={(id) => RecoveryService.deleteActivity(id)}
+                />
               ))}
             </div>
           </div>
@@ -546,7 +596,7 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
         {/* ── Lo que importa esta semana ───────────────────── */}
         {phaseInjury && (
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/30 px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink/50 px-1">
               Lo que importa esta semana
             </p>
             <div className="rounded-4xl bg-white shadow-card p-5 space-y-3">
@@ -554,13 +604,13 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
                 <div>
                   <p className="text-base font-bold text-ink">{phaseInjury.name} · {phaseInjury.phaseLabel}</p>
                   {activeProgram && (
-                    <p className="text-xs text-ink/40 mt-0.5">
+                    <p className="text-xs text-ink/60 mt-0.5">
                       Semana {activeProgram.currentWeek} de {activeProgram.totalWeeks}
                     </p>
                   )}
                 </div>
                 {phaseInjury.phaseTargetSessions != null && (
-                  <p className="text-sm font-semibold text-ink/50">
+                  <p className="text-sm font-semibold text-ink/60">
                     {phaseCompletedSessions}/{phaseInjury.phaseTargetSessions}
                   </p>
                 )}
@@ -577,31 +627,30 @@ export function TodayScreen({ onNavToProgreso }: { onNavToActividades?: () => vo
               )}
               {rehabPlanEntry && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-ink/50">
+                  <span className="text-ink/60">
                     Próxima: {rehabPlanEntry.label}{rehabPlanEntry.time ? ` · hoy ${rehabPlanEntry.time}` : ''}
                   </span>
                   {phaseInjury.phaseTargetSessions != null && (
-                    <span className="text-ink/50 font-semibold">
+                    <span className="text-ink/60 font-semibold">
                       {Math.round((phaseCompletedSessions / phaseInjury.phaseTargetSessions) * 100)}%
                     </span>
                   )}
                 </div>
               )}
-              <p className="text-xs text-ink/40">{phaseTipText}</p>
+              <p className="text-xs text-ink/60">{phaseTipText}</p>
             </div>
           </div>
         )}
 
         {/* ── Lo que he visto ───────────────────────────────── */}
-        <div className="rounded-4xl bg-ink p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-xl bg-white/10 flex items-center justify-center">
-              <Sparkles size={14} className="text-white" />
-            </div>
-            <p className="text-xs font-semibold text-white/50 uppercase tracking-widest">Lo que he visto</p>
-          </div>
-          <p className="text-sm text-white/90 leading-relaxed">{insight}</p>
-        </div>
+        {!isFuture && (
+          <TodayInsightCard
+            date={selectedDate}
+            ruleInsight={insight}
+            isToday={isToday}
+            onAskAgent={onAskAgent}
+          />
+        )}
 
       </div>
 
