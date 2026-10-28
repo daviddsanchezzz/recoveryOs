@@ -7,7 +7,8 @@ import { useRecoveryStore } from '../stores/recovery-store';
 import { AvatarDrawer } from './avatar-drawer';
 import { NotificationPanel } from './notification-panel';
 import { getJson } from '../lib/api';
-import { calculateLoggingStreak } from '../lib/metrics';
+import { calculateActivityStreak } from '../lib/metrics';
+import { RecoveryService } from '../lib/services';
 
 export function GlobalHeader() {
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -16,10 +17,20 @@ export function GlobalHeader() {
 
   const user    = useSessionStore((s) => s.user);
   const profile = useRecoveryStore((s) => s.profile);
-  const { weightEntries, sleepEntries, activities, injuryLogs, dailyHealthMetrics } = useRecoveryStore();
-  const streak = calculateLoggingStreak({
-    weights: weightEntries, sleep: sleepEntries, activities, injuryLogs, healthMetrics: dailyHealthMetrics,
-  });
+  const activities = useRecoveryStore((s) => s.activities);
+  const [historyDates, setHistoryDates] = useState<string[]>([]);
+
+  // The store only holds recent activities, so load the last year to count the streak properly.
+  useEffect(() => {
+    if (!user) return;
+    const since = new Date();
+    since.setDate(since.getDate() - 400);
+    void RecoveryService.fetchActivitiesFrom(user.id, since)
+      .then((items) => setHistoryDates(items.map((a) => a.date)))
+      .catch(() => {});
+  }, [user]);
+
+  const streak = calculateActivityStreak([...historyDates, ...activities.map((a) => a.date)]);
 
   useEffect(() => {
     if (!user) return;
@@ -78,7 +89,7 @@ export function GlobalHeader() {
           {streak > 0 && (
             <div
               className="ml-auto flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-card"
-              aria-label={`Racha de ${streak} días registrando`}
+              aria-label={`${streak} días seguidos con actividad`}
             >
               <Flame size={14} className="text-ember" />
               <span className="text-xs font-bold text-ink">{streak}</span>

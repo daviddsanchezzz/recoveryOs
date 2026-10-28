@@ -139,23 +139,9 @@ export function buildRuleBasedInsight(input: {
 }
 
 
-/** Consecutive days with any registered data. Today not being logged yet does not break the streak. */
-export function calculateLoggingStreak(input: {
-  weights: { date: string }[];
-  sleep: { date: string }[];
-  activities: { date: string }[];
-  injuryLogs: { date: string }[];
-  healthMetrics: { date: string; steps: number; activeCalories: number }[];
-}) {
-  const days = new Set<string>();
-  for (const e of input.weights) days.add(e.date.slice(0, 10));
-  for (const e of input.sleep) days.add(e.date.slice(0, 10));
-  for (const e of input.activities) days.add(e.date.slice(0, 10));
-  for (const e of input.injuryLogs) days.add(e.date.slice(0, 10));
-  for (const e of input.healthMetrics) {
-    if (e.steps > 0 || e.activeCalories > 0) days.add(e.date.slice(0, 10));
-  }
-
+/** Consecutive days with at least one activity. Today not having one yet does not break the streak. */
+export function calculateActivityStreak(activityDates: string[]) {
+  const days = new Set(activityDates.map((date) => date.slice(0, 10)));
   const today = todayIso();
   let cursor = days.has(today) ? today : addDays(today, -1);
   let streak = 0;
